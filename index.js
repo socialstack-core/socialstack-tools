@@ -31,6 +31,7 @@ function mapArgs()
 		{name: 'watch', alias: 'w'},
 		{name: 'install', alias: 'i'},
 		{name: 'init'},
+		{name: 'interactive'},
 		{name: 'render', alias: 'r'}
 	];
 	
@@ -129,20 +130,34 @@ module.exports = (config) => {
 	
 }
 
-function start(config){
+function watchOrBuild(config, isWatch){
 	
-	var isWatch = config.commandLine.command == 'watch';
+	// Site UI:
+	var sourceDir = config.projectRoot + '/UI/Source';
+	var outputDir = config.projectRoot + '/UI/public/pack/';
+	var moduleName = 'UI';
 	
-	if(isWatch || config.commandLine.command == 'buildui'){
+	var builder = require('./buildwatch/index.js');
+	
+	var uiPromise = builder[isWatch ? 'watch' : 'build']({
+		sourceDir,
+		moduleName,
+		outputStaticPath: outputDir + 'modules/',
+		outputCssPath: outputDir + 'styles.css',
+		outputJsPath: outputDir + 'main.generated.js'
+	});
+	
+	uiPromise.then(uiMap => {
 		
-		// Site UI:
-		var sourceDir = config.projectRoot + '/UI/Source';
-		var outputDir = config.projectRoot + '/UI/public/pack/';
-		var moduleName = 'UI';
+		// Admin panel (depends on UI modules):
+		sourceDir = config.projectRoot + '/Admin/Source';
+		outputDir = config.projectRoot + '/Admin/public/en-admin/pack/';
+		moduleName = 'Admin';
 		
 		var builder = require('./buildwatch/index.js');
 		
-		var uiPromise = builder[isWatch ? 'watch' : 'build']({
+		builder[isWatch ? 'watch' : 'build']({
+			include: [uiMap],
 			sourceDir,
 			moduleName,
 			outputStaticPath: outputDir + 'modules/',
@@ -150,36 +165,81 @@ function start(config){
 			outputJsPath: outputDir + 'main.generated.js'
 		});
 		
-		uiPromise.then(uiMap => {
-			
-			// Admin panel (depends on UI modules):
-			sourceDir = config.projectRoot + '/Admin/Source';
-			outputDir = config.projectRoot + '/Admin/public/en-admin/pack/';
-			moduleName = 'Admin';
-			
-			var builder = require('./buildwatch/index.js');
-			
-			builder[isWatch ? 'watch' : 'build']({
-				include: [uiMap],
-				sourceDir,
-				moduleName,
-				outputStaticPath: outputDir + 'modules/',
-				outputCssPath: outputDir + 'styles.css',
-				outputJsPath: outputDir + 'main.generated.js'
-			});
-			
-		});
+	});
+	
+}
+
+function start(config){
+	
+	var isWatch = config.commandLine.command == 'watch';
+	
+	if(isWatch || config.commandLine.command == 'buildui'){
+		
+		watchOrBuild(config, isWatch);
 		
 	}else if(config.commandLine.command == 'render'){
-		// Renders UI's serverside.
+		// Renders UI's (this typically actually happens over the interactive mode below).
 		
 		var serverrender = require('./serverrender/index.js');
 		
-		var renderer= serverrender.getRenderer(config);
+		var renderer = serverrender.getRenderer(config);
 		
-		var home = renderer.render('/');
+		// (url/ canvas are optional - only need one or the other):
+		var url = config.commandLine.url;
+		var canvas = config.commandLine.canvas;
+		
+		if(!url && !canvas){
+			console.error("Please provide either -url or -canvas to render.");
+		}
+		
+		if(url){
+			url = url[0];
+		}
+		
+		if(canvas){
+			canvas = canvas[0];
+		}
+		
+		var home = renderer.render({url, canvas, context:{}});
 		
 		console.log(home);
+		
+	}else if(config.commandLine.command == 'interactive'){
+		// Interactive mode. We'll send and receive data over a raw TCP socket.
+		// This node process is the server.
+		
+		var port = 17061;
+		
+		var serverrender = require('./serverrender/index.js');
+		
+		var renderer = serverrender.getRenderer(config);
+		
+		if(config.commandLine.p){
+			port = config.commandLine.p[0];
+		}
+		
+		var interactive = require('./interactive/server.js');
+		
+		interactive({port, onRequest: function(message){
+			
+			var action = message.request.action;
+			
+			if(action == "render"){
+				// Render the page now (url/ canvas are optional - only need one or the other):
+				var page = renderer.render({
+					url: message.request.url,
+					canvas: message.request.canvas,
+					context: message.request.context
+				});
+				
+				// Send the response:
+				message.response(page);
+			}else if(action == "watch"){
+				watchOrBuild(config, true);
+				message.response({success: true});
+			}
+			
+		}});
 		
 	}
 	
