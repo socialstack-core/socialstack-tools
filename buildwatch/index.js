@@ -1,6 +1,6 @@
 var Babel = require("@babel/standalone");
 var fs = require('fs');
-var sass = require('node-sass');
+var sass = require('sass');
 var path = require('path');
 var mkdir = require('./mkdir-recursive.js');
 
