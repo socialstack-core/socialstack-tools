@@ -5,9 +5,17 @@ function loadFrontend(config){
 	// The JS file is at..
 	var jsFile = config.projectRoot + '/UI/public/pack/main.generated.js';
 	
-	// Go get the JS now (frontend will be set to whatever it exposes to the 'global' scope):
-	var frontend = require(jsFile);
+		var frontend;
 	
+	try{
+		// Go get the JS now (frontend will be set to whatever it exposes to the 'global' scope):
+		frontend = require(jsFile);
+	}catch(e){
+		console.log('[WARN] Your frontend JS fails to load: ' + e.toString());
+		return {
+			failed: e
+		};
+	}
 	frontend.title = '';
 	
 	frontend.location = {
@@ -32,12 +40,24 @@ function getRenderer(config){
 	
 	// Load the frontend JS:
 	var frontend = loadFrontend(config);
-	var React = frontend.React;
 	
 	return {
 		render: function(config){
 			
 			// Url/ Canvas are optional (use one or the other).
+			if(frontend.failed){
+				// Try loading it again:
+				frontend = loadFrontend(config);
+				
+				if(frontend.failed){
+					// frontend JS is faulty. Fail now.
+					return {
+						failed: 'Your frontend JS throws errors, so we can\'t use it to e.g. render your emails: ' + frontend.failed,
+						html: null,
+						meta: {}
+					};
+				}
+			}
 			
 			frontend.window.location = {
 				pathname: config.url
@@ -59,7 +79,12 @@ function getRenderer(config){
 					canvasInstance
 				);
 				*/
-				html = "Rendering URLs is not quite ready yet!";
+				
+				return {
+					failed: 'Rendering URLs is not quite ready yet!',
+					html: null,
+					meta: {}
+				};
 			}
 			
 			return {
