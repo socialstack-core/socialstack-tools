@@ -128,6 +128,16 @@ module.exports = (config) => {
 			process.exit();
 		});
 		
+		socket.on('end', function(){
+			// They disconnected - terminate now:
+			process.exit();
+		});
+		
+		socket.on('error', function(){
+			// They disconnected - terminate now:
+			process.exit();
+		});
+		
 	});
 	
 	server.listen(config.port, 'localhost', function(){
