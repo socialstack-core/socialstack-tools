@@ -536,67 +536,73 @@ function watch(config){
 		
 		nodeWatch(config.sourceDir, function(changeType, entry){
 			
-			if(!entry){
-				return;
-			}
-			
-			var modulePathWithName = config.moduleName + '/' + entry.replace(/\\/g, '/');
-			
-			var parts = modulePathWithName.split('/');
-			modulePathWithName = '';
-			for(var i=0;i<parts.length;i++){
-				if(parts[i].toLowerCase() == 'thirdparty'){
-					continue;
+			setTimeout(function(){
+				
+				if(!entry){
+					entry = changeType;
 				}
 				
-				if(modulePathWithName != ''){
-					modulePathWithName += '/';
-				}
+				var modulePathWithName = config.moduleName + '/' + entry.replace(/\\/g, '/');
 				
-				modulePathWithName += parts[i];
-			}
-			
-			var fileParts = entry.replace(/\\/g, '/').split('/');
-			var fileName = fileParts[fileParts.length-1];
-			var lastDirectory = fileParts.length>1 ? fileParts[fileParts.length-2] : '';
-			
-			var isJs = entry.endsWith('.js') || (entry == lastDirectory + '.json');
-			var isCss = entry.endsWith('.scss') || entry.endsWith('.css');
-			
-			if (changeType == 'rename' || changeType == 'delete') {
-				// Remove from the module lookup:
-				if(map[modulePathWithName]){
-					delete map[modulePathWithName];
-					buildOutput(map, {js: isJs, css: isCss});
-				}
-				
-			} else if(changeType == 'change') {
-				
-				var fullPath = config.sourceDir + '/' + entry;
-				var modulePath = path.dirname(modulePathWithName);
-				
-				// If it's a file we need to compile:
-				if(isJs || isCss){
+				var parts = modulePathWithName.split('/');
+				modulePathWithName = '';
+				for(var i=0;i<parts.length;i++){
+					if(parts[i].toLowerCase() == 'thirdparty'){
+						continue;
+					}
 					
-					addToMap(
-						map,
-						fullPath,
-						modulePath,
-						fileName,
-						config.moduleNames,
-						lastDirectory,
-						function(){
-							buildOutput(map, {js: isJs, css: isCss});
-						}
-					);
+					if(modulePathWithName != ''){
+						modulePathWithName += '/';
+					}
 					
-				}else{
-					// Static file copy:
-					copyStaticFile(fullPath, config.outputStaticPath + modulePath.toLowerCase() + '/' + fileName, false, function(){
-						console.log(modulePath + '/' + fileName + ' copied to public directory as static content.');
-					});
+					modulePathWithName += parts[i];
 				}
-			}
+				
+				var fileParts = entry.replace(/\\/g, '/').split('/');
+				var fileName = fileParts[fileParts.length-1];
+				var lastDirectory = fileParts.length>1 ? fileParts[fileParts.length-2] : '';
+				
+				var isJs = entry.endsWith('.js') || (entry == lastDirectory + '.json');
+				var isCss = entry.endsWith('.scss') || entry.endsWith('.css');
+				
+				var exists = fs.existsSync(entry);
+				
+				if (!exists) {
+					// Remove from the module lookup:
+					if(map[modulePathWithName]){
+						delete map[modulePathWithName];
+						buildOutput(map, {js: isJs, css: isCss});
+					}
+					
+				} else {
+					
+					var fullPath = config.sourceDir + '/' + entry;
+					var modulePath = path.dirname(modulePathWithName);
+					
+					// If it's a file we need to compile:
+					if(isJs || isCss){
+						
+						addToMap(
+							map,
+							fullPath,
+							modulePath,
+							fileName,
+							config.moduleNames,
+							lastDirectory,
+							function(){
+								buildOutput(map, {js: isJs, css: isCss});
+							}
+						);
+						
+					}else{
+						// Static file copy:
+						copyStaticFile(fullPath, config.outputStaticPath + modulePath.toLowerCase() + '/' + fileName, false, function(){
+							console.log(modulePath + '/' + fileName + ' copied to public directory as static content.');
+						});
+					}
+				}
+			
+			}, 80); // 80ms debounce
 		});
 		
 		return map;

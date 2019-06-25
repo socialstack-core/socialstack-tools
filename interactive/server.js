@@ -92,9 +92,9 @@ module.exports = (config) => {
 				try{
 					requestMessage = JSON.parse(chunk.slice(offset, offset + payloadSize).toString());
 				}catch(e){
-					// The client has probably gone out of sync. Kill the link (and not our process!)
+					// The client has probably gone out of sync. Kill the link (and our process)
 					console.log(e);
-					socket.close();
+					process.exit();
 					return;
 				}
 				
@@ -125,7 +125,7 @@ module.exports = (config) => {
 		
 		socket.on('close', function(){
 			// They disconnected - terminate now:
-			server.close();
+			process.exit();
 		});
 		
 	});
