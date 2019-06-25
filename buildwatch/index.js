@@ -542,6 +542,8 @@ function watch(config){
 					entry = changeType;
 				}
 				
+				var exists = fs.existsSync(entry);
+				
 				entry = entry.substring(config.sourceDir.length);
 				
 				var modulePathWithName = config.moduleName + '/' + entry.replace(/\\/g, '/');
@@ -566,8 +568,6 @@ function watch(config){
 				
 				var isJs = entry.endsWith('.js') || (entry == lastDirectory + '.json');
 				var isCss = entry.endsWith('.scss') || entry.endsWith('.css');
-				
-				var exists = fs.existsSync(entry);
 				
 				if (!exists) {
 					// Remove from the module lookup:
