@@ -542,6 +542,8 @@ function watch(config){
 					entry = changeType;
 				}
 				
+				entry = entry.substring(config.sourceDir.length);
+				
 				var modulePathWithName = config.moduleName + '/' + entry.replace(/\\/g, '/');
 				
 				var parts = modulePathWithName.split('/');
