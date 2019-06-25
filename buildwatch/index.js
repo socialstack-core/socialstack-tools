@@ -2,7 +2,7 @@ var Babel = require("@babel/standalone");
 var fs = require('fs');
 var sass = require('sass');
 var path = require('path');
-var nodeWatch = require('node-watch');
+var nodeWatch = require('recursive-watch');
 var mkdir = require('./mkdir-recursive.js');
 
 function mapPathString(nodePath, state) {
@@ -534,7 +534,7 @@ function build(config){
 function watch(config){
 	return build(config).then(map => {
 		
-		nodeWatch(config.sourceDir, {recursive: true}, function(changeType, entry){
+		nodeWatch(config.sourceDir, function(changeType, entry){
 			
 			if(!entry){
 				return;
