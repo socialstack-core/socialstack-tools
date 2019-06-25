@@ -544,7 +544,7 @@ function watch(config){
 				
 				var exists = fs.existsSync(entry);
 				
-				entry = entry.substring(config.sourceDir.length);
+				entry = entry.substring(config.sourceDir.length + 1);
 				
 				var modulePathWithName = config.moduleName + '/' + entry.replace(/\\/g, '/');
 				
