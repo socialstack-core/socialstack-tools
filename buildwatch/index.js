@@ -626,10 +626,10 @@ function buildOutput(map, filesToBuild){
 			var fileContent = map.modules[key].content;
 			
 			jsFile += '\r\n__mm[\'' + key + '\'] = {call:(function(){';
-			jsFile += 'var exports = {};';
+			jsFile += 'var module={};var exports = {};module.exports=exports;';
 			jsFile += fileContent;
 			
-			jsFile += 'return exports;';
+			jsFile += 'return module.exports;';
 			jsFile += '})};\r\n';
 			
 		}
