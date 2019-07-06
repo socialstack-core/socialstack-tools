@@ -277,7 +277,7 @@ function remapScssUrls(scss, baseLocalUrl){
 }
 
 function addToMap(map, fullPath, modulePath, fileName, moduleNames, lastDirectory, onDone){
-	if(fileName.endsWith('.scss') ||  fileName.endsWith('.css')) {
+	if((fileName.endsWith('.scss') ||  fileName.endsWith('.css')) && modulePath.indexOf('/static/') == -1) {
 		// If the filename contains a number, add to style group x.
 		var parts = fileName.split('.');
 		var styleGroup = null;
@@ -567,7 +567,7 @@ function watch(config){
 				var lastDirectory = fileParts.length>1 ? fileParts[fileParts.length-2] : '';
 				
 				var isJs = entry.endsWith('.js') || (entry == lastDirectory + '.json');
-				var isCss = entry.endsWith('.scss') || entry.endsWith('.css');
+				var isCss = (entry.endsWith('.scss') || entry.endsWith('.css')) && modulePath.indexOf('/static/') == -1;
 				
 				if (!exists) {
 					// Remove from the module lookup:
