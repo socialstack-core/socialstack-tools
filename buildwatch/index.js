@@ -567,7 +567,7 @@ function watch(config){
 				var lastDirectory = fileParts.length>1 ? fileParts[fileParts.length-2] : '';
 				
 				var isJs = entry.endsWith('.js') || (entry == lastDirectory + '.json');
-				var isCss = (entry.endsWith('.scss') || entry.endsWith('.css')) && modulePath.indexOf('/static/') == -1;
+				var isCss = (entry.endsWith('.scss') || entry.endsWith('.css')) && modulePathWithName.indexOf('/static/') == -1;
 				
 				if (!exists) {
 					// Remove from the module lookup:
