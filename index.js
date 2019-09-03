@@ -29,6 +29,7 @@ function mapArgs()
 	
 	var commandOps = [
 		{name: 'watch', alias: 'w'},
+		{name: 'buildui', alias: 'b'},
 		{name: 'install', alias: 'i'},
 		{name: 'init'},
 		{name: 'interactive'},
