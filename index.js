@@ -143,6 +143,7 @@ function watchOrBuild(config, isWatch){
 	var uiPromise = builder[isWatch ? 'watch' : 'build']({
 		sourceDir,
 		moduleName,
+		relativePaths: config.relativePaths,
 		outputStaticPath: outputDir + 'modules/',
 		outputCssPath: outputDir + 'styles.css',
 		outputJsPath: outputDir + 'main.generated.js'
@@ -161,6 +162,7 @@ function watchOrBuild(config, isWatch){
 			include: [uiMap],
 			sourceDir,
 			moduleName,
+			relativePaths: config.relativePaths,
 			outputStaticPath: outputDir + 'modules/',
 			outputCssPath: outputDir + 'styles.css',
 			outputJsPath: outputDir + 'main.generated.js'
