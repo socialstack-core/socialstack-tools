@@ -119,13 +119,16 @@ const visitor = {
 	},
 };
 
-function mapUrl(map, srcUrl){
-	var part = 'pack/modules/' + srcUrl;
+function mapUrl(map, srcUrl, inPackDir){
 	if(map.config.relativePaths){
-		return part;
+		if(inPackDir){
+			return 'modules/' + srcUrl;
+		}else{
+			return 'pack/modules/' + srcUrl;
+		}
 	}
 	
-	return '/' + part;
+	return '/pack/modules/' + srcUrl;
 }
 
 function transpile(map, text, modulePath, moduleNames){
@@ -312,7 +315,7 @@ function addToMap(map, fullPath, modulePath, fileName, moduleNames, lastDirector
 			map.styleModules[scssModulePath] = data;
 			
 			// At this point we'll remap url(..) like this:
-			data.content = remapScssUrls(data.content, mapUrl(map, modulePath.toLowerCase() + '/'));
+			data.content = remapScssUrls(data.content, mapUrl(map, modulePath.toLowerCase() + '/', true));
 			
 			if(map.includedBy){
 				map.includedBy.forEach(inclIn => inclIn.styleModules[scssModulePath] = data);
