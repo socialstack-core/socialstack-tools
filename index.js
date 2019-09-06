@@ -176,6 +176,10 @@ function start(config){
 	
 	if(isWatch || config.commandLine.command == 'buildui'){
 		
+		if(config.commandLine.relativePaths){
+			config.relativePaths = true;
+		}
+		
 		watchOrBuild(config, isWatch);
 		
 	}else if(config.commandLine.command == 'render'){

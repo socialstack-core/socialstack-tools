@@ -47,7 +47,7 @@ function mapPathString(nodePath, state) {
 				
 				builtPath.pop();
 				
-				var targetUrl = '/pack/modules/' + builtPath.join('/').toLowerCase() + '/' + lastPart;
+				var targetUrl = mapUrl(state.map, builtPath.join('/').toLowerCase() + '/' + lastPart);
 				var targetLocal = nodePath.parent.specifiers[0].local;
 				
 				nodePath.parentPath.replaceWith(
@@ -119,7 +119,16 @@ const visitor = {
 	},
 };
 
-function transpile(text, modulePath, moduleNames){
+function mapUrl(map, srcUrl){
+	var part = 'pack/modules/' + srcUrl;
+	if(map.config.relativePaths){
+		return part;
+	}
+	
+	return '/' + part;
+}
+
+function transpile(map, text, modulePath, moduleNames){
 	var fileModulePathParts = modulePath.split('/');
 	fileModulePathParts.pop();
 	
@@ -134,6 +143,7 @@ function transpile(text, modulePath, moduleNames){
 
 		pre(file) {
 			this.types = types;
+			this.map = map;
 			this.moduleNames = moduleNames;
 			this.fileModulePathParts = fileModulePathParts;
 			this.moduleResolverVisited = {};
@@ -176,14 +186,14 @@ function sassTranspile(fileContent, modulePath){
 	}
 }
 
-function loadFromFile(filePath, modulePath, useRaw, moduleNames, onLoaded) {
+function loadFromFile(map, filePath, modulePath, useRaw, moduleNames, onLoaded) {
 	
 	fs.readFile(filePath, {encoding: 'utf8'}, function(err, fileContent){
 		
 		onLoaded({
 			filePath,
 			modulePath,
-			content: useRaw ? fileContent : transpile(fileContent, modulePath, moduleNames)
+			content: useRaw ? fileContent : transpile(map, fileContent, modulePath, moduleNames)
 		});
 		
 	});
@@ -295,14 +305,14 @@ function addToMap(map, fullPath, modulePath, fileName, moduleNames, lastDirector
 		
 		// SASS transpile has to happen in one go for included variables to work correctly
 		
-		loadFromFile(fullPath, scssModulePath, true, moduleNames, function(data) {
+		loadFromFile(map, fullPath, scssModulePath, true, moduleNames, function(data) {
 			
 			data.group = styleGroup;
 			data.parentModule = modulePath;
 			map.styleModules[scssModulePath] = data;
 			
 			// At this point we'll remap url(..) like this:
-			data.content = remapScssUrls(data.content, '/pack/modules/' + modulePath.toLowerCase() + '/');
+			data.content = remapScssUrls(data.content, mapUrl(map, modulePath.toLowerCase() + '/'));
 			
 			if(map.includedBy){
 				map.includedBy.forEach(inclIn => inclIn.styleModules[scssModulePath] = data);
@@ -314,7 +324,7 @@ function addToMap(map, fullPath, modulePath, fileName, moduleNames, lastDirector
 	} else if (fileName == 'module.json') {
 		// Got a module config file. These apply to all files in this directory.
 		
-		loadFromFile(fullPath, modulePath, true, moduleNames, function(data){
+		loadFromFile(map, fullPath, modulePath, true, moduleNames, function(data){
 			
 			data.parentModule = modulePath;
 			map.moduleConfigs[modulePath] = JSON.parse(data.content);
@@ -330,7 +340,7 @@ function addToMap(map, fullPath, modulePath, fileName, moduleNames, lastDirector
 		var jsModulePath = modulePath + '/' + fileName;
 		
 		// The false triggers a JS file transpile:
-		loadFromFile(fullPath, jsModulePath, false, moduleNames, function(data){
+		loadFromFile(map, fullPath, jsModulePath, false, moduleNames, function(data){
 			
 			data.parentModule = modulePath;
 			map.modules[jsModulePath] = data;
@@ -349,7 +359,7 @@ function addToMap(map, fullPath, modulePath, fileName, moduleNames, lastDirector
 		
 		var jsModulePath = modulePath + '/' + fileName;
 		
-		loadFromFile(fullPath, jsModulePath, true, moduleNames, function(data){
+		loadFromFile(map, fullPath, jsModulePath, true, moduleNames, function(data){
 			
 			// Prepend exports:
 			data.content = "module.exports=" + data.content;
