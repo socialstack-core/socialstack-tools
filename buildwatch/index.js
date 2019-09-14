@@ -365,7 +365,7 @@ function addToMap(map, fullPath, modulePath, fileName, moduleNames, lastDirector
 		loadFromFile(map, fullPath, jsModulePath, true, moduleNames, function(data){
 			
 			// Prepend exports:
-			data.content = "module.exports=" + data.content;
+			data.content = "module.exports=" + data.content + ";";
 			
 			data.parentModule = modulePath;
 			map.modules[jsModulePath] = data;
