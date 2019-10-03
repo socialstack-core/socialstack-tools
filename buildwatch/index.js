@@ -210,6 +210,11 @@ function loadFromDirectory(dirPath, modulePath, map, moduleNames, onDone) {
 	
 	fs.readdir(dirPath, (err, list) => {
 		
+		if(!list){
+			// Doesn't exist yet.
+			return onDone();
+		}
+		
 		var pending = list.length;
 		
 		list.forEach(entry => {

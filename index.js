@@ -32,6 +32,8 @@ function mapArgs()
 		{name: 'buildui', alias: 'b'},
 		{name: 'install', alias: 'i'},
 		{name: 'init'},
+		{name: 'create', alias: 'c'},
+		{name: 'migrate', alias: 'm'},
 		{name: 'interactive'},
 		{name: 'render', alias: 'r'}
 	];
@@ -63,6 +65,14 @@ function mapArgs()
 			lastFlag = argVal.substring(1);
 			result[lastFlag] = [];
 		} else {
+			if(!lastFlag){
+				lastFlag = '-';
+				
+				if(!result['-']){
+					result['-'] = [];
+				}
+			}
+			
 			result[lastFlag].push(argVal);
 		}
 	}
@@ -126,8 +136,14 @@ module.exports = (config) => {
 	// Map args:
 	config.commandLine = mapArgs();
 	
-	// Find the project root next.
-	findProjectRoot(config, start);
+	// Everything except create (aka init) should find the root:
+	if(config.commandLine.command == 'create' || config.commandLine.command == 'init'){
+		// Directly start it:
+		start(config);
+	}else{
+		// Find the project root next.
+		findProjectRoot(config, start);
+	}
 	
 }
 
@@ -210,6 +226,17 @@ function start(config){
 		var home = renderer.render({url, canvas, context:{}});
 		
 		console.log(home);
+	}else if(config.commandLine.command == 'init' || config.commandLine.command == 'create'){
+		
+		var create = require('./create/index.js');
+		
+		create(config);
+		
+	}else if(config.commandLine.command == 'migrate'){
+		
+		var migrate = require('./migrate/index.js');
+		
+		migrate(config);
 		
 	}else if(config.commandLine.command == 'interactive'){
 		// Interactive mode. We'll send and receive data over a raw TCP socket.
