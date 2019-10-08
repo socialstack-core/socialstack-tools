@@ -120,7 +120,7 @@ function findProjectRoot(config, done){
 			
 			if(currentPath == nextPath){
 				// Nope!
-				throw new Error('Not a socialstack project: ' + config.calledFromPath + '\nProjects must contain a UI and an Api directory.');
+				throw new Error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI and an Api directory to be a project.');
 			}else{
 				currentPath = nextPath;
 				isProjectRoot(currentPath, onCheckedRoot);
@@ -155,6 +155,11 @@ function watchOrBuild(config, isWatch){
 	var moduleName = 'UI';
 	
 	var builder = require('./buildwatch/index.js');
+	
+	if(!fs.existsSync(sourceDir)){
+		console.log('Note: We\'re running with a prebuilt UI. This is a normal mode and happens because your "UI/Source" directory doesn\'t exist. If this isn\'t intentional and you\'d like to be able to runtime update your UI modules, we tried to find it here - make sure this exists: ' + sourceDir);
+		return;
+	}
 	
 	var uiPromise = builder[isWatch ? 'watch' : 'build']({
 		sourceDir,
