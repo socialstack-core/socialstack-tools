@@ -655,7 +655,17 @@ function buildOutput(map, filesToBuild){
 		jsFile += 'require("' + map.config.moduleName + '/Start/Start.js");';
 		jsFile += '})(typeof module != \'undefined\' ? module.exports : window);';
 		
-		fs.writeFileSync(map.config.outputJsPath, jsFile);
+		// Create if it doesn't exist:
+		mkdir(path.dirname(map.config.outputJsPath), function(err){
+			
+			if(err && err.code != 'EEXIST'){
+				console.error(err);
+				return;
+			}
+			
+			fs.writeFileSync(map.config.outputJsPath, jsFile);
+			
+		});
 		
 	}
 	
@@ -687,8 +697,17 @@ function buildOutput(map, filesToBuild){
 		}
 		
 		// SASS happens in one lump due to defines/ mixins etc.
-		fs.writeFileSync(map.config.outputCssPath, sassTranspile(cssFile, ''));
 		
+		// Create if it doesn't exist:
+		mkdir(path.dirname(map.config.outputCssPath), function(err){
+			
+			if(err && err.code != 'EEXIST'){
+				console.error(err);
+				return;
+			}
+			
+			fs.writeFileSync(map.config.outputCssPath, sassTranspile(cssFile, ''));
+		});
 	}
 	
 	// Fire change event:
