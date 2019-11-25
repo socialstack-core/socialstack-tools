@@ -11,6 +11,10 @@
 var fs = require('fs');
 var path = require('path');
 
+// React-lite-builder is also a socialstack project.
+// It'll let you use Socialstack's UI modules without a Socialstack server if you use it directly.
+var buildwatch = require('react-lite-builder').buildwatch;
+
 /*
 * Converts the raw command line args into operation/ flag set.
 */
@@ -33,6 +37,7 @@ function mapArgs()
 		{name: 'install', alias: 'i'},
 		{name: 'init'},
 		{name: 'create', alias: 'c'},
+		{name: 'configuration'},
 		{name: 'migrate', alias: 'm'},
 		{name: 'interactive'},
 		{name: 'render', alias: 'r'}
@@ -154,14 +159,12 @@ function watchOrBuild(config, isWatch){
 	var outputDir = config.projectRoot + '/UI/public/pack/';
 	var moduleName = 'UI';
 	
-	var builder = require('./buildwatch/index.js');
-	
 	if(!fs.existsSync(sourceDir)){
 		console.log('Note: We\'re running with a prebuilt UI. This is a normal mode and happens because your "UI/Source" directory doesn\'t exist. If this isn\'t intentional and you\'d like to be able to runtime update your UI modules, we tried to find it here - make sure this exists: ' + sourceDir);
 		return;
 	}
 	
-	var uiPromise = builder[isWatch ? 'watch' : 'build']({
+	var uiPromise = buildwatch[isWatch ? 'watch' : 'build']({
 		sourceDir,
 		moduleName,
 		relativePaths: config.relativePaths,
@@ -177,9 +180,7 @@ function watchOrBuild(config, isWatch){
 		outputDir = config.projectRoot + '/Admin/public/en-admin/pack/';
 		moduleName = 'Admin';
 		
-		var builder = require('./buildwatch/index.js');
-		
-		builder[isWatch ? 'watch' : 'build']({
+		buildwatch[isWatch ? 'watch' : 'build']({
 			include: [uiMap],
 			sourceDir,
 			moduleName,
@@ -231,6 +232,13 @@ function start(config){
 		var home = renderer.render({url, canvas, context:{}});
 		
 		console.log(home);
+	}else if(config.commandLine.command == 'configuration'){
+		
+		var adp = require('appdata-path')('socialstack');
+		var settingsPath = adp + path.sep + 'settings.json';
+		
+		console.log(settingsPath);
+		
 	}else if(config.commandLine.command == 'init' || config.commandLine.command == 'create'){
 		
 		var create = require('./create/index.js');
