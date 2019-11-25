@@ -74,3 +74,5 @@ To test out your tools changes, open up a command prompt in a socialstack projec
 `node C:/path/to/socialstack-tools-checkout/bin/socialstack.js ...`
 
 where ... is the command line args you want to try, as if you'd run `socialstack ...` instead.
+
+If everything is good, it's the usual `npm version patch` and `npm version publish` from an authed npm account.
