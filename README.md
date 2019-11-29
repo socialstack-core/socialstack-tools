@@ -32,7 +32,7 @@ SocialStack tools are used directly by a running API (unless disabled, which you
 
 Run this to create a new blank SocialStack project in your working directory. Optionally provide it a domain name like this:
 
-`socialtack create example.com`
+`socialstack create example.com`
  
 This will also create a database for you too, if you've setup your database config (see above).
 
