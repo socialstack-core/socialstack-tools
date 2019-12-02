@@ -145,7 +145,6 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 	config => {
 		
 		// Set the root:
-		config.projectRoot = config.calledFromPath;
 		
 		config.url = config.url.trim();
 		var domainName = config.url;
@@ -174,6 +173,8 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 ).then(
 	cfg => {
 		console.log('Attempting to create a git repository via "git init"..');
+		
+		config.projectRoot = config.calledFromPath;
 		
 		return new Promise((s, r)=>{
 			exec('git init', {
