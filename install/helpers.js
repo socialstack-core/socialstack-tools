@@ -14,12 +14,20 @@ var sourceHostHttps = configManager.getLocalConfig().sourceRepoHttps || 'https:/
 function installModule(moduleName, config, asSubModule, useHttps){
 	return new Promise((success, reject) => {
 		
-		var moduleFilePath = (moduleName == 'project') ? '' : moduleName.replace('.', '/');
+		var fwdSlashes = moduleName.replace(/\./gi, '/');
+		
+		var moduleFilePath = (moduleName == 'project') ? '' : fwdSlashes;
+		
+		if(moduleFilePath.toLowerCase().indexOf('ui/') == 0){
+			moduleFilePath = 'UI/Source/' + moduleFilePath.substring(3);
+		}else if(moduleFilePath.toLowerCase().indexOf('admin/') == 0){
+			moduleFilePath = 'Admin/Source/' + moduleFilePath.substring(6);
+		}
 		
 		if(asSubModule){
 			
 			// Must've already authed with the source repo for this to be successful.
-			var remotePath = 'modules/' + moduleName.replace('.', '/').toLowerCase() + '.git';
+			var remotePath = 'modules/' + fwdSlashes.toLowerCase() + '.git';
 			
 			if(useHttps){
 				remotePath = sourceHostHttps + '/' + remotePath;
@@ -65,7 +73,7 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			}
 			
 			// Unzips whilst it downloads. There's no temporary file use here.
-			var fromUrl = repoHost + '/content/latest/' + moduleName.replace('.', '/') + '.zip';
+			var fromUrl = repoHost + '/content/latest/' + fwdSlashes + '.zip';
 			
 			https.get(fromUrl, function(response) {
 				response.pipe(unzip.Parse()).on('entry', function (entry) {
@@ -93,7 +101,7 @@ function installModule(moduleName, config, asSubModule, useHttps){
 
 function mkDirByPathSync(targetDir, { isRelativeToScript = false } = {}) {
   const sep = path.sep;
-  targetDir = targetDir.replace('/', sep).replace('\\', sep);
+  targetDir = targetDir.replace(/\//gi, sep).replace(/\\/gi, sep);
   const initDir = path.isAbsolute(targetDir) ? sep : '';
   const baseDir = isRelativeToScript ? __dirname : '.';
   return targetDir.split(sep).reduce((parentDir, childDir) => {

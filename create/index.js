@@ -220,7 +220,25 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				'Api.AutoForms', 'Api.AvailableEndpoints', 
 				'Api.Configuration', 'Api.Contexts', 'Api.CanvasRenderer', 'Api.Database', 'Api.DatabaseDiff', 'Api.Emails',
 				'Api.Eventing', 'Api.Pages', 'Api.Permissions','Api.PasswordReset','Api.PasswordAuth', 'Api.NavMenus', 'Api.NavMenuItems', 'Api.Results',
-				'Api.Signatures', 'Api.Startup', 'Api.StackTools', 'Api.Translate', 'Api.Uploads', 'Api.Users'
+				'Api.Signatures', 'Api.Startup', 'Api.StackTools', 'Api.Translate', 'Api.Uploads', 'Api.Users',
+				'UI.Text','UI.Start', 'UI.Spacer', 'UI.Row', 'UI.PageRouter', 'UI.Loop', 'UI.Input', 'UI.Html', 'UI.Form', 
+				'UI.CssVariables', 'UI.Container', 'UI.Column', 'UI.Canvas', 'UI.Bootstrap',
+				'UI.Fonts.FontAwesome',
+				'UI.Functions.WebSocket',
+				'UI.Functions.WebRequest',
+				'UI.Functions.Url',
+				'UI.Functions.SubmitForm',
+				'UI.Functions.Store',
+				'UI.Functions.QueryString',
+				'UI.Functions.MapUrl',
+				'UI.Functions.LoginCheck',
+				'UI.Functions.IsNumeric',
+				'UI.Functions.GetRef',
+				'UI.Functions.GetEndpointType',
+				'UI.Functions.GetContentTypeId',
+				'UI.Functions.ContentChange',
+				'UI.Functions.ApiEndpoint',
+				'UI.Fonts.OpenSans'
 			];
 			
 			for(var i=0;i<moduleNames.length;i++){
