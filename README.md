@@ -8,19 +8,43 @@ This is a command line interface for creating, managing and compiling the UI's o
 
 # Configuration
 
-A few actions that the socialstack tools perform require MySQL admin rights on a development machine. This is so it can, for example, automatically create development databases for you. Whilst optional, it's a good idea to set this access up. Do this in the config file found here:
+A few actions that the socialstack tools perform require MySQL admin rights on a development machine. This is so it can, for example, automatically create development databases for you. Whilst optional, it's a good idea to set this access up. Create this in the config file found here:
 
 Windows:
 
-`%AppData%\Roaming\socialstack\settings.js`
+`%AppData%\socialstack\settings.json`
 
 Debian Linux:
 
-`/{username}/.config/socialstack/settings.js`
+`/{username}/.config/socialstack/settings.json`
 
 Or find it via running:
 
 `socialstack configuration`
+
+The file needs to contain the account details for a local (on your development machine) MySQL user account with the ability to create and manage databases. Here's an example settings.json:
+
+```
+{
+    "databases": {
+        "local": {
+            "username": "sstools",
+            "password": "sstools!",
+            "server": "localhost"
+        }
+    }
+}
+```
+
+And to create the account on your MySQL instance, run this (changing the username/ password as you see fit, just ensuring it matches your settings.json):
+
+```
+	-- Create the user account:
+	CREATE USER 'sstools'@'localhost' IDENTIFIED BY 'sstools!';
+	-- Grant that user full access to the db:
+	GRANT ALL PRIVILEGES ON *.* TO 'sstools'@'localhost';
+	FLUSH PRIVILEGES;
+```
 
 # Basic usage
 
