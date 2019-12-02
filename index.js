@@ -40,7 +40,8 @@ function mapArgs()
 		{name: 'configuration'},
 		{name: 'migrate', alias: 'm'},
 		{name: 'interactive'},
-		{name: 'render', alias: 'r'}
+		{name: 'render', alias: 'r'},
+		{name: 'add', alias: 'a'}
 	];
 	
 	var cmdOp = null;
@@ -244,6 +245,20 @@ function start(config){
 		var create = require('./create/index.js');
 		
 		create(config);
+	
+	}else if(config.commandLine.command == 'add'){
+		
+		// Pushes *this directory* up to the source repository for global publishing.
+		// socialstack add -d "A description of the module here."
+		
+		var add = require('./add/index.js');
+		add(config);
+		
+	}else if(config.commandLine.command == 'install'){
+		
+		// Install a module.
+		var install = require('./install/index.js');
+		install(config);
 		
 	}else if(config.commandLine.command == 'migrate'){
 		

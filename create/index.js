@@ -1,49 +1,11 @@
-var getAppDataPath = require('appdata-path');
 var fs = require('fs');
 var https = require('https');
 var path = require('path');
 var unzip = require('unzip');
 var process = require('process');
-
-var adp = getAppDataPath('socialstack');
-var settingsPath = adp + '/settings.json';
-
-/*
-* Reads the global socialstack config info (sequentially)
-*/
-function getLocalConfig(){
-	return new jsConfigManager(settingsPath).get();
-}
-
-function jsConfigManager(filepath){
-	this.get = function(){
-		try{
-			var file = fs.readFileSync(filepath, {encoding: 'utf8'});
-			
-			// Strip BOM:
-			file = file.replace(/^\uFEFF/, '');
-		}catch(e){
-			// Doesn't exist
-			return {};
-		}
-		
-		var result;
-		
-		try{
-			result = JSON.parse(file);
-		}catch(e){
-			console.error('A JSON settings file failed to parse. It\'s at ' + filepath + '. Try opening the file and validating it in a JSON validator. Here\'s the full error: ');
-			throw e;
-		}
-		
-		return result;
-	};
-	
-	this.update = function(newCfg){
-		fs.writeFileSync(filepath,JSON.stringify(newCfg, null, 4), {encoding: 'utf8'});
-	};
-}
-
+var { jsConfigManager, getLocalConfig } = require('../configManager');
+var { installModule } = require('../install/helpers.js');
+var exec = require('child_process').exec;
 
 module.exports = (config) => {
 
@@ -88,83 +50,6 @@ function askFor(text, configName, cb){
 }
 
 var localConfig = getLocalConfig();
-
-// The repo is https only, because it's (at least) 2019.
-var repoHost = localConfig.repository || 'https://modules.socialstack.cf';
-
-function installModule(moduleName){
-	return new Promise((success, reject) => {
-		
-		var moduleFilePath = (moduleName == 'project') ? '' : moduleName.replace('.', '/');
-		
-		// Make the dir:
-		if(moduleFilePath != ''){
-			// Recursive mkdir (catch if it exists):
-			try{
-				mkDirByPathSync(config.calledFromPath + '/' + moduleFilePath);
-			}catch(e){
-				console.log(e);
-				// console.log(moduleName + ' is already installed. You\'ll need to delete it if the goal was to overwrite it.');
-				return success();
-			}
-			moduleFilePath = config.calledFromPath + '/' + moduleFilePath + '/';
-		}else{
-			moduleFilePath = config.calledFromPath + '/';
-		}
-		
-		// Unzips whilst it downloads. There's no temporary file use here.
-		var fromUrl = repoHost + '/content/latest/' + moduleName.replace('.', '/') + '.zip';
-		
-		https.get(fromUrl, function(response) {
-		    response.pipe(unzip.Parse()).on('entry', function (entry) {
-				
-				var pathParts = entry.path.split('/');
-				pathParts.shift();
-				var filePath = pathParts.join('/');
-				
-				if(entry.type == 'File'){
-					mkDirByPathSync(moduleFilePath + path.dirname(filePath));
-					entry.pipe(fs.createWriteStream(moduleFilePath + filePath));
-				}else{
-					mkDirByPathSync(moduleFilePath + filePath);
-					entry.autodrain()
-				}
-				
-			}).on('close', function() {
-				success();
-			});
-		});
-	});
-}
-
-function mkDirByPathSync(targetDir, { isRelativeToScript = false } = {}) {
-  const sep = path.sep;
-  targetDir = targetDir.replace('/', sep).replace('\\', sep);
-  const initDir = path.isAbsolute(targetDir) ? sep : '';
-  const baseDir = isRelativeToScript ? __dirname : '.';
-  return targetDir.split(sep).reduce((parentDir, childDir) => {
-    const curDir = path.resolve(baseDir, parentDir, childDir);
-    try {
-      fs.mkdirSync(curDir);
-    } catch (err) {
-      if (err.code === 'EEXIST') { // curDir already exists!
-        return curDir;
-      }
-
-      // To avoid `EISDIR` error on Mac and `EACCES`-->`ENOENT` and `EPERM` on Windows.
-      if (err.code === 'ENOENT') { // Throw the original parentDir error on curDir `ENOENT` failure.
-        throw new Error(`EACCES: permission denied, mkdir '${parentDir}'`);
-      }
-
-      const caughtErr = ['EACCES', 'EPERM', 'EISDIR'].indexOf(err.code) > -1;
-      if (!caughtErr || caughtErr && curDir === path.resolve(targetDir)) {
-        throw err; // Throw if it's just the last created dir.
-      }
-    }
-
-    return curDir;
-  }, initDir);
-}
 
 function makeid(length) {
    var result           = '';
@@ -259,6 +144,9 @@ function createDatabase(connectionInfo, config){
 askFor('What\'s the public URL of your live website? Include the http or https, such as https://socialstack.cf', 'url').then(
 	config => {
 		
+		// Set the root:
+		config.projectRoot = config.calledFromPath;
+		
 		config.url = config.url.trim();
 		var domainName = config.url;
 		var parts = domainName.split('//');
@@ -285,10 +173,34 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 	config => askFor('(Optional) Which modules would you like to install now? Browse your preferred repo to find modules you can use. A module can also be a set of modules so you can install a common group if you\'d like. Separate multiple modules with ,', 'modules')
 ).then(
 	cfg => {
+		console.log('Attempting to create a git repository via "git init"..');
+		
+		return new Promise((s, r)=>{
+			exec('git init', {
+				cwd: config.calledFromPath
+			}, function(err, stdout, stderr){
+				
+				if(err){
+					console.log(err);
+				}else{
+					if(stdout){
+						console.log(stdout);
+					}
+					if(stderr){
+						console.log(stderr);
+					}
+				}
+				
+				s(cfg);
+			});
+		});
+	}
+).then(
+	cfg => {
 		// Download the base project for this module set (in parallel)
 		console.log('Setting up the main project files.');
 		
-		return installModule('project').then(() => {
+		return installModule('project', config).then(() => {
 			// At this point change the guids and apply any new DB config:
 			
 			if(cfg.databaseUser && cfg.databasePassword){
@@ -319,10 +231,17 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				}
 			}
 			
+			var asSubModule = false;
+			
+			if(config.commandLine.r || config.commandLine.repo){
+				// Install as a submodule or a straight checkout if we're not in a git repo already.
+				asSubModule = true;
+			}
+			
 			var pendingDownloads = [];
 			
 			for(var i=0;i<modules.length;i++){
-				pendingDownloads.push(installModule(modules[i]));
+				pendingDownloads.push(installModule(modules[i], config, asSubModule));
 			}
 			
 			return Promise.all(pendingDownloads);
