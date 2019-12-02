@@ -50,6 +50,14 @@ And to create the account on your MySQL instance, run this (changing the usernam
 
 SocialStack tools are used directly by a running API (unless disabled, which you can do by just omitting your UI/Source directory), so typically in development to use the file watcher you just need to start your API.
 
+## Dependencies
+
+Currently socialstack projects require the following:
+
+* Node.js 8+
+* [.NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
+* MySQL. Version 8 is recommended.
+
 ## Creating a project
 
 `socialstack create`
