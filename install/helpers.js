@@ -19,9 +19,11 @@ function installModule(moduleName, config, asSubModule, useHttps){
 		var moduleFilePath = (moduleName == 'project') ? '' : fwdSlashes;
 		
 		if(moduleFilePath.toLowerCase().indexOf('ui/') == 0){
-			moduleFilePath = 'UI/Source/' + moduleFilePath.substring(3);
+			moduleFilePath = 'UI/Source/ThirdParty/' + moduleFilePath.substring(3);
 		}else if(moduleFilePath.toLowerCase().indexOf('admin/') == 0){
-			moduleFilePath = 'Admin/Source/' + moduleFilePath.substring(6);
+			moduleFilePath = 'Admin/Source/ThirdParty/' + moduleFilePath.substring(6);
+		}else if(moduleFilePath.toLowerCase().indexOf('api/') == 0){
+			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
 		}
 		
 		if(asSubModule){
