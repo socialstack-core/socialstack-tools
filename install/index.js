@@ -5,17 +5,21 @@ module.exports = (config) => {
 	
 	// Did we have the -r flag, or is it implied from the user's config file?
 	
-	var asSubModule = false;
-	var useHttps = false;
+	var asSubModule = true;
+	var useHttps = true;
 	
 	if(config.commandLine.r || config.commandLine.repo){
 		// Install as a submodule or a straight checkout if we're not in a git repo already.
 		asSubModule = true;
+	}else if(config.commandLine.files){
+		asSubModule = false;
 	}
 	
 	if(config.commandLine.https){
 		// Install as a submodule or a straight checkout if we're not in a git repo already.
 		useHttps = true;
+	}else if(config.commandLine.ssh){
+		useHttps = false;
 	}
 	
 	var modules = config.commandLine['-'];
