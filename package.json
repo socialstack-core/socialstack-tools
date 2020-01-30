@@ -18,7 +18,7 @@
     "mysql": "^2.17.1",
     "mysql2": "^1.7.0",
     "preact-render-to-string": "^4.1.0",
-    "react-lite-builder": "^1.0.10",
+    "react-lite-builder": "^1.0.11",
     "recursive-watch": "^1.1.4",
     "require-nocache": "^1.0.0",
     "sass": "^1.21.0",
