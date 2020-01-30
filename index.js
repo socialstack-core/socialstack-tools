@@ -41,7 +41,8 @@ function mapArgs()
 		{name: 'migrate', alias: 'm'},
 		{name: 'interactive'},
 		{name: 'render', alias: 'r'},
-		{name: 'add', alias: 'a'}
+		{name: 'add', alias: 'a'},
+		{name: 'share', alias: 's'},
 	];
 	
 	var cmdOp = null;
@@ -246,7 +247,7 @@ function start(config){
 		
 		create(config);
 	
-	}else if(config.commandLine.command == 'add'){
+	}else if(config.commandLine.command == 'add' || config.commandLine.command == 'share'){
 		
 		// Pushes *this directory* up to the source repository for global publishing.
 		// socialstack add -d "A description of the module here."
