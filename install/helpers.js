@@ -52,15 +52,28 @@ function installModule(moduleName, config, asSubModule, useHttps){
 						attempt++;
 						
 						if(attempt<5){
-							console.log("A submodule add failed - trying again");
 							tryGitPull();
 							return;
 						}
 						console.log(err);
 					}else{
 						if(stdout){
-							console.log(stdout);
+							// console.log(stdout);
 						}
+						
+						if(attempt != 0){
+							
+							exec(
+								'git reset --hard', {
+									cwd: config.projectRoot + '/' + moduleFilePath
+								},
+							},
+							function(err, stdout, stderr){
+								success();
+							});
+							return;
+						}
+						
 						if(stderr){
 							console.log(stderr);
 						}
