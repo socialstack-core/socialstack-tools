@@ -118,8 +118,10 @@ function createDatabase(connectionInfo, config){
 					
 					if(err){
 						if(err.code){
-							if(err.code == 'ER_SPECIFIC_ACCESS_DENIED_ERROR'){
-								console.log('Unable to create the user account because the database user you\'re using likely doesn\'t have the GRANT permission.');
+							if(err.code == 'ER_CANNOT_USER'){
+								console.log('Tried to create a database user account already exists ("' + config.databaseUser + '"). Try either deleting it and also the generated database ("' + config.databaseName + '"), or run this again and manually configure the database connection settings.');
+							}else if(err.code == 'ER_SPECIFIC_ACCESS_DENIED_ERROR' || err.code == 'ER_DBACESS_DENIED_ERROR'){
+								console.log('Unable to create the user account because the database user you\'re using likely doesn\'t have the GRANT permission. I created a database called "' + config.databaseName + '" and a user account though, so you should delete them both and try again after checking the grant permissions of your tools account.');
 							}else{
 								console.log(err.code);
 								console.log('Error while trying to create a database user.');
