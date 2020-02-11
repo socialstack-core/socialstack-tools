@@ -47,5 +47,6 @@ function jsConfigManager(filepath){
 
 module.exports = {
 	jsConfigManager,
-	getLocalConfig
+	getLocalConfig,
+	settingsPath
 };

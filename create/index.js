@@ -3,7 +3,7 @@ var https = require('https');
 var path = require('path');
 var unzip = require('unzipper');
 var process = require('process');
-var { jsConfigManager, getLocalConfig } = require('../configManager');
+var { jsConfigManager, getLocalConfig, settingsPath } = require('../configManager');
 var { installModule } = require('../install/helpers.js');
 var exec = require('child_process').exec;
 
