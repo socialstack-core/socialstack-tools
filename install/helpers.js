@@ -85,6 +85,8 @@ function installModule(moduleName, config, asSubModule, useHttps){
 				});
 			}
 			
+			tryGitPull();
+			
 		}else{
 			
 			// Unzips whilst it downloads. There's no temporary file use here.
