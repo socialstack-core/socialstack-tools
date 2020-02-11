@@ -325,13 +325,19 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				useHttps = false;
 			}
 			
-			var pendingDownloads = [];
+			var pendingInstall = installModule(modules[0], config, asSubModule, useHttps);
 			
-			for(var i=0;i<modules.length;i++){
-				pendingDownloads.push(installModule(modules[i], config, asSubModule, useHttps));
+			for(var i=1;i<modules.length;i++){
+				(function(index){
+					var module = modules[index];
+					pendingInstall = pendingInstall.then(() => {
+						console.log("Installing module " + (index+1) + "/" + modules.length);
+						return installModule(module, config, asSubModule, useHttps);
+					});
+				})(i);
 			}
 			
-			return Promise.all(pendingDownloads);
+			return pendingInstall;
 		});
 		
 	}

@@ -26,21 +26,6 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
 		}
 		
-		// Make the dir:
-		if(moduleFilePath != ''){
-			// Recursive mkdir (catch if it exists):
-			try{
-				mkDirByPathSync(config.projectRoot + '/' + moduleFilePath);
-			}catch(e){
-				console.log(e);
-				// console.log(moduleName + ' is already installed. You\'ll need to delete it if the goal was to overwrite it.');
-				return success();
-			}
-			moduleFilePath = config.projectRoot + '/' + moduleFilePath + '/';
-		}else{
-			moduleFilePath = config.projectRoot + '/';
-		}
-		
 		if(asSubModule){
 			
 			// Must've already authed with the source repo for this to be successful.
@@ -88,6 +73,21 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			tryGitPull();
 			
 		}else{
+			
+			// Make the dir:
+			if(moduleFilePath != ''){
+				// Recursive mkdir (catch if it exists):
+				try{
+					mkDirByPathSync(config.projectRoot + '/' + moduleFilePath);
+				}catch(e){
+					console.log(e);
+					// console.log(moduleName + ' is already installed. You\'ll need to delete it if the goal was to overwrite it.');
+					return success();
+				}
+				moduleFilePath = config.projectRoot + '/' + moduleFilePath + '/';
+			}else{
+				moduleFilePath = config.projectRoot + '/';
+			}
 			
 			// Unzips whilst it downloads. There's no temporary file use here.
 			var fromUrl = repoHost + '/content/latest/' + fwdSlashes + '.zip';
