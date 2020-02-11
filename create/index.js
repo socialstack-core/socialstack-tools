@@ -217,28 +217,86 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 			var moduleNames = cfg.modules.split(',');
 			
 			var modules = [
-				'Api.AutoForms', 'Api.AvailableEndpoints', 
-				'Api.Configuration', 'Api.Contexts', 'Api.CanvasRenderer', 'Api.Database', 'Api.DatabaseDiff', 'Api.Emails',
-				'Api.Eventing', 'Api.Pages', 'Api.Permissions','Api.PasswordReset','Api.PasswordAuth', 'Api.NavMenus', 'Api.NavMenuItems', 'Api.Results',
-				'Api.Signatures', 'Api.Startup', 'Api.StackTools', 'Api.Translate', 'Api.Uploads', 'Api.Users',
-				'UI.Text','UI.Start', 'UI.Spacer', 'UI.Row', 'UI.PageRouter', 'UI.Loop', 'UI.Input', 'UI.Html', 'UI.Form', 
-				'UI.CssVariables', 'UI.Container', 'UI.Column', 'UI.Canvas', 'UI.Bootstrap',
+				'Api.AutoForms',
+				'Api.AvailableEndpoints', 
+				'Api.Configuration',
+				'Api.Contexts',
+				'Api.CanvasRenderer',
+				'Api.Database',
+				'Api.DatabaseDiff',
+				'Api.Emails',
+				'Api.Eventing',
+				'Api.Pages',
+				'Api.Permissions',
+				'Api.PasswordReset',
+				'Api.PasswordAuth',
+				'Api.NavMenus', 
+				'Api.NavMenuItems', 
+				'Api.Results',
+				'Api.Signatures', 
+				'Api.StackTools', 
+				'Api.Startup', 
+				'Api.Translate', 
+				'Api.Uploader', 
+				'Api.Users',
+				
+				'UI.Alert',
+				'UI.Bootstrap',
+				'UI.Canvas', 
+				'UI.CanvasEditor', 
+				'UI.Column',
+				'UI.Container',
+				'UI.Failed',
+				'UI.FileSelector',
 				'UI.Fonts.FontAwesome',
+				'UI.Form', 
+				'UI.Functions.ApiEndpoint',
+				'UI.Functions.CanvasExpand',
+				'UI.Functions.ContentChange',
+				'UI.Functions.FormatTime',
+				'UI.Functions.GetContentTypeId',
+				'UI.Functions.GetDateRange',
+				'UI.Functions.GetEndpointType',
+				'UI.Functions.GetModule',
+				'UI.Functions.GetRef',
+				'UI.Functions.IsNumeric',
+				'UI.Functions.MapUrl',
+				'UI.Functions.Omit',
+				'UI.Functions.QueryString',
+				'UI.Functions.Store',
+				'UI.Functions.SubmitForm',
+				'UI.Functions.Url',
 				'UI.Functions.WebSocket',
 				'UI.Functions.WebRequest',
-				'UI.Functions.Url',
-				'UI.Functions.SubmitForm',
-				'UI.Functions.Store',
-				'UI.Functions.QueryString',
-				'UI.Functions.MapUrl',
-				'UI.Functions.LoginCheck',
-				'UI.Functions.IsNumeric',
-				'UI.Functions.GetRef',
-				'UI.Functions.GetEndpointType',
-				'UI.Functions.GetContentTypeId',
-				'UI.Functions.ContentChange',
-				'UI.Functions.ApiEndpoint',
-				'UI.Fonts.OpenSans'
+				'UI.Fonts.OpenSans',
+				'UI.Html', 
+				'UI.Image', 
+				'UI.Input', 
+				'UI.Loading', 
+				'UI.Loop', 
+				'UI.Modal', 
+				'UI.NavMenu', 
+				'UI.PagedLoop', 
+				'UI.PageRouter', 
+				'UI.Row',
+				'UI.Spacer',
+				'UI.Start',			
+				'UI.Text', 
+				'UI.Uploader',
+				
+				'Admin.AutoForm',
+				'Admin.AutoList',
+				'Admin.LoginForm',
+				'Admin.MainMenu',
+				'Admin.Page.Select',
+				'Admin.Pages.AutoEdit',
+				'Admin.Pages.Default',
+				'Admin.Pages.Landing',
+				'Admin.Pages.List',
+				'Admin.PermissionGrid',
+				'Admin.RegisterForm',
+				'Admin.Start',
+				'Admin.Tile'
 			];
 			
 			for(var i=0;i<moduleNames.length;i++){
@@ -250,17 +308,27 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				}
 			}
 			
-			var asSubModule = false;
+			var asSubModule = true;
+			var useHttps = true;
 			
 			if(config.commandLine.r || config.commandLine.repo){
 				// Install as a submodule or a straight checkout if we're not in a git repo already.
 				asSubModule = true;
+			}else if(config.commandLine.files){
+				asSubModule = false;
+			}
+			
+			if(config.commandLine.https){
+				// Install as a submodule or a straight checkout if we're not in a git repo already.
+				useHttps = true;
+			}else if(config.commandLine.ssh){
+				useHttps = false;
 			}
 			
 			var pendingDownloads = [];
 			
 			for(var i=0;i<modules.length;i++){
-				pendingDownloads.push(installModule(modules[i], config, asSubModule));
+				pendingDownloads.push(installModule(modules[i], config, asSubModule, useHttps));
 			}
 			
 			return Promise.all(pendingDownloads);
