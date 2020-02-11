@@ -67,10 +67,10 @@ function installModule(moduleName, config, asSubModule, useHttps){
 								'git reset --hard', {
 									cwd: config.projectRoot + '/' + moduleFilePath
 								},
-							},
-							function(err, stdout, stderr){
-								success();
-							});
+								function(err, stdout, stderr){
+									success();
+								}
+							);
 							return;
 						}
 						
