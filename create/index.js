@@ -1,7 +1,7 @@
 var fs = require('fs');
 var https = require('https');
 var path = require('path');
-var unzip = require('unzip');
+var unzip = require('unzipper');
 var process = require('process');
 var { jsConfigManager, getLocalConfig } = require('../configManager');
 var { installModule } = require('../install/helpers.js');
@@ -325,19 +325,13 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				useHttps = false;
 			}
 			
-			var pendingInstall = installModule(modules[0], config, asSubModule, useHttps);
+			var pendingDownloads = [];
 			
-			for(var i=1;i<modules.length;i++){
-				(function(index){
-					var module = modules[index];
-					pendingInstall = pendingInstall.then(() => {
-						console.log("Installing module " + (index+1) + "/" + modules.length);
-						return installModule(module, config, asSubModule, useHttps);
-					});
-				})(i);
+			for(var i=0;i<modules.length;i++){
+				pendingDownloads.push(installModule(modules[i], config, asSubModule, useHttps));
 			}
 			
-			return pendingInstall;
+			return Promise.all(pendingDownloads);
 		});
 		
 	}

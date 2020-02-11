@@ -1,7 +1,7 @@
 var fs = require('fs');
 var https = require('https');
 var path = require('path');
-var unzip = require('unzip');
+var unzip = require('unzipper');
 var process = require('process');
 var configManager = require('../configManager');
 var exec = require('child_process').exec;
@@ -26,6 +26,21 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
 		}
 		
+		// Make the dir:
+		if(moduleFilePath != ''){
+			// Recursive mkdir (catch if it exists):
+			try{
+				mkDirByPathSync(config.projectRoot + '/' + moduleFilePath);
+			}catch(e){
+				console.log(e);
+				// console.log(moduleName + ' is already installed. You\'ll need to delete it if the goal was to overwrite it.');
+				return success();
+			}
+			moduleFilePath = config.projectRoot + '/' + moduleFilePath + '/';
+		}else{
+			moduleFilePath = config.projectRoot + '/';
+		}
+		
 		if(asSubModule){
 			
 			// Must've already authed with the source repo for this to be successful.
@@ -37,42 +52,40 @@ function installModule(moduleName, config, asSubModule, useHttps){
 				remotePath = sourceHostGit + ':' + remotePath;
 			}
 			
-			exec(
-				'git submodule add --force "' + remotePath + '" "' + moduleFilePath + '"', {
-					cwd: config.projectRoot
-				},
-				function(err, stdout, stderr){
-				
-				if(err){
-					console.log(err);
-				}else{
-					if(stdout){
-						console.log(stdout);
+			var attempt = 0;
+			
+			function tryGitPull(){
+			
+				exec(
+					'git submodule add --force "' + remotePath + '" "' + moduleFilePath + '"', {
+						cwd: config.projectRoot
+					},
+					function(err, stdout, stderr){
+					
+					if(err){
+						
+						attempt++;
+						
+						if(attempt<5){
+							console.log("A submodule add failed - trying again");
+							tryGitPull();
+							return;
+						}
+						console.log(err);
+					}else{
+						if(stdout){
+							console.log(stdout);
+						}
+						if(stderr){
+							console.log(stderr);
+						}
 					}
-					if(stderr){
-						console.log(stderr);
-					}
-				}
-				
-				success();
-			});
+					
+					success();
+				});
+			}
 			
 		}else{
-			
-			// Make the dir:
-			if(moduleFilePath != ''){
-				// Recursive mkdir (catch if it exists):
-				try{
-					mkDirByPathSync(config.projectRoot + '/' + moduleFilePath);
-				}catch(e){
-					console.log(e);
-					// console.log(moduleName + ' is already installed. You\'ll need to delete it if the goal was to overwrite it.');
-					return success();
-				}
-				moduleFilePath = config.projectRoot + '/' + moduleFilePath + '/';
-			}else{
-				moduleFilePath = config.projectRoot + '/';
-			}
 			
 			// Unzips whilst it downloads. There's no temporary file use here.
 			var fromUrl = repoHost + '/content/latest/' + fwdSlashes + '.zip';
