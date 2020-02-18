@@ -42,7 +42,7 @@ And to create the account on your MySQL instance, run this (changing the usernam
 	-- Create the user account:
 	CREATE USER 'sstools'@'localhost' IDENTIFIED BY 'sstools!';
 	-- Grant that user full access to the db:
-	GRANT ALL PRIVILEGES ON *.* TO 'sstools'@'localhost';
+	GRANT ALL PRIVILEGES ON *.* TO 'sstools'@'localhost' WITH GRANT OPTION;
 	FLUSH PRIVILEGES;
 ```
 
