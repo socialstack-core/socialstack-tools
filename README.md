@@ -72,10 +72,7 @@ This will also create a database for you too, if you've setup your database conf
 
 `socialstack i Api/HelloWorld`
 
-This will install the named module(s) from any repositories you have configured. You can list multiple here to install them all.
-
-* If you add `-r` on the end, it will be added as a submodule from the source repository.
-* If you also add `-https` the submodule will be added via https instead of git.
+This will install the named module(s) from any repositories you have configured, as a submodule. You can list multiple here to install them all.
 
 ## Watching for UI changes
 

@@ -43,6 +43,7 @@ function mapArgs()
 		{name: 'render', alias: 'r'},
 		{name: 'add', alias: 'a'},
 		{name: 'share', alias: 's'},
+		{name: 'version', alias: 'v'}
 	];
 	
 	var cmdOp = null;
@@ -138,13 +139,20 @@ function findProjectRoot(config, done){
 	isProjectRoot(currentPath, onCheckedRoot);
 }
 
+var commandsThatWorkWithoutBeingInAProject = {
+	'create': true,
+	'init': true,
+	'version': true,
+	'configuration': true
+};
+
 module.exports = (config) => {
 	
 	// Map args:
 	config.commandLine = mapArgs();
 	
-	// Everything except create (aka init) should find the root:
-	if(config.commandLine.command == 'create' || config.commandLine.command == 'init'){
+	// Commands like "create" or "version" don't need to be in a project:
+	if(commandsThatWorkWithoutBeingInAProject[config.commandLine.command]){
 		// Directly start it:
 		start(config);
 	}else{
@@ -154,11 +162,60 @@ module.exports = (config) => {
 	
 }
 
+/*
+ publicUrl: the base path of the URL where the publicDir is accessible from.
+ publicDir: the filepath to the public directory
+ fileInfo: the info for the raw changed set of files, provided by the builder.
+*/
+function updateIndex(publicUrl, fileInfo, publicDir){
+	
+	// First try to read the index.html file:
+	fs.readFile(publicDir + '/index.html', 'utf8', function(err, contents){
+		
+		if(err){
+			// Doesn't exist or otherwise isn't readable.
+			console.log('Info: Error when trying to read index.html: ', err);
+			return;
+		}
+		
+		var originalContents = contents;
+		
+		var time = Date.now() + '';
+		
+		// For each file, find publicUrl + the name in contents and append ?v=... on it, where v is simply the timestamp of when this ran.
+		fileInfo.files.forEach(file => {
+			
+			var fileName = path.basename(file.path)
+			var filePublicPath = publicUrl + fileName;
+			
+			// This is looking for, for example, /en-admin/pack/main.generated.js?v=1.
+			// It'll replace that number on the end with the current time.
+			var fileRegex = new RegExp((filePublicPath + "?v=").replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([0-9]+)', 'g');
+			
+			contents = contents.replace(fileRegex, filePublicPath + '?v=' + time);
+		});
+		
+		if(originalContents != contents){
+			
+			// Write it back out:
+			fs.writeFile(publicDir + '/index.html', contents, function(err){
+				
+				err && console.error(err);
+				
+			});
+			
+		}
+		
+	});
+	
+}
+
 function watchOrBuild(config, isWatch){
 	
 	// Site UI:
 	var sourceDir = config.projectRoot + '/UI/Source';
-	var outputDir = config.projectRoot + '/UI/public/pack/';
+	var publicDir = config.projectRoot + '/UI/public';
+	var outputDir = publicDir + '/pack/';
 	var moduleName = 'UI';
 	
 	if(!fs.existsSync(sourceDir)){
@@ -172,15 +229,20 @@ function watchOrBuild(config, isWatch){
 		relativePaths: config.relativePaths,
 		outputStaticPath: outputDir + 'modules/',
 		outputCssPath: outputDir + 'styles.css',
-		outputJsPath: outputDir + 'main.generated.js'
+		outputJsPath: outputDir + 'main.generated.js',
+		onFileChange: (info) => {
+			// Inject into index.html:
+			updateIndex('/pack/', info, publicDir);
+		}
 	});
 	
 	uiPromise.then(uiMap => {
 		
 		// Admin panel (depends on UI modules):
-		sourceDir = config.projectRoot + '/Admin/Source';
-		outputDir = config.projectRoot + '/Admin/public/en-admin/pack/';
-		moduleName = 'Admin';
+		var sourceDir = config.projectRoot + '/Admin/Source';
+		var publicDir = config.projectRoot + '/Admin/public/en-admin';
+		var outputDir = publicDir + '/pack/';
+		var moduleName = 'Admin';
 		
 		buildwatch[isWatch ? 'watch' : 'build']({
 			include: [uiMap],
@@ -189,7 +251,11 @@ function watchOrBuild(config, isWatch){
 			relativePaths: config.relativePaths,
 			outputStaticPath: outputDir + 'modules/',
 			outputCssPath: outputDir + 'styles.css',
-			outputJsPath: outputDir + 'main.generated.js'
+			outputJsPath: outputDir + 'main.generated.js',
+			onFileChange: (info) => {
+				// Inject into index.html:
+				updateIndex('/en-admin/pack/', info, publicDir);
+			}
 		});
 		
 	});
@@ -234,6 +300,12 @@ function start(config){
 		var home = renderer.render({url, canvas, context:{}});
 		
 		console.log(home);
+	}else if(config.commandLine.command == 'version'){
+		
+		// Output the version and quit.
+		var info = require('./package.json');
+		console.log(info.version);
+		
 	}else if(config.commandLine.command == 'configuration'){
 		
 		var adp = require('appdata-path')('socialstack');
