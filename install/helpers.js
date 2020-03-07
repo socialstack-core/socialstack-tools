@@ -107,7 +107,7 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			var repoName = moduleName.split('/');
 			repoName = repoName[repoName.length-1].toLowerCase();
 			
-			var fromUrl = sourceHostHttps + '/' + fwdSlashes.toLowerCase() + '/-/archive/master/' + repoName + '-master.zip';
+			var fromUrl = sourceHostHttps + '/modules/' + fwdSlashes.toLowerCase() + '/-/archive/master/' + repoName + '-master.zip';
 			
 			https.get(fromUrl, function(response) {
 				response.pipe(unzip.Parse()).on('entry', function (entry) {
