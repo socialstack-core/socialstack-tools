@@ -7,7 +7,6 @@ var configManager = require('../configManager');
 var exec = require('child_process').exec;
 
 // The repo is https only, because it's (at least) 2019.
-var repoHost = configManager.getLocalConfig().repository || 'https://modules.socialstack.cf';
 var sourceHostGit = configManager.getLocalConfig().sourceRepoGit || 'git@source.socialstack.cf';
 var sourceHostHttps = configManager.getLocalConfig().sourceRepoHttps || 'https://source.socialstack.cf';
 
@@ -103,7 +102,12 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			}
 			
 			// Unzips whilst it downloads. There's no temporary file use here.
-			var fromUrl = repoHost + '/content/latest/' + fwdSlashes + '.zip';
+			
+			// https://source.socialstack.cf/modules/project/-/archive/master/project-master.zip
+			var repoName = moduleName.split('/');
+			repoName = repoName[repoName.length-1].toLowerCase();
+			
+			var fromUrl = sourceHostHttps + '/' + fwdSlashes.toLowerCase() + '/-/archive/master/' + repoName + '-master.zip';
 			
 			https.get(fromUrl, function(response) {
 				response.pipe(unzip.Parse()).on('entry', function (entry) {
