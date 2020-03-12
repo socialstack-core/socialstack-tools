@@ -7,7 +7,7 @@ const floor = Math.floor;
 	If porting this, instead take a look at the C# version in ContentTypes.cs. 
 	Most of the stuff here is for forcing JS to do integer arithmetic.
 */
-export default function(typeName) {
+module.exports = function(typeName) {
 	typeName = typeName.toLowerCase();
 	var hash1 = _hash1;
 	var hash2 = hash1;
