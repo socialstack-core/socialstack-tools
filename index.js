@@ -43,7 +43,8 @@ function mapArgs()
 		{name: 'render', alias: 'r'},
 		{name: 'add', alias: 'a'},
 		{name: 'share', alias: 's'},
-		{name: 'version', alias: 'v'}
+		{name: 'version', alias: 'v'},
+		{name: 'id'}
 	];
 	
 	var cmdOp = null;
@@ -143,7 +144,8 @@ var commandsThatWorkWithoutBeingInAProject = {
 	'create': true,
 	'init': true,
 	'version': true,
-	'configuration': true
+	'configuration': true,
+	'id': true
 };
 
 module.exports = (config) => {
@@ -273,6 +275,23 @@ function start(config){
 		}
 		
 		watchOrBuild(config, isWatch);
+	}else if(config.commandLine.command == 'id'){
+		
+		var getContentTypeId = require('./getContentTypeId.js');
+		
+		var contentTypes = config.commandLine['-'];
+		
+		if(!contentTypes || !contentTypes.length){
+			console.log("Provide the content type names you'd like the ID for. For example, 'socialstack id User'");
+		}
+		
+		for(var i=0;i<contentTypes.length;i++){
+			
+			var type = contentTypes[i];
+			
+			console.log(type + ': ' + getContentTypeId(type));
+			
+		}
 		
 	}else if(config.commandLine.command == 'render'){
 		// Renders UI's (this typically actually happens over the interactive mode below).
