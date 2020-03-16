@@ -129,7 +129,8 @@ function findProjectRoot(config, done){
 			
 			if(currentPath == nextPath){
 				// Nope!
-				throw new Error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI and an Api directory to be a project.');
+				console.error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI and an Api directory to be a project.');
+				return;
 			}else{
 				currentPath = nextPath;
 				isProjectRoot(currentPath, onCheckedRoot);
@@ -360,21 +361,25 @@ function start(config){
 		
 	}else if(config.commandLine.command == 'interactive'){
 		// Interactive mode. We'll send and receive data over a raw TCP socket.
-		// This node process is the server.
-		
-		var port = 17061;
+		// The other end is the server, so one host site can have multiple node processes at once.
 		
 		var serverrender = require('./serverrender/index.js');
 		
 		var renderer = serverrender.getRenderer(config);
 		
-		if(config.commandLine.p){
-			port = config.commandLine.p[0];
+		if(!config.commandLine.p){
+			console.error('-p port is a required field.');
+			return;
 		}
 		
-		var interactive = require('./interactive/server.js');
+		var port = parseInt(config.commandLine.p[0]);
 		
-		interactive({port, onRequest: function(message){
+		// A numeric ID for the process to identify itself with:
+		var id = config.commandLine.id ? parseInt(config.commandLine.id[0]) : undefined;
+		
+		var interactive = require('./interactive/index.js');
+		
+		interactive({port, id, onRequest: function(message){
 			
 			var action = message.request.action;
 			
