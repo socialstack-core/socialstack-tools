@@ -84,19 +84,29 @@ function createDatabase(connectionInfo, config){
 		
 		if(config.offlineDb){
 			// Running via cmdline (must have MySQL in path):
-			require('child_process').execFile('mysql', [
-				'--user="' + connectionInfo.username + '"',
-				'--password="' + connectionInfo.password + '"',
-				'--execute="' + createSchema + ';' + createUser + '"'
-			], (err, stdout) => {
-				if(err){
-					throw err;
-				}else{
-					console.log(stdout);
-					success(config);
-				}
-			});
 			
+			var tempPath = 'create-database.sql';
+			
+			fs.writeFile(tempPath, createSchema + ';' + createUser, () => {
+				
+				require('child_process').execFile('mysqld', ['--init-file="' + tempPath + '"'], (err, stdout) => {
+					
+					fs.unlink(tempPath, () => {});
+					
+					if(err){
+						throw err;
+					}
+					
+					// stop it:
+					require('child_process').execFile('mysqld', ['stop'], (err, stdout) => {
+						if(err){
+							throw err;
+						}
+						console.log(stdout);
+						success(config);
+					});
+				});
+			});
 			return;
 		}
 		
