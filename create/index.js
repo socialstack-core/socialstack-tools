@@ -40,7 +40,7 @@ if(config.commandLine.dbMode){
 function askFor(text, configName, cb){
 	return new Promise((success, reject) => {
 		
-		if(newConfiguration[configName]){
+		if(newConfiguration[configName] != undefined){
 			// Already set - skip.
 			return success(newConfiguration, configName, newConfiguration[configName]);
 		}
@@ -267,7 +267,7 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 			
 			console.log('Starting to download modules.');
 			
-			var moduleNames = cfg.modules.split(',');
+			var moduleNames = (!cfg.modules || cfg.modules == 'none') ? [] : cfg.modules.split(',');
 			
 			var modules = [
 				'Api.AutoForms',
