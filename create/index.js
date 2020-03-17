@@ -98,11 +98,6 @@ function createDatabase(connectionInfo, config){
 		}
 		
 		if(config.dbMode == 'postpone'){
-			var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
-			var appsettings = appsettingsManager.get();
-			appsettings.SiteUrl = config.url;
-			appsettings.PostponedDatabase = true;
-			appsettingsManager.update(appsettings);
 			success(config);
 			return;
 		}
@@ -258,14 +253,17 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 		return installModule('project', config).then(() => {
 			// At this point change the guids and apply any new DB config:
 			
-			if(cfg.databaseUser && cfg.databasePassword){
-				// Otherwise the DB already existed and we didn't create the user acc.
-				var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
-				var appsettings = appsettingsManager.get();
-				appsettings.SiteUrl = config.url;
+			var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
+			var appsettings = appsettingsManager.get();
+			appsettings.SiteUrl = cfg.url;
+			
+			if(cfg.dbMode == 'postpone'){
+				appsettings.PostponedDatabase = true;
+			}else if(cfg.databaseUser && cfg.databasePassword){
 				appsettings.ConnectionStrings.DefaultConnection = "server=localhost;port=3306;SslMode=none;database=" + cfg.databaseName + ";user=" + cfg.databaseUser + ";password=" + cfg.databasePassword;
-				appsettingsManager.update(appsettings);
 			}
+			
+			appsettingsManager.update(appsettings);
 			
 			console.log('Starting to download modules.');
 			
