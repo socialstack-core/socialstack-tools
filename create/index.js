@@ -28,6 +28,11 @@ if(config.commandLine['-']){
 	newConfiguration['url'] = config.commandLine['-'][0];
 }
 
+if(config.commandLine.modules){
+	// E.g. socialstack create site.com
+	newConfiguration['modules'] = config.commandLine.modules.join(',');
+}
+
 function askFor(text, configName, cb){
 	return new Promise((success, reject) => {
 		

@@ -38,6 +38,7 @@ function mapArgs()
 		{name: 'init'},
 		{name: 'create', alias: 'c'},
 		{name: 'configuration'},
+		{name: 'configure'},
 		{name: 'migrate', alias: 'm'},
 		{name: 'interactive'},
 		{name: 'render', alias: 'r'},
@@ -146,6 +147,7 @@ var commandsThatWorkWithoutBeingInAProject = {
 	'init': true,
 	'version': true,
 	'configuration': true,
+	'configure': true,
 	'id': true
 };
 
@@ -332,6 +334,37 @@ function start(config){
 		var settingsPath = adp + path.sep + 'settings.json';
 		
 		console.log(settingsPath);
+		
+	}else if(config.commandLine.command == 'configure'){
+		
+		var adp = require('appdata-path')('socialstack');
+		
+		// Ensure dir exists:
+		fs.mkdir(adp, { recursive: true }, (err) => {
+			if (err) throw err;
+			
+			var settingsPath = adp + path.sep + 'settings.json';
+			
+			var username = config.commandLine.u ? config.commandLine.u[0] : 'root';
+			var pwd = config.commandLine.p ? config.commandLine.p[0] : '';
+			var server = config.commandLine.s ? config.commandLine.s[0] : 'localhost';
+			
+			// Write to it:
+			fs.writeFile(settingsPath, JSON.stringify(
+				{
+					databases: {
+						local: {
+							username,
+							password,
+							server
+						}
+					}
+				},
+				null,
+				'\t'
+			))
+			
+		});
 		
 	}else if(config.commandLine.command == 'init' || config.commandLine.command == 'create'){
 		
