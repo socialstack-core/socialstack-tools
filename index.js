@@ -369,7 +369,9 @@ function start(config){
 				},
 				null,
 				'\t'
-			))
+			), () => {
+				console.log('Socialstack tools configured');
+			})
 			
 		});
 		
