@@ -130,7 +130,7 @@ function findProjectRoot(config, done){
 			
 			if(currentPath == nextPath){
 				// Nope!
-				console.error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI and an Api directory to be a project.');
+				done(null);
 				return;
 			}else{
 				currentPath = nextPath;
@@ -162,7 +162,14 @@ module.exports = (config) => {
 		start(config);
 	}else{
 		// Find the project root next.
-		findProjectRoot(config, start);
+		findProjectRoot(config, (result) => {
+			if(!result){
+				console.error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI and an Api directory to be a project.');
+				return;
+			}
+			
+			start(config);
+		});
 	}
 	
 }
@@ -346,7 +353,7 @@ function start(config){
 			var settingsPath = adp + path.sep + 'settings.json';
 			
 			var username = config.commandLine.u ? config.commandLine.u[0] : 'root';
-			var pwd = config.commandLine.p ? config.commandLine.p[0] : '';
+			var password = config.commandLine.p ? config.commandLine.p[0] : '';
 			var server = config.commandLine.s ? config.commandLine.s[0] : 'localhost';
 			
 			// Write to it:
@@ -368,10 +375,18 @@ function start(config){
 		
 	}else if(config.commandLine.command == 'init' || config.commandLine.command == 'create'){
 		
-		var create = require('./create/index.js');
+		// If already a ss dir, stop:
+		findProjectRoot(config, (result) => {
+			
+			if(result){
+				console.log('There\'s already a socialstack project in your working directory - doing nothing.');
+			}else{
+				var create = require('./create/index.js');
+				create(config);
+			}
+			
+		});
 		
-		create(config);
-	
 	}else if(config.commandLine.command == 'add' || config.commandLine.command == 'share'){
 		
 		// Pushes *this directory* up to the source repository for global publishing.
