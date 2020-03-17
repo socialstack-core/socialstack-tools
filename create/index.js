@@ -33,6 +33,11 @@ if(config.commandLine.modules){
 	newConfiguration['modules'] = config.commandLine.modules.join(',');
 }
 
+if(config.commandLine.offlineDb){
+	// 
+	newConfiguration['offlineDb'] = true;
+}
+
 function askFor(text, configName, cb){
 	return new Promise((success, reject) => {
 		
@@ -70,6 +75,31 @@ function createDatabase(connectionInfo, config){
 	return new Promise((success, reject) => {
 		console.log('Setting up database');
 		
+		config.databaseUser = config.databaseUser || config.databaseName + '_u';
+		config.databasePassword = config.databasePassword || makeid(10);
+		
+		var createSchema = 'CREATE SCHEMA `' + config.databaseName + '`';
+		var createUser = 'CREATE USER \'' + config.databaseUser.replace('\'', '\\\'') + '\'@\'localhost\' IDENTIFIED BY \'' + config.databasePassword.replace('\'', '\\\'') + '\';' + 
+				'GRANT ALL PRIVILEGES ON `' + config.databaseName + '`.* TO \'' + config.databaseUser.replace('\'', '\\\'') + '\'@\'localhost\'';
+		
+		if(config.offlineDb){
+			// Running via cmdline (must have MySQL in path):
+			require('child_process').execFile('mysql', [
+				'--user="' + connectionInfo.username + '"',
+				'--password="' + connectionInfo.password + '"',
+				'--execute="' + createSchema + ';' + createUser + '"'
+			], (err, stdout) => {
+				if(err){
+					throw err;
+				}else{
+					console.log(stdout);
+					success(config);
+				}
+			});
+			
+			return;
+		}
+		
 		var mysql = require('mysql2');
 		var host = connectionInfo.server || 'localhost';
 		const connection = mysql.createConnection({
@@ -81,7 +111,7 @@ function createDatabase(connectionInfo, config){
 		
 		// Run the create command - it'll fail if it already exists anyway:
 		connection.query(
-		  'CREATE SCHEMA `' + config.databaseName + '`',
+		  createSchema,
 		  function(err, results, fields) {
 			  if(err){
 				  connection.close();
@@ -112,12 +142,8 @@ function createDatabase(connectionInfo, config){
 			  
 			  console.log('Database "' + config.databaseName + '" created. Now generating a user account to use too.');
 			  
-			  config.databaseUser = config.databaseUser || config.databaseName + '_u';
-			  config.databasePassword = config.databasePassword || makeid(10);
-			  
 			  connection.query(
-				'CREATE USER \'' + config.databaseUser.replace('\'', '\\\'') + '\'@\'localhost\' IDENTIFIED BY \'' + config.databasePassword.replace('\'', '\\\'') + '\';' + 
-				'GRANT ALL PRIVILEGES ON `' + config.databaseName + '`.* TO \'' + config.databaseUser.replace('\'', '\\\'') + '\'@\'localhost\'',
+				createUser,
 				function(err, results, fields) {
 					connection.close();
 					
