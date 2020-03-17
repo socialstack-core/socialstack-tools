@@ -33,9 +33,8 @@ if(config.commandLine.modules){
 	newConfiguration['modules'] = config.commandLine.modules.join(',');
 }
 
-if(config.commandLine.offlineDb){
-	// 
-	newConfiguration['offlineDb'] = true;
+if(config.commandLine.dbMode){
+	newConfiguration.dbMode = config.commandLine.dbMode[0];
 }
 
 function askFor(text, configName, cb){
@@ -71,8 +70,43 @@ function makeid(length) {
    return result;
 }
 
+function tidyUrl(config){
+	
+	config.url = config.url.trim();
+	var domainName = config.url;
+	var parts = domainName.split('//');
+	if(parts.length == 1){
+		// Assume https:
+		config.url = 'https://' + domainName;
+	}else{
+		domainName = parts[1];
+	}
+	
+	domainName = domainName.replace('/', '');
+	
+	// DB name is just the site url:
+	config.databaseName = domainName;
+	
+}
+
 function createDatabase(connectionInfo, config){
 	return new Promise((success, reject) => {
+		
+		if(config.dbMode == 'none'){
+			success(config);
+			return;
+		}
+		
+		if(config.dbMode == 'postpone'){
+			var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
+			var appsettings = appsettingsManager.get();
+			appsettings.SiteUrl = config.url;
+			appsettings.PostponedDatabase = true;
+			appsettingsManager.update(appsettings);
+			success(config);
+			return;
+		}
+		
 		console.log('Setting up database');
 		
 		config.databaseUser = config.databaseUser || config.databaseName + '_u';
@@ -82,30 +116,12 @@ function createDatabase(connectionInfo, config){
 		var createUser = 'CREATE USER \'' + config.databaseUser.replace('\'', '\\\'') + '\'@\'localhost\' IDENTIFIED BY \'' + config.databasePassword.replace('\'', '\\\'') + '\';' + 
 				'GRANT ALL PRIVILEGES ON `' + config.databaseName + '`.* TO \'' + config.databaseUser.replace('\'', '\\\'') + '\'@\'localhost\'';
 		
-		if(config.offlineDb){
-			// Running via cmdline (must have MySQL in path):
-			
+		if(config.dbMode == 'offline'){
+			// Outputs to a file:
 			var tempPath = 'create-database.sql';
 			
 			fs.writeFile(tempPath, createSchema + ';' + createUser, () => {
-				
-				require('child_process').execFile('mysqld', ['--init-file="' + tempPath + '"'], (err, stdout) => {
-					
-					fs.unlink(tempPath, () => {});
-					
-					if(err){
-						throw err;
-					}
-					
-					// stop it:
-					require('child_process').execFile('mysqld', ['stop'], (err, stdout) => {
-						if(err){
-							throw err;
-						}
-						console.log(stdout);
-						success(config);
-					});
-				});
+				success(config);
 			});
 			return;
 		}
@@ -184,25 +200,20 @@ function createDatabase(connectionInfo, config){
 	});
 }
 
+if(newConfiguration.dbMode == 'dbOnly'){
+	tidyUrl(newConfiguration);
+	
+	createDatabase(localConfig.databases.local, newConfiguration).then(() => {
+		console.log('Database setup');
+	});
+	return;
+}
+
 askFor('What\'s the public URL of your live website? Include the http or https, such as https://socialstack.cf', 'url').then(
 	config => {
 		
 		// Set the root:
-		
-		config.url = config.url.trim();
-		var domainName = config.url;
-		var parts = domainName.split('//');
-		if(parts.length == 1){
-			// Assume https:
-			config.url = 'https://' + domainName;
-		}else{
-			domainName = parts[1];
-		}
-		
-		domainName = domainName.replace('/', '');
-		
-		// DB name is just the site url:
-		config.databaseName = domainName;
+		tidyUrl(config);
 		
 		if(localConfig && localConfig.databases && localConfig.databases.local){
 			// Go!
@@ -251,6 +262,7 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				// Otherwise the DB already existed and we didn't create the user acc.
 				var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
 				var appsettings = appsettingsManager.get();
+				appsettings.SiteUrl = config.url;
 				appsettings.ConnectionStrings.DefaultConnection = "server=localhost;port=3306;SslMode=none;database=" + cfg.databaseName + ";user=" + cfg.databaseUser + ";password=" + cfg.databasePassword;
 				appsettingsManager.update(appsettings);
 			}
