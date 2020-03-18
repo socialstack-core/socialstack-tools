@@ -348,12 +348,12 @@ function start(config){
 		
 		// Ensure dir exists:
 		fs.mkdir(adp, { recursive: true }, (err) => {
-			if (err) throw err;
+			if (err && err.code != 'EEXIST') throw err;
 			
 			var settingsPath = adp + path.sep + 'settings.json';
 			
 			var username = config.commandLine.u ? config.commandLine.u[0] : 'root';
-			var password = config.commandLine.p ? config.commandLine.p[0] : '';
+			var password = config.commandLine.p ? config.commandLine.p[0] : undefined;
 			var server = config.commandLine.s ? config.commandLine.s[0] : 'localhost';
 			
 			// Write to it:
