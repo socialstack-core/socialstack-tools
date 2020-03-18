@@ -226,6 +226,7 @@ if(newConfiguration.dbMode == 'dbOnly'){
 		appsettingsManager.update(appsettings);
 		
 	});
+	return;
 }
 
 askFor('What\'s the public URL of your live website? Include the http or https, such as https://socialstack.cf', 'url').then(
