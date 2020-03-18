@@ -363,6 +363,7 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				'UI.NavMenu', 
 				'UI.PagedLoop', 
 				'UI.PageRouter', 
+				'UI.GlobalStyle', 
 				'UI.Row',
 				'UI.Spacer',
 				'UI.Start',			
@@ -381,6 +382,8 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				'Admin.PermissionGrid',
 				'Admin.RegisterForm',
 				'Admin.Start',
+				'Admin.Functions.GetPages',
+				'Admin.Functions.GetAutoForm',
 				'Admin.Tile'
 			];
 			
