@@ -380,7 +380,7 @@ function start(config){
 		// If already a ss dir, stop:
 		findProjectRoot(config, (result) => {
 			
-			if(result){
+			if(result && (!config.commandLine.dbMode || config.commandLine.dbMode[0] != 'continue')){
 				console.log('There\'s already a socialstack project in your working directory - doing nothing.');
 			}else{
 				var create = require('./create/index.js');
