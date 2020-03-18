@@ -202,6 +202,30 @@ if(newConfiguration.dbMode == 'dbOnly'){
 		console.log('Database setup');
 	});
 	return;
+}else if(newConfiguration.dbMode == 'continue'){
+	// Complete a postponed DB create (if there is one to complete).
+	var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
+	var appsettings = appsettingsManager.get();
+	
+	if(!appsettings.PostponedDatabase){
+		return;
+	}
+	
+	delete appsettings.PostponedDatabase;
+	newConfiguration.url = appsettings.BaseUrl;
+	tidyUrl(newConfiguration);
+	
+	createDatabase(localConfig.databases.local, newConfiguration).then(() => {
+		console.log('Database setup');
+		var cfg = newConfiguration;
+		
+		if(cfg.databaseUser && cfg.databasePassword){
+			appsettings.ConnectionStrings.DefaultConnection = "server=localhost;port=3306;SslMode=none;database=" + cfg.databaseName + ";user=" + cfg.databaseUser + ";password=" + cfg.databasePassword;
+		}
+		
+		appsettingsManager.update(appsettings);
+		
+	});
 }
 
 askFor('What\'s the public URL of your live website? Include the http or https, such as https://socialstack.cf', 'url').then(
@@ -255,7 +279,7 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 			
 			var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
 			var appsettings = appsettingsManager.get();
-			appsettings.SiteUrl = cfg.url;
+			appsettings.BaseUrl = cfg.url;
 			
 			if(cfg.dbMode == 'postpone'){
 				appsettings.PostponedDatabase = true;
