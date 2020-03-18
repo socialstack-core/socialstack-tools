@@ -37,6 +37,10 @@ if(config.commandLine.dbMode){
 	newConfiguration.dbMode = config.commandLine.dbMode[0];
 }
 
+if(config.commandLine.container){
+	newConfiguration.container = true;
+}
+
 function askFor(text, configName, cb){
 	return new Promise((success, reject) => {
 		
@@ -281,6 +285,9 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 			var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
 			var appsettings = appsettingsManager.get();
 			appsettings.BaseUrl = cfg.url;
+			if(cfg.container){
+				appsettings.Container = 1;
+			}
 			
 			if(cfg.dbMode == 'postpone'){
 				appsettings.PostponedDatabase = true;
