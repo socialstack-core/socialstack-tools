@@ -10,6 +10,7 @@
 
 var fs = require('fs');
 var path = require('path');
+var zlib = require('zlib');
 
 // React-lite-builder is also a socialstack project.
 // It'll let you use Socialstack's UI modules without a Socialstack server if you use it directly.
@@ -218,15 +219,14 @@ function updateIndex(publicUrl, fileInfo, publicDir, config){
 				
 			});
 			
-			// Precompress if needed:
-			if(config.compress){
-				fs.writeFileSync(fullFilePath + '.gz', zlib.gzipSync(contents));
-			}else{
-				fs.unlink(fullFilePath + '.gz', function(){});
-			}
-			
 		}
 		
+		// Precompress if needed:
+		if(config.compress){
+			fs.writeFileSync(fullFilePath + '.gz', zlib.gzipSync(contents));
+		}else{
+			fs.unlink(fullFilePath + '.gz', function(){});
+		}
 	});
 	
 }
