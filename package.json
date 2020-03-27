@@ -17,7 +17,7 @@
     "mime-types": "^2.1.22",
     "mysql2": "^2.1.0",
     "preact-render-to-string": "^4.1.0",
-    "react-lite-builder": "^1.0.17",
+    "react-lite-builder": "^1.0.18",
     "recursive-watch": "^1.1.4",
     "require-nocache": "^1.0.0",
     "sass": "^1.21.0",

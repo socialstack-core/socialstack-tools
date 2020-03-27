@@ -284,6 +284,8 @@ function start(config){
 			config.relativePaths = true;
 		}
 		
+		config.minified = (config.commandLine.prod || config.commandLine.minified);
+		
 		watchOrBuild(config, isWatch);
 	}else if(config.commandLine.command == 'id'){
 		
@@ -444,6 +446,7 @@ function start(config){
 				// Send the response:
 				message.response(page);
 			}else if(action == "watch"){
+				config.minified = message.request.minified;
 				watchOrBuild(config, true);
 				message.response({success: true});
 			}
