@@ -179,10 +179,12 @@ module.exports = (config) => {
  publicDir: the filepath to the public directory
  fileInfo: the info for the raw changed set of files, provided by the builder.
 */
-function updateIndex(publicUrl, fileInfo, publicDir){
+function updateIndex(publicUrl, fileInfo, publicDir, config){
 	
 	// First try to read the index.html file:
-	fs.readFile(publicDir + '/index.html', 'utf8', function(err, contents){
+	var fullFilePath = publicDir + '/index.html';
+	
+	fs.readFile(fullFilePath, 'utf8', function(err, contents){
 		
 		if(err){
 			// Doesn't exist or otherwise isn't readable.
@@ -210,11 +212,18 @@ function updateIndex(publicUrl, fileInfo, publicDir){
 		if(originalContents != contents){
 			
 			// Write it back out:
-			fs.writeFile(publicDir + '/index.html', contents, function(err){
+			fs.writeFile(fullFilePath, contents, function(err){
 				
 				err && console.error(err);
 				
 			});
+			
+			// Precompress if needed:
+			if(config.compress){
+				fs.writeFileSync(fullFilePath + '.gz', zlib.gzipSync(contents));
+			}else{
+				fs.unlink(fullFilePath + '.gz', function(){});
+			}
 			
 		}
 		
@@ -238,13 +247,15 @@ function watchOrBuild(config, isWatch){
 	var uiPromise = buildwatch[isWatch ? 'watch' : 'build']({
 		sourceDir,
 		moduleName,
+		minified: config.minified,
+		compress: config.compress,
 		relativePaths: config.relativePaths,
 		outputStaticPath: outputDir + 'modules/',
 		outputCssPath: outputDir + 'styles.css',
 		outputJsPath: outputDir + 'main.generated.js',
 		onFileChange: (info) => {
 			// Inject into index.html:
-			updateIndex('/pack/', info, publicDir);
+			updateIndex('/pack/', info, publicDir, config);
 		}
 	});
 	
@@ -260,13 +271,15 @@ function watchOrBuild(config, isWatch){
 			include: [uiMap],
 			sourceDir,
 			moduleName,
+			minified: config.minified,
+			compress: config.compress,
 			relativePaths: config.relativePaths,
 			outputStaticPath: outputDir + 'modules/',
 			outputCssPath: outputDir + 'styles.css',
 			outputJsPath: outputDir + 'main.generated.js',
 			onFileChange: (info) => {
 				// Inject into index.html:
-				updateIndex('/en-admin/pack/', info, publicDir);
+				updateIndex('/en-admin/pack/', info, publicDir, config);
 			}
 		});
 		
@@ -285,6 +298,7 @@ function start(config){
 		}
 		
 		config.minified = (config.commandLine.prod || config.commandLine.minified);
+		config.compress = (config.commandLine.prod || config.commandLine.compress);
 		
 		watchOrBuild(config, isWatch);
 	}else if(config.commandLine.command == 'id'){
@@ -446,7 +460,8 @@ function start(config){
 				// Send the response:
 				message.response(page);
 			}else if(action == "watch"){
-				config.minified = message.request.minified;
+				config.minified = message.request.prod || message.request.minified;
+				config.compress = message.request.prod || message.request.compress;
 				watchOrBuild(config, true);
 				message.response({success: true});
 			}
