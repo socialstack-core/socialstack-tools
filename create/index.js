@@ -324,6 +324,7 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				'Api.Templates', 
 				'Api.Uploader', 
 				'Api.Users',
+				'Api.ErrorLogging',
 				
 				'UI.Alert',
 				'UI.Bootstrap',
