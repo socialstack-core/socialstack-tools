@@ -9,6 +9,9 @@ module.exports = (config) => {
 	
 	var socket = new net.Socket();
 	var timeout = null;
+	var lastMessageTime = 0;
+	var remoteVersion = 0;
+	
 	
 	var heartbeatPayload = Buffer.from([
 		2,
@@ -26,6 +29,19 @@ module.exports = (config) => {
 		if(!timeout){
 			timeout = setInterval(function(){
 				
+				if (remoteVersion >= 1 && lastMessageTime != 0) {
+					// 10 seconds ago is the limit.
+					if (lastMessageTime <= (Date.now() - 1000 * 10)) {
+						if(socket){
+							socket.close();
+							socket = null;
+						}
+						console.log('Force quit');
+						process.exit();
+						return;
+					}
+				}
+				
 				// Heartbeat.
 				// This may cause the socket to error or disconnect, 
 				// resulting in our process exiting intentionally.
@@ -42,7 +58,7 @@ module.exports = (config) => {
 			(id >> 8) & 255,
 			(id >> 16) & 255,
 			(id >> 24) & 255,
-			0,
+			1,
 			0
 		]));
 	});
@@ -123,6 +139,18 @@ module.exports = (config) => {
 				};
 				
 				break;
+			}
+			
+			lastMessageTime = Date.now();
+			
+			if(opcode == 4){
+				// Heartbeat responded! The main thing this does is update last message time.
+				return;
+			}else if(opcode == 5){
+				// Protocol version msg:
+				console.log('Remote version: ' + requestId);
+				remoteVersion = requestId;
+				return;
 			}
 			
 			offset+=7;
