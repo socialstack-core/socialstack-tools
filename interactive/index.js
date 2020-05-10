@@ -30,13 +30,12 @@ module.exports = (config) => {
 			timeout = setInterval(function(){
 				
 				if (remoteVersion >= 1 && lastMessageTime != 0) {
-					// 10 seconds ago is the limit.
-					if (lastMessageTime <= (Date.now() - 1000 * 10)) {
+					// 4 seconds ago is the limit.
+					if (lastMessageTime <= (Date.now() - 1000 * 4)) {
 						if(socket){
-							socket.close();
+							socket.end();
 							socket = null;
 						}
-						console.log('Force quit');
 						process.exit();
 						return;
 					}
@@ -47,7 +46,7 @@ module.exports = (config) => {
 				// resulting in our process exiting intentionally.
 				socket.write(heartbeatPayload);
 				
-			}, 5000);
+			}, 2000);
 		}
 		
 		var id = config.id || 1;
@@ -148,7 +147,6 @@ module.exports = (config) => {
 				return;
 			}else if(opcode == 5){
 				// Protocol version msg:
-				console.log('Remote version: ' + requestId);
 				remoteVersion = requestId;
 				return;
 			}
