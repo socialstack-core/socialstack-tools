@@ -81,14 +81,20 @@ module.exports = (config) => {
 		var vowelRegex = '^[aieouAIEOU].*';
 		var startsWithVowel = singular.match(vowelRegex);
 		var aOrAn = startsWithVowel ? 'an ' : 'a ';
+		var fqEntity = singular;
+		
+		if(entity == singular && moduleSet == 'Api'){
+			fqEntity = 'Api.' + entity + '.' + entity;
+		}
 		
 		var swaps = {
 			anEntity: aOrAn + lowerize(singular),
 			AnEntity: capitalize(aOrAn) + singular,
+			FullyQualifiedEntity: fqEntity,
 			Entity: singular,
 			entity: lowerize(singular),
-			Entities: names.entity,
-			entities: lowerize(names.entity)
+			Entities: entity,
+			entities: lowerize(entity)
 		};
 		
 		// For each file in Api/TYPE..

@@ -23,23 +23,23 @@ namespace Api.Entities
 		/// <summary>
 		/// Get anEntity by its ID.
 		/// </summary>
-		Task<Entity> Get(Context context, int id);
+		Task<FullyQualifiedEntity> Get(Context context, int id);
 
 		/// <summary>
 		/// Create anEntity.
 		/// </summary>
-		Task<Entity> Create(Context context, Entity e);
+		Task<FullyQualifiedEntity> Create(Context context, FullyQualifiedEntity e);
 
 		/// <summary>
 		/// Updates the database with the given entity data. It must have an ID set.
 		/// </summary>
-		Task<Entity> Update(Context context, Entity e);
+		Task<FullyQualifiedEntity> Update(Context context, FullyQualifiedEntity e);
 
 		/// <summary>
 		/// List a filtered set of entities.
 		/// </summary>
 		/// <returns></returns>
-		Task<List<Entity>> List(Context context, Filter<Entity> filter);
+		Task<List<FullyQualifiedEntity>> List(Context context, Filter<FullyQualifiedEntity> filter);
 
 	}
 }

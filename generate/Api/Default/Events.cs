@@ -13,6 +13,6 @@ namespace Api.Eventing
 		/// <summary>
 		/// Set of events for anEntity.
 		/// </summary>
-		public static EventGroup<Entity> Entity;
+		public static EventGroup<FullyQualifiedEntity> Entity;
 	}
 }
