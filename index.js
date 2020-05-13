@@ -46,6 +46,8 @@ function mapArgs()
 		{name: 'add', alias: 'a'},
 		{name: 'share', alias: 's'},
 		{name: 'version', alias: 'v'},
+		{name: 'generate', alias: 'g'},
+		{name: 'where'},
 		{name: 'id'}
 	];
 	
@@ -318,6 +320,16 @@ function start(config){
 			console.log(type + ': ' + getContentTypeId(type));
 			
 		}
+	}else if(config.commandLine.command == 'generate'){
+		
+		// Generate a module.
+		var generate = require('./generate/index.js');
+		generate(config);
+		
+	}else if(config.commandLine.command == 'where'){
+		
+		// Just outputs the project directory.
+		console.log(config.projectRoot);
 		
 	}else if(config.commandLine.command == 'render'){
 		// Renders UI's (this typically actually happens over the interactive mode below).
