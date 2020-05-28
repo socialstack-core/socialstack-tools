@@ -445,19 +445,18 @@ function start(config){
 		
 		var renderer = serverrender.getRenderer(config);
 		
-		if(!config.commandLine.p){
-			console.error('-p port is a required field.');
+		if(config.commandLine.p){
+			console.error('Obsolete usage of socialstack tools. Upgrade your Api/StackTools module to continue using this version of socialstack tools.');
 			return;
 		}
 		
-		var port = parseInt(config.commandLine.p[0]);
-		
-		// A numeric ID for the process to identify itself with:
-		var id = config.commandLine.id ? parseInt(config.commandLine.id[0]) : undefined;
+		if(config.commandLine.parent){
+			config.parent = config.commandLine.parent[0];
+		}
 		
 		var interactive = require('./interactive/index.js');
 		
-		interactive({port, id, onRequest: function(message){
+		interactive({onRequest: function(message){
 			
 			var action = message.request.action;
 			
@@ -476,6 +475,8 @@ function start(config){
 				config.compress = message.request.prod || message.request.compress;
 				watchOrBuild(config, true);
 				message.response({success: true});
+			}else{
+				message.response({unknown: action});
 			}
 			
 		}});
