@@ -2,6 +2,8 @@ var renderToString = require('preact-render-to-string');
 
 function loadFrontend(config){
 	
+	global.navigator = {};
+	
 	// The JS file is at..
 	var jsFile = config.projectRoot + '/UI/public/pack/main.generated.js';
 	
@@ -59,33 +61,21 @@ function getRenderer(config){
 				}
 			}
 			
+			global.document = frontend.window.document = {
+				addEventListener: () => {},
+				removeEventListener: () => {},
+			};
+			
 			frontend.window.location = {
 				pathname: config.url
 			};
 			
 			var html;
 			
-			if(config.canvas){
-				var canvasInstance = frontend.React.createElement(frontend.Canvas, null, config.canvas);
-				
-				html = renderToString(
-					canvasInstance
-				);
-				
-			}else{
-				
-				// In the URL cases, we need to grab the canvas for the *page*.
-				/*html = renderToString(
-					canvasInstance
-				);
-				*/
-				
-				return {
-					failed: 'Rendering URLs is not quite ready yet!',
-					html: null,
-					meta: {}
-				};
-			}
+			var canvasInstance = frontend.React.createElement(frontend.Canvas, null, config.canvas);
+			html = renderToString(
+				canvasInstance
+			);
 			
 			return {
 				html: html,
