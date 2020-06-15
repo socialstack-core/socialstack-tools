@@ -183,15 +183,22 @@ module.exports = (config) => {
  fileInfo: the info for the raw changed set of files, provided by the builder.
 */
 function updateIndex(publicUrl, fileInfo, publicDir, config){
+	updateHtmlFile(publicUrl, fileInfo, publicDir, config, 'index.html', false);
+	updateHtmlFile(publicUrl, fileInfo, publicDir, config, 'mobile.html', true);
+}
+
+function updateHtmlFile(publicUrl, fileInfo, publicDir, config, htmlFileName, optional){
 	
-	// First try to read the index.html file:
-	var fullFilePath = publicDir + '/index.html';
+	// First try to read the .html file:
+	var fullFilePath = publicDir + '/' + htmlFileName;
 	
 	fs.readFile(fullFilePath, 'utf8', function(err, contents){
 		
-		if(err){
+		if(err || !contents || !contents.length){
 			// Doesn't exist or otherwise isn't readable.
-			console.log('Info: Error when trying to read index.html: ', err);
+			if(!optional){
+				console.log('Info: Error when trying to read ' + htmlFileName + ': ', err);
+			}
 			return;
 		}
 		
@@ -212,15 +219,11 @@ function updateIndex(publicUrl, fileInfo, publicDir, config){
 			contents = contents.replace(fileRegex, filePublicPath + '?v=' + time);
 		});
 		
-		if(originalContents != contents){
-			
+		if(originalContents != contents && contents.length){
 			// Write it back out:
 			fs.writeFile(fullFilePath, contents, function(err){
-				
 				err && console.error(err);
-				
 			});
-			
 		}
 		
 		// Precompress if needed:
@@ -256,8 +259,10 @@ function watchOrBuild(config, isWatch){
 		outputCssPath: outputDir + 'styles.css',
 		outputJsPath: outputDir + 'main.generated.js',
 		onFileChange: (info) => {
-			// Inject into index.html:
-			updateIndex('/pack/', info, publicDir, config);
+			// Inject into index.html (and mobile.html if it exists):
+			if(config.minified && !config.noIndexUpdate){
+				updateIndex('/pack/', info, publicDir, config);
+			}
 		}
 	});
 	
@@ -280,8 +285,10 @@ function watchOrBuild(config, isWatch){
 			outputCssPath: outputDir + 'styles.css',
 			outputJsPath: outputDir + 'main.generated.js',
 			onFileChange: (info) => {
-				// Inject into index.html:
-				updateIndex('/en-admin/pack/', info, publicDir, config);
+				// Inject into index.html (and mobile.html if it exists):
+				if(config.minified && !config.noIndexUpdate){
+					updateIndex('/en-admin/pack/', info, publicDir, config);
+				}
 			}
 		});
 		
