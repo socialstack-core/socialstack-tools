@@ -19,7 +19,7 @@
     "pluralize": "^8.0.0",
     "preact": "^10.4.4",
     "preact-render-to-string": "^5.1.8",
-    "react-lite-builder": "^1.0.20",
+    "react-lite-builder": "^1.0.21",
     "recursive-watch": "^1.1.4",
     "require-nocache": "^1.0.0",
     "sass": "^1.21.0",
