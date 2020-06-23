@@ -306,8 +306,8 @@ function start(config){
 			config.relativePaths = true;
 		}
 		
-		config.minified = (config.commandLine.prod || config.commandLine.minified);
-		config.compress = (config.commandLine.prod || config.commandLine.compress);
+		config.minified = (config.commandLine.prod || config.commandLine.minified) ? true : false;
+		config.compress = (config.commandLine.prod || config.commandLine.compress) ? true : false;
 		
 		watchOrBuild(config, isWatch);
 	}else if(config.commandLine.command == 'id'){
