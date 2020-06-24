@@ -8,43 +8,21 @@ This is a command line interface for creating, managing and compiling the UI's o
 
 # Configuration
 
-A few actions that the socialstack tools perform require MySQL admin rights on a development machine. This is so it can, for example, automatically create development databases for you. Whilst optional, it's a good idea to set this access up. Create this in the config file found here:
-
-Windows:
-
-`%AppData%\socialstack\settings.json`
-
-Debian Linux:
-
-`/{username}/.config/socialstack/settings.json`
-
-Or find it via running:
-
-`socialstack configuration`
-
-The file needs to contain the account details for a local (on your development machine) MySQL user account with the ability to create and manage databases. Here's an example settings.json:
-
-```
-{
-    "databases": {
-        "local": {
-            "username": "sstools",
-            "password": "sstools!",
-            "server": "localhost"
-        }
-    }
-}
-```
-
-And to create the account on your MySQL instance, run this (changing the username/ password as you see fit, just ensuring it matches your settings.json):
+Only do this on a development machine. It's not needed anywhere else.
 
 ```
 	-- Create the user account:
-	CREATE USER 'sstools'@'localhost' IDENTIFIED BY 'sstools!';
+	CREATE USER 'sstools'@'localhost' IDENTIFIED BY 'sstools!'; -- Invent a password here!
 	-- Grant that user full access to the db:
 	GRANT ALL PRIVILEGES ON *.* TO 'sstools'@'localhost' WITH GRANT OPTION;
 	FLUSH PRIVILEGES;
 ```
+
+```
+socialstack configure -u "sstools" -p "sstools!"
+```
+
+A few actions that the socialstack tools perform require MySQL admin rights on a development machine. This is so it can, for example, automatically create new databases for you. Whilst optional, it's highly recommended to set this access up. The account details are stored in a file which can also be located by running `socialstack configuration`.
 
 # Basic usage
 
@@ -55,7 +33,7 @@ SocialStack tools are used directly by a running API (unless disabled, which you
 Currently socialstack projects require the following:
 
 * Node.js 8+
-* [.NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
+* [.NET Core 3.1 SDK](https://dotnet.microsoft.com/download/dotnet-core/3.1). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
 * MySQL. Version 8 is recommended.
 
 ## Creating a project

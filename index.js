@@ -445,12 +445,12 @@ function start(config){
 		migrate(config);
 		
 	}else if(config.commandLine.command == 'interactive'){
-		// Interactive mode. We'll send and receive data over a raw TCP socket.
+		// Interactive mode. We'll send and receive data over stdio.
 		// The other end is the server, so one host site can have multiple node processes at once.
 		
 		var serverrender = require('./serverrender/index.js');
 		
-		var renderer = serverrender.getRenderer(config);
+		var renderer = null;
 		
 		if(config.commandLine.p){
 			console.error('Obsolete usage of socialstack tools. Upgrade your Api/StackTools module to continue using this version of socialstack tools.');
@@ -468,6 +468,10 @@ function start(config){
 			var action = message.request.action;
 			
 			if(action == "render"){
+				if(renderer == null){
+					renderer = serverrender.getRenderer(config);
+				}
+				
 				// Render the page now (url/ canvas are optional - only need one or the other):
 				var page = renderer.render({
 					url: message.request.url,

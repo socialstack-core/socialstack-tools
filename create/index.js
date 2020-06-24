@@ -88,8 +88,38 @@ function tidyUrl(config){
 	
 	domainName = domainName.replace('/', '');
 	
+	// Track the domain name:
+	config.domainName = domainName;
+	
 	// DB name is just the site url:
 	config.databaseName = domainName;
+	
+}
+
+function createSiteAdmin(connection, config, success){
+	
+	if(config.noAdminAccount){
+		return success(config);
+	}
+	
+	console.log('Creating a site admin account..');
+	
+	// Create site admin (password is "admin"):
+	var createAdminUser = 'USE `' + config.databaseName + '`;CREATE TABLE `site_user` (`Id` int(11) NOT NULL AUTO_INCREMENT,`FirstName` varchar(40) DEFAULT NULL,`LastName` varchar(40) DEFAULT NULL,`Email` varchar(80) DEFAULT NULL,`Role` int(11) NOT NULL,' + 
+	'`JoinedUtc` datetime NOT NULL, `Username` varchar(40) DEFAULT NULL,`PasswordHash` varchar(80) DEFAULT NULL,PRIMARY KEY (`Id`));' +
+	'INSERT INTO site_user(`Id`, `PasswordHash`, `Email`, `FirstName`, `LastName`, `Role`, `JoinedUtc`, `Username`) VALUES (1, "$P$68awep7Ri9CjDs7WuPAZyGfjCB1nXZ.", "admin@' + config.domainName + '", "Site", "Admin", 1, NOW(), "admin");';
+	
+	connection.query(
+		  createAdminUser,
+		  function(err, results, fields) {
+			  if(err){
+				  connection.close();
+				  console.log(err);
+				  console.log('Error occurred whilst trying to setup an admin account for you. Skipping it and carrying on with the next steps.');
+			  }
+			  success(config);
+		  }
+	);
 	
 }
 
@@ -170,7 +200,6 @@ function createDatabase(connectionInfo, config){
 			  connection.query(
 				createUser,
 				function(err, results, fields) {
-					connection.close();
 					
 					if(err){
 						if(err.code){
@@ -191,7 +220,8 @@ function createDatabase(connectionInfo, config){
 						throw err;
 					}
 					
-					success(config);
+					// Create site admin account:
+					createSiteAdmin(connection, config, success);
 				}
 			  );
 		  }
@@ -247,7 +277,7 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 		}
 	}
 ).then(
-	config => askFor('(Optional) Which modules would you like to install now? Browse your preferred repo to find modules you can use. A module can also be a set of modules so you can install a common group if you\'d like. Separate multiple modules with ,', 'modules')
+	config => askFor('(Optional) Which modules would you like to install now? Separate multiple modules with , or press enter to skip', 'modules')
 ).then(
 	cfg => {
 		console.log('Attempting to create a git repository via "git init"..');
