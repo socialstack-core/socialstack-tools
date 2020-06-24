@@ -10,6 +10,23 @@ var exec = require('child_process').exec;
 var sourceHostGit = configManager.getLocalConfig().sourceRepoGit || 'git@source.socialstack.cf';
 var sourceHostHttps = configManager.getLocalConfig().sourceRepoHttps || 'https://source.socialstack.cf';
 
+function installAllModules(modules, config, asSubModule, useHttps){
+	
+	var pendingInstall = installModule(modules[0], config, asSubModule, useHttps);
+	
+	for(var i=1;i<modules.length;i++){
+		(function(index){
+			var module = modules[index];
+			pendingInstall = pendingInstall.then(() => {
+				console.log("Installing module " + (index+1) + "/" + modules.length);
+				return installModule(module, config, asSubModule, useHttps);
+			});
+		})(i);
+	}
+	
+	return pendingInstall;
+}
+
 function installModule(moduleName, config, asSubModule, useHttps){
 	return new Promise((success, reject) => {
 		
@@ -23,6 +40,35 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			moduleFilePath = 'Admin/Source/ThirdParty/' + moduleFilePath.substring(6);
 		}else if(moduleFilePath.toLowerCase().indexOf('api/') == 0){
 			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
+		}else if(moduleFilePath != ''){
+			// It's a package:
+			var packagePath = sourceHostHttps + '/packages/' + fwdSlashes.toLowerCase() + '/raw/master/package.json';
+			
+			https.get(packagePath, function(res) {
+				let body = "";
+				res.on("data", (chunk) => {
+					body += chunk;
+				});
+
+				res.on("end", () => {
+					try {
+						let json = JSON.parse(body);
+						if(json && json.dependencies && json.dependencies.length){
+							
+							installAllModules(json.dependencies, config, asSubModule, useHttps).then(success);
+							
+						}else{
+							console.log("Warning: Empty or otherwise malformed package. Installed nothing.");
+						}
+						return;
+						
+					} catch (error) {
+						console.error(error.message);
+					};
+				});
+			});
+			
+			return;
 		}
 		
 		if(asSubModule){
