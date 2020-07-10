@@ -254,7 +254,7 @@ if(newConfiguration.dbMode == 'dbOnly'){
 		var cfg = newConfiguration;
 		
 		if(cfg.databaseUser && cfg.databasePassword){
-			appsettings.ConnectionStrings.DefaultConnection = "server=localhost;port=3306;SslMode=none;database=" + cfg.databaseName + ";user=" + cfg.databaseUser + ";password=" + cfg.databasePassword;
+			appsettings.ConnectionStrings.DefaultConnection = "server=localhost;port=3306;SslMode=none;AllowPublicKeyRetrieval=true;database=" + cfg.databaseName + ";user=" + cfg.databaseUser + ";password=" + cfg.databasePassword;
 		}
 		
 		appsettingsManager.update(appsettings);
