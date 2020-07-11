@@ -35,6 +35,7 @@ Currently socialstack projects require the following:
 * Node.js 8+
 * [.NET Core 3.1 SDK](https://dotnet.microsoft.com/download/dotnet-core/3.1). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
 * MySQL. Version 8 is recommended.
+* Git
 
 ## Creating a project
 
