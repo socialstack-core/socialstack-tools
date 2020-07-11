@@ -317,6 +317,7 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
 				var appsettings = appsettingsManager.get();
 				appsettings.BaseUrl = cfg.url;
+				appsettings.PublicUrl = cfg.url;
 				if(cfg.container){
 					appsettings.Container = 1;
 				}

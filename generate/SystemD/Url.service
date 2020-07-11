@@ -1,0 +1,13 @@
+[Unit]
+Description=Url API - Runs the .NET Core API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/Url/Api/
+ExecStart=/usr/bin/dotnet Api.dll
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

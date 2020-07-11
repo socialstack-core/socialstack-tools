@@ -1,6 +1,7 @@
 var pluralize = require('pluralize');
 var readline = require('readline');
 var fs = require('fs');
+var { jsConfigManager } = require('../configManager');
 
 /*
 * socialstack generate Api/Worlds  --> Uses the contents of the Api directory here as a template, then generates the named module.
@@ -49,6 +50,10 @@ module.exports = (config) => {
 	
 	var currentModule = 0;
 	
+	function dashName(label){
+		return label.replace(/([^A-Z])([A-Z])/g, '$1-$2');
+	}
+	
 	function createModule(moduleSet, type, names){
 		
 		try{
@@ -87,7 +92,25 @@ module.exports = (config) => {
 			fqEntity = 'Api.' + entity + '.' + entity;
 		}
 		
+		// merge in any directory names:
+		var mergedName = '';
+		
+		names.subDirectories.forEach(subDir => {
+			if(mergedName != ''){
+				mergedName += '-';
+			}
+			mergedName += subDir.toLowerCase();
+		});
+		
+		var dn = dashName(entity);
+		
+		if(mergedName != ''){
+			mergedName += '-';
+		}
+		mergedName += dn.toLowerCase();
+		
 		var swaps = {
+			'fully-qualified-entity': mergedName,
 			anEntity: aOrAn + lowerize(singular),
 			AnEntity: capitalize(aOrAn) + singular,
 			FullyQualifiedEntity: fqEntity,
@@ -99,7 +122,10 @@ module.exports = (config) => {
 		
 		// For each file in Api/TYPE..
 		var templateDir = __dirname + '/' + moduleSet + '/' +type;
-		
+		copyTemplate(templateDir, swaps, targetDirectory, names.fqName);
+	}
+	
+	function copyTemplate(templateDir, swaps, targetDirectory, generatedName) {
 		fs.readdir(templateDir, function (err, files) {
 			if(err){
 				throw err;
@@ -115,7 +141,7 @@ module.exports = (config) => {
 				
 			});
 			
-			console.log('Generated ' + names.fqName);
+			console.log('Generated ' + generatedName);
 			handleModule();
 		});
 	}
@@ -129,6 +155,67 @@ module.exports = (config) => {
 		return text;
 	}
 	
+	function generateNginxConfig(){
+		var targetDirectory = config.projectRoot + '/Nginx';
+		
+		fs.mkdirSync(targetDirectory, { recursive: true });
+		
+		var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
+		var appsettings = appsettingsManager.get();
+		
+		var baseUrl = appsettings.BaseUrl;
+		
+		var protoParts = baseUrl.split('://');
+		
+		if(protoParts.length > 1){
+			baseUrl = protoParts[1];
+		}
+		
+		baseUrl = baseUrl.replace(/\//gi, '');
+		
+		var urlSet = baseUrl;
+		
+		if(baseUrl.indexOf('www.') != 0){
+			urlSet += ' www.' + baseUrl;
+		}
+		
+		urlSet += ' *.' + baseUrl;
+		
+		var swaps = {
+			PreferredUrl: baseUrl,
+			UrlSet: urlSet,
+			Url: baseUrl,
+			Port: appsettings.Port || 5050
+		};
+		
+		copyTemplate(__dirname + '/Nginx', swaps, targetDirectory, 'NGINX Config');
+	}
+	
+	function generateSystemDConfig(){
+		var targetDirectory = config.projectRoot + '/SystemD';
+		
+		fs.mkdirSync(targetDirectory, { recursive: true });
+		
+		var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
+		var appsettings = appsettingsManager.get();
+		
+		var baseUrl = appsettings.BaseUrl;
+		
+		var protoParts = baseUrl.split('://');
+		
+		if(protoParts.length > 1){
+			baseUrl = protoParts[1];
+		}
+		
+		baseUrl = baseUrl.replace(/\//gi, '');
+		
+		var swaps = {
+			Url: baseUrl
+		};
+		
+		copyTemplate(__dirname + '/SystemD', swaps, targetDirectory, 'SystemD Config (Linux service config)');
+	}
+	
 	function handleModule(){
 		currentModule++;
 		
@@ -138,24 +225,68 @@ module.exports = (config) => {
 		}
 		
 		var originalInput = modules[currentModule];
+		originalInput = originalInput.trim();
 		
-		var pieces = originalInput.trim().split('/');
-		var entity = capitalize(pieces.pop().trim());
+		if(originalInput.indexOf('.json') != -1){
+			// Defined in a json file. It's either just an array, or {"modules": [..,..]}
+			
+			// Import the file:
+			var json = require(first);
+			
+			if(!json){
+				console.log('Your json file was found, but it\'s empty. Check: ' + originalInput);
+				handleModule();
+				return;
+			}
+			
+			if(Array.isArray(json)){
+				modules = modules.concat(json);
+			}else if(json.modules){
+				modules = modules.concat(json.modules);
+			}else{
+				console.log('If you\'d like to list modules to generate in a json file, it should either be an array of textual names, or {"modules": [..]} where the "modules" array is again an array of textual names.');
+			}
+			
+			handleModule();
+			return;
+		}
+		
+		var pieces = originalInput.split('/');
+		
+		if(pieces.length == 1){
+			var first = pieces[0].toLowerCase();
+			
+			if(first == 'nginx'){
+				// NGINX config.
+				generateNginxConfig();
+				return;
+			}else if(first == 'systemd' || first == 'service'){
+				// SystemD service file generator.
+				generateSystemDConfig();
+				return;
+			}
+		}
 		
 		var firstPiece = 'api';
 		
-		if(pieces.length > 0){
+		if(pieces.length > 1){
 			// Api is assumed otherwise.
 			firstPiece = pieces.shift().trim().toLowerCase();
 		}
 		
+		// Grab entity name now:
+		var entity = capitalize(pieces.pop().trim());
+		
 		var fqNameBase = capitalize(firstPiece);
+		var subDirectories = [];
 		
 		if(pieces.length>0){
-			// Subdirectories
+			// There's still stuff left - these are subdirectories
 			for(var i=0;i<pieces.length;i++){
+				var subdirName = capitalize(pieces[i].trim());
+				subDirectories.push(subdirName);
 				fqNameBase += '/';
-				fqNameBase += capitalize(pieces[i].trim());
+				fqNameBase += subdirName;
 			}
 		}
 		
@@ -163,6 +294,7 @@ module.exports = (config) => {
 	
 		var names = {
 			pieces,
+			subDirectories,
 			originalInput,
 			entity,
 			fqNameBase,

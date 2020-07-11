@@ -2,11 +2,11 @@
 // import webRequest from 'UI/Functions/WebRequest';
 // import Loop from 'UI/Loop';
 
-export default class Entity extends React.Component {
+export default class Entities extends React.Component {
 	
 	render(){
 		
-		return <div className="entity"></div>;
+		return <div className="fully-qualified-entity"></div>;
 		
 	}
 	
@@ -17,7 +17,7 @@ export default class Entity extends React.Component {
 // Just setting it to an empty object will make your component appear as something that can be added.
 // Define your available props like the examples below.
 
-Entity.propTypes = {
+Entities.propTypes = {
 	
 	title: 'string', // text input
 	size: [1,2,3,4], // dropdowns
@@ -28,5 +28,5 @@ Entity.propTypes = {
 	
 };
 
-Entity.icon='align-center'; // fontawesome icon
+Entities.icon='align-center'; // fontawesome icon
 */

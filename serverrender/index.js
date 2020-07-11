@@ -1,28 +1,42 @@
+var fetch = require('node-fetch');
+var fs = require('fs');
 var renderToString = require('preact-render-to-string');
 
 function loadFrontend(config){
 	
-	global.navigator = {};
+	var jsGlobalScope = {
+		fetch,
+		navigator: {},
+		title: '',
+		location: {
+			pathname: '/'
+		},
+		apiHost: 'http://localhost:5050'
+	};
 	
 	// The JS file is at..
 	var jsFile = config.projectRoot + '/UI/public/pack/main.generated.js';
-	
-		var frontend;
+	var frontend;
 	
 	try{
-		// Go get the JS now (frontend will be set to whatever it exposes to the 'global' scope):
-		frontend = require(jsFile);
+		// Go get the JS now:
+		var jsFileContent = fs.readFileSync(jsFile);
+		
+		var __scope__ = {
+			exports: jsGlobalScope
+		};
+		
+		eval('function(module){' + jsFileContent + '}(__scope__)');
+		
+		frontend = jsGlobalScope;
+		console.log(frontend);
+		
 	}catch(e){
 		console.log('[WARN] Your frontend JS fails to load: ' + e.toString());
 		return {
 			failed: e
 		};
 	}
-	frontend.title = '';
-	
-	frontend.location = {
-		pathname: '/'
-	};
 	
 	var _App = frontend.__mm['UI/Start/App.js'].call();
 	var _Canvas = frontend.__mm['UI/Canvas/Canvas.js'].call();
@@ -67,7 +81,7 @@ function getRenderer(config){
 			};
 			
 			frontend.window.location = {
-				pathname: config.url
+				pathname: '/'
 			};
 			
 			var html;

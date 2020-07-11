@@ -16,6 +16,7 @@
     "appdata-path": "^1.0.0",
     "mime-types": "^2.1.22",
     "mysql2": "^2.1.0",
+    "node-fetch": "^2.6.0",
     "pluralize": "^8.0.0",
     "preact": "^10.4.4",
     "preact-render-to-string": "^5.1.8",
