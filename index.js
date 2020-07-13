@@ -11,6 +11,7 @@
 var fs = require('fs');
 var path = require('path');
 var zlib = require('zlib');
+const { spawn } = require('child_process');
 
 // React-lite-builder is also a socialstack project.
 // It'll let you use Socialstack's UI modules without a Socialstack server if you use it directly.
@@ -38,8 +39,11 @@ function mapArgs()
 	
 	var commandOps = [
 		{name: 'watch', alias: 'w'},
-		{name: 'buildui', alias: 'b'},
+		{name: 'build', alias: 'b'},
+		{name: 'buildui'},
+		{name: 'buildapi'},
 		{name: 'install', alias: 'i'},
+		{name: 'uninstall'},
 		{name: 'init'},
 		{name: 'create', alias: 'c'},
 		{name: 'configuration'},
@@ -335,20 +339,75 @@ function watchOrBuild(config, isWatch){
 	
 }
 
+function buildUI(config, isWatch){
+	if(config.commandLine.relativePaths){
+		config.relativePaths = true;
+	}
+	
+	config.minified = (config.commandLine.prod || config.commandLine.minified) ? true : false;
+	config.compress = (config.commandLine.prod || config.commandLine.compress) ? true : false;
+	
+	watchOrBuild(config, isWatch);
+}
+
+function buildAPI(config){
+	// Output into Api/build by default (unless told otherwise)
+	
+	//  dotnet publish Api.csproj -o obj/tm
+	const child = spawn('dotnet', ['publish', 'Api.csproj', '-o', 'Api/build'], {
+		cwd: config.projectRoot
+	});
+	
+	// Change encoding to text:
+	child.stdout.setEncoding('utf8');
+	child.stderr.setEncoding('utf8');
+	
+	child.stdout.on('data', (chunk) => {
+	  // data from standard output is here as buffers
+	  console.log(chunk);
+	});
+	
+	// since these are streams, you can pipe them elsewhere
+	child.stderr.on('data', (chunk) => {
+	  // data from standard output is here as buffers
+	  console.log(chunk);
+	});
+	
+	child.on('close', (code) => {
+		console.log('API build finished');
+	});
+}
+
 function start(config){
 	
 	var isWatch = config.commandLine.command == 'watch';
 	
 	if(isWatch || config.commandLine.command == 'buildui'){
+		buildUI(config, isWatch);
+	}else if(config.commandLine.command == 'buildapi'){
+		buildAPI(config);
+	}else if(config.commandLine.command == 'build'){
 		
-		if(config.commandLine.relativePaths){
-			config.relativePaths = true;
+		// Builds both API and UI
+		if(config.commandLine.prod){
+			config.minified = true;
+			config.compress = true;
 		}
 		
-		config.minified = (config.commandLine.prod || config.commandLine.minified) ? true : false;
-		config.compress = (config.commandLine.prod || config.commandLine.compress) ? true : false;
+		if(!config.commandLine.noUI){
+			// Build UI:
+			watchOrBuild(config, false);
+		}
 		
-		watchOrBuild(config, isWatch);
+		if(!config.commandLine.noApi){
+			// Build API:
+			buildAPI(config);
+		}
+		
+		if(!config.commandLine.noApp){
+			// Build cordova app (if there is one):
+		}
+		
 	}else if(config.commandLine.command == 'id'){
 		
 		var getContentTypeId = require('./getContentTypeId.js');
@@ -480,6 +539,12 @@ function start(config){
 		// Install a module.
 		var install = require('./install/index.js');
 		install(config);
+		
+	}else if(config.commandLine.command == 'uninstall'){
+		
+		// Uninstall a module.
+		var uninstall = require('./uninstall/index.js');
+		uninstall(config);
 		
 	}else if(config.commandLine.command == 'migrate'){
 		

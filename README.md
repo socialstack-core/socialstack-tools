@@ -52,7 +52,15 @@ This will also create a database for you too, if you've setup your database conf
 
 `socialstack i Api/HelloWorld`
 
-This will install the named module(s) from any repositories you have configured, as a submodule. You can list multiple here to install them all.
+This will install the named module(s) from any repositories you have configured, as a submodule. You can list multiple here to install them all. You can also use package names:
+
+`socialstack i Tags`
+
+## Uninstalling modules
+
+`socialstack uninstall Api/HelloWorld`
+
+Remove modules (or packages) with the uninstall command. Like the install command, you can list multiple modules.
 
 ## Watching for UI changes
 

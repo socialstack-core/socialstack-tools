@@ -27,6 +27,167 @@ function installAllModules(modules, config, asSubModule, useHttps){
 	return pendingInstall;
 }
 
+function uninstallAllModules(modules, config, asSubModule, useHttps){
+	
+	var pendingRemove = uninstallModule(modules[0], config, asSubModule, useHttps);
+	
+	for(var i=1;i<modules.length;i++){
+		(function(index){
+			var module = modules[index];
+			pendingRemove = pendingRemove.then(() => {
+				console.log("Uninstalling module " + (index+1) + "/" + modules.length);
+				return uninstallModule(module, config, asSubModule, useHttps);
+			});
+		})(i);
+	}
+	
+	return pendingRemove;
+}
+
+function deleteFolderRecursive(dirPath) {
+	if(!dirPath || dirPath == '/'){
+		return;
+	}
+  if (fs.existsSync(dirPath)) {
+		fs.readdirSync(dirPath).forEach((file, index) => {
+		var curPath = path.join(dirPath, file);
+		if (fs.lstatSync(curPath).isDirectory()) { // recurse
+			deleteFolderRecursive(curPath);
+		} else { // delete file
+			fs.unlinkSync(curPath);
+		}
+    });
+    fs.rmdirSync(dirPath);
+  }
+};
+
+function uninstallModule(moduleName, config){
+	
+	return new Promise((success, reject) => {
+		
+		if(!moduleName || !moduleName.trim() || moduleName == 'project'){
+			success();
+			return;
+		}
+		
+		var fwdSlashes = moduleName.replace(/\./gi, '/');
+		
+		var moduleFilePath = fwdSlashes;
+		
+		if(moduleFilePath.toLowerCase().indexOf('ui/') == 0){
+			moduleFilePath = 'UI/Source/ThirdParty/' + moduleFilePath.substring(3);
+		}else if(moduleFilePath.toLowerCase().indexOf('admin/') == 0){
+			moduleFilePath = 'Admin/Source/ThirdParty/' + moduleFilePath.substring(6);
+		}else if(moduleFilePath.toLowerCase().indexOf('email/') == 0){
+			moduleFilePath = 'Email/Source/ThirdParty/' + moduleFilePath.substring(6);
+		}else if(moduleFilePath.toLowerCase().indexOf('api/') == 0){
+			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
+		}else if(moduleFilePath != ''){
+			// It's a package:
+			var packagePath = sourceHostHttps + '/packages/' + fwdSlashes.toLowerCase() + '/raw/master/package.json';
+			
+			https.get(packagePath, function(res) {
+				let body = "";
+				res.on("data", (chunk) => {
+					body += chunk;
+				});
+
+				res.on("end", () => {
+					try {
+						let json = JSON.parse(body);
+						if(json && json.dependencies && json.dependencies.length){
+							
+							uninstallAllModules(json.dependencies, config).then(success);
+							
+						}else{
+							console.log("Warning: Empty or otherwise malformed package. Uninstalled nothing from it.");
+						}
+						return;
+						
+					} catch (error) {
+						console.error(error.message);
+					};
+				});
+			});
+			
+			return;
+		}
+		
+		runCmd('git submodule deinit -f "' + moduleFilePath + '"', config)
+			.then(() => runCmd('git rev-parse --show-toplevel', config))
+			.then(gitRoot => {
+				// Next, we need to get the 'real' directory path of the submodule.
+				// This is because we need to remove a directory in .git/modules/.
+				// Note that the actual .git repository meta can be a few levels up (although it's usually alongside the UI and Api directories).
+				
+				var normalGitRoot = path.normalize(gitRoot).trim();
+				var normalProjectRoot = path.normalize(config.projectRoot).trim();
+				
+				if(!normalGitRoot){
+					return;
+				}
+				
+				var deltaDirectory = '';
+				
+				if(normalGitRoot != normalProjectRoot){
+					// This is the uncommon case - where the .git repo meta is a level up or more.
+					deltaDirectory = path.relative(normalGitRoot, normalProjectRoot) + '/';
+				}
+				
+				// Meta exists?
+				return new Promise((s, r) => {
+					var realGitMetaPath = normalGitRoot + '/.git/modules/' + deltaDirectory + moduleFilePath;
+					fs.stat(realGitMetaPath, function(err, stat){
+						
+						if(!stat){
+							s();
+							return;
+						}
+						
+						// syncronous dir delete:
+						deleteFolderRecursive(realGitMetaPath);
+						s();
+					});
+				});
+			})
+			.then(() => runCmd('git rm -f "' + moduleFilePath + '"', config))
+			.then(() => {
+				success();
+			})
+			.catch(e => {
+				console.log('Failed to remove ' + moduleName + ' (does it exist in your project?)');
+				success();
+			});
+		
+	});
+}
+
+function runCmd(cmd, config){
+	return new Promise((success, reject) => {
+		
+		exec(
+			cmd,
+			{
+				cwd: config.projectRoot
+			},
+			function(err, stdout, stderr){
+				if(err){
+					// Fail:
+					reject(err);
+					return;
+				}
+				
+				if(stderr){
+					console.log(stderr);
+				}
+				
+				success(stdout);
+			}
+		);
+		
+	});
+}
+
 function installModule(moduleName, config, asSubModule, useHttps){
 	return new Promise((success, reject) => {
 		
@@ -212,5 +373,6 @@ function mkDirByPathSync(targetDir, { isRelativeToScript = false } = {}) {
 
 module.exports = {
 	installModule,
+	uninstallModule,
 	mkDirByPathSync
 };
