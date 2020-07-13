@@ -68,11 +68,33 @@ Remove modules (or packages) with the uninstall command. Like the install comman
 
 This will start a watcher which checks for changes in your UI/Source and Admin/Source directories. When a change happens, your UI will be rebuilt. This process doesn't exit.
 
-## One off UI builds
+## Builds
+
+Commands which build your project.
+
+### Build everything
+
+If you'd like to build the UI, the API and optionally native apps with Cordova, use the build command:
+
+`socialstack build -prod`
+
+-prod is optional, but will minify and pre-gzip the UI builds for you. It's recommended for pipelines to use this build command.
+
+### Api builds
+
+Whilst you can just use your preferred mechanism for building a C# project, a convenience API build command is included. It defaults to outputting into `Api/build`.
+
+`socialstack buildapi`
+
+Note that the API is separate from the UI, so there is no order requirement - you can build the API and UI in whatever order you want, or build everything as seen above.
+
+### UI builds
 
 `socialstack buildui`
 
-This builds UI/Source and Admin/Source, then quits.
+This builds UI/Source and Admin/Source, then quits. If you'd like to make a production (minified and pre-gzipped) build, add the -prod flag:
+
+`socialstack buildui -prod`
 
 ## SSMF - SocialStack Migration Framework
 
