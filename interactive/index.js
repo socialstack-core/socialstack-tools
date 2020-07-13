@@ -60,7 +60,7 @@ module.exports = (config) => {
 			msg = {};
 		}
 		msg._id = id;
-		process.stderr.write(JSON.stringify(msg));
+		console.log(JSON.stringify(msg));
 	}
 	
 };
