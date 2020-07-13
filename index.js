@@ -16,6 +16,10 @@ var zlib = require('zlib');
 // It'll let you use Socialstack's UI modules without a Socialstack server if you use it directly.
 var buildwatch = require('react-lite-builder').buildwatch;
 
+// Used for rendering React by command.
+// This is referenced out here such that any JS rebuilds can simply clear this variable.
+var renderer = null;
+
 /*
 * Converts the raw command line args into operation/ flag set.
 */
@@ -249,7 +253,7 @@ function watchOrBuild(config, isWatch){
 		return;
 	}
 	
-	var uiPromise = buildwatch[isWatch ? 'watch' : 'build']({
+	buildwatch[isWatch ? 'watch' : 'build']({
 		sourceDir,
 		moduleName,
 		minified: config.minified,
@@ -264,18 +268,53 @@ function watchOrBuild(config, isWatch){
 				updateIndex('/pack/', info, publicDir, config);
 			}
 		}
-	});
-	
-	uiPromise.then(uiMap => {
+	})
+	.then(uiMap => {
 		
-		// Admin panel (depends on UI modules):
+		// Email modules:
+		var sourceDir = config.projectRoot + '/Email/Source';
+		var publicDir = config.projectRoot + '/Email/public';
+		var outputDir = publicDir + '/pack/';
+		var moduleName = 'Email';
+		
+		return new Promise((success, reject) => {
+			
+			buildwatch[isWatch ? 'watch' : 'build']({
+				// include: [uiMap],
+				sourceDir,
+				moduleName,
+				minified: config.minified,
+				compress: config.compress,
+				relativePaths: config.relativePaths,
+				outputStaticPath: outputDir + 'modules/',
+				outputCssPath: outputDir + 'styles.css',
+				outputJsPath: outputDir + 'main.generated.js',
+				onFileChange: (info) => {
+					renderer = null;
+				}
+			}).then(emailMap => {
+				
+				success(
+					{
+						uiMap,
+						emailMap
+					}
+				);
+				
+			}).catch(reject);
+		});
+		
+	})
+	.then(maps => {
+		
+		// Admin panel (depends on UI and Email modules):
 		var sourceDir = config.projectRoot + '/Admin/Source';
 		var publicDir = config.projectRoot + '/Admin/public/en-admin';
 		var outputDir = publicDir + '/pack/';
 		var moduleName = 'Admin';
 		
 		buildwatch[isWatch ? 'watch' : 'build']({
-			include: [uiMap],
+			include: [maps.uiMap, maps.emailMap],
 			sourceDir,
 			moduleName,
 			minified: config.minified,
@@ -343,27 +382,31 @@ function start(config){
 		
 		var serverrender = require('./serverrender/index.js');
 		
-		var renderer = serverrender.getRenderer(config);
+		renderer = serverrender.getRenderer(config);
 		
-		// (url/ canvas are optional - only need one or the other):
-		var url = config.commandLine.url;
 		var canvas = config.commandLine.canvas;
 		
-		if(!url && !canvas){
-			console.error("Please provide either -url or -canvas to render.");
-		}
-		
-		if(url){
-			url = url[0];
+		if(!canvas){
+			console.error("Please provide -canvas to render.");
+			return;
 		}
 		
 		if(canvas){
 			canvas = canvas[0];
 		}
 		
-		var home = renderer.render({url, canvas, context:{}});
+		var context = config.commandLine.context;
 		
-		console.log(home);
+		if(context){
+			context = JSON.parse(context[0]);
+		}else{
+			context = {};
+		}
+		
+		renderer.render({canvas, context}).then(result => {
+			console.log(result);
+		});
+		
 	}else if(config.commandLine.command == 'version'){
 		
 		// Output the version and quit.
@@ -450,8 +493,6 @@ function start(config){
 		
 		var serverrender = require('./serverrender/index.js');
 		
-		var renderer = null;
-		
 		if(config.commandLine.p){
 			console.error('Obsolete usage of socialstack tools. Upgrade your Api/StackTools module to continue using this version of socialstack tools.');
 			return;
@@ -468,19 +509,47 @@ function start(config){
 			var action = message.request.action;
 			
 			if(action == "render"){
+				
+				var toRender;
+				
+				if(message.request.multiple){
+					// This is an array of [canvas, context].
+					toRender = message.request.multiple;
+				}else if(message.request.contexts){
+					// This is an array of contexts, but one canvas.
+					var { canvas } = message.request;
+					toRender = message.request.contexts.map(context => {
+						
+						return {
+							context,
+							canvas
+						};
+					})
+				}else{
+					toRender = [{
+						canvas: message.request.canvas,
+						context: message.request.context
+					}];
+				}
+				
+				// Get or setup a renderer:
 				if(renderer == null){
+					// Note: Renderer is in the 'global' scope such that a js file rebuild forces a new renderer instance.
 					renderer = serverrender.getRenderer(config);
 				}
 				
-				// Render the page now (url/ canvas are optional - only need one or the other):
-				var page = renderer.render({
-					url: message.request.url,
-					canvas: message.request.canvas,
-					context: message.request.context
+				// Request to render them now:
+				var pendingRenders = toRender.map(renderer.render);
+				
+				Promise.all(pendingRenders).then(results => {
+					
+					// Send the response:
+					message.response({
+						results
+					});
+					
 				});
 				
-				// Send the response:
-				message.response(page);
 			}else if(action == "watch"){
 				config.minified = message.request.prod || message.request.minified;
 				config.compress = message.request.prod || message.request.compress;

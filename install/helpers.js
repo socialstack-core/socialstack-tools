@@ -38,6 +38,8 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			moduleFilePath = 'UI/Source/ThirdParty/' + moduleFilePath.substring(3);
 		}else if(moduleFilePath.toLowerCase().indexOf('admin/') == 0){
 			moduleFilePath = 'Admin/Source/ThirdParty/' + moduleFilePath.substring(6);
+		}else if(moduleFilePath.toLowerCase().indexOf('email/') == 0){
+			moduleFilePath = 'Email/Source/ThirdParty/' + moduleFilePath.substring(6);
 		}else if(moduleFilePath.toLowerCase().indexOf('api/') == 0){
 			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
 		}else if(moduleFilePath != ''){

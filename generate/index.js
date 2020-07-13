@@ -351,8 +351,13 @@ module.exports = (config) => {
 			// Just a simple UI class.
 			createModule('Admin', 'Default', names);
 		
+		}else if(firstPiece == 'email'){
+			
+			// Just a simple UI class.
+			createModule('Email', 'Default', names);
+		
 		}else{
-			throw new Error('Unrecognised module type: ' + originalInput + '. UI, Admin or Api are the acceptable types here. If you want a subdomain, you must also add e.g. Api/ at the start.');
+			throw new Error('Unrecognised module type: ' + originalInput + '. UI, Admin, Email or Api are the acceptable types here. If you want a subdirectory, you must also add e.g. Api/ at the start.');
 		}
 	}
 	
