@@ -7,8 +7,8 @@ var configManager = require('../configManager');
 var exec = require('child_process').exec;
 
 // The repo is https only, because it's (at least) 2019.
-var sourceHostGit = configManager.getLocalConfig().sourceRepoGit || 'git@source.socialstack.cf';
-var sourceHostHttps = configManager.getLocalConfig().sourceRepoHttps || 'https://source.socialstack.cf';
+var sourceHostGit = configManager.getLocalConfig().sourceRepoGit || 'git@source.socialstack.dev';
+var sourceHostHttps = configManager.getLocalConfig().sourceRepoHttps || 'https://source.socialstack.dev';
 
 function installAllModules(modules, config, asSubModule, useHttps){
 	
