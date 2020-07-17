@@ -156,7 +156,6 @@ function findProjectRoot(config, done){
 
 var commandsThatWorkWithoutBeingInAProject = {
 	'create': true,
-	'init': true,
 	'version': true,
 	'configuration': true,
 	'host': true,
@@ -322,8 +321,13 @@ function start(config){
 			})
 			
 		});
+	
+	}else if(config.commandLine.command == 'init'){
 		
-	}else if(config.commandLine.command == 'init' || config.commandLine.command == 'create'){
+		// Pulled a socialstack project - this e.g. sets up its database
+		require('./init/index.js')(config);
+		
+	}else if(config.commandLine.command == 'create'){
 		
 		// If already a ss dir, stop:
 		findProjectRoot(config, (result) => {
