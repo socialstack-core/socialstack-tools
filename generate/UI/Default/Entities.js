@@ -4,6 +4,15 @@
 
 export default class Entities extends React.Component {
 	
+	/*
+	// If you want to use state in your react component, uncomment this constructor:
+	constructor(props){
+		super(props);
+		this.state = {
+		};
+	}
+	*/
+	
 	render(){
 		
 		return <div className="fully-qualified-entity"></div>;
