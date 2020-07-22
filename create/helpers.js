@@ -27,10 +27,10 @@ function createSiteAdmin(connection, config, success){
 		  createAdminUser,
 		  function(err, results, fields) {
 			  if(err){
-				  connection.close();
 				  console.log(err);
 				  console.log('Error occurred whilst trying to setup an admin account for you. Skipping it.');
 			  }
+			  connection.close();
 			  success(config);
 		  }
 	);
