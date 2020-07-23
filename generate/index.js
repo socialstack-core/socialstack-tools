@@ -225,6 +225,7 @@ module.exports = (config) => {
 		}
 		
 		var originalInput = modules[currentModule];
+		originalInput = originalInput.replace(/\\/gi, '/');
 		originalInput = originalInput.trim();
 		
 		if(originalInput.indexOf('.json') != -1){

@@ -191,7 +191,7 @@ function runCmd(cmd, config){
 function installModule(moduleName, config, asSubModule, useHttps){
 	return new Promise((success, reject) => {
 		
-		var fwdSlashes = moduleName.replace(/\./gi, '/');
+		var fwdSlashes = moduleName.replace(/\./gi, '/').replace(/\\/gi, '/');
 		
 		var moduleFilePath = (moduleName == 'project') ? '' : fwdSlashes;
 		
