@@ -1,7 +1,10 @@
 var fs = require('fs');
 var path = require('path');
 var zlib = require('zlib');
+const autoprefixer = require('autoprefixer');
+const postcss = require('postcss');
 const { spawn } = require('child_process');
+var { jsConfigManager } = require('../configManager');
 
 var onFileBuildCallback = null;
 
@@ -68,6 +71,25 @@ function updateHtmlFile(publicUrl, fileInfo, publicDir, config, htmlFileName, op
 	
 }
 
+/*
+* Called after the CSS has gone through SASS.
+* Its job is to add any prefixes automatically.
+*/
+function processCss(cssFile, config){
+	if(!config.__autoPrefixer){
+		// Disabled.
+		return Promise.resolve(cssFile);
+	}
+	
+	return postcss([ autoprefixer ]).process(cssFile, {from: undefined}).then(result => {
+		result.warnings().forEach(warn => {
+			console.warn(warn.toString())
+		})
+		return result.css;
+	});
+	
+}
+
 function watchOrBuild(config, isWatch){
 	
 	// Site UI:
@@ -81,6 +103,23 @@ function watchOrBuild(config, isWatch){
 		return Promise.resolve(true);
 	}
 	
+	// Load the site config:
+	// If it includes "autoprefixer", then autoprefixer will be turned on for this project.
+	var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
+	var appsettings = appsettingsManager.get();
+	
+	// Add "autoprefixer" to your appsettings.json to enable autoprefixer. It's just true, or a browserslist.
+	if(appsettings.autoprefixer){
+		console.log('[INFO] CSS autoprefixer is on');
+		var list = appsettings.browers || appsettings.autoprefixer;
+		
+		if(!Array.isArray(list)){
+			list = ['defaults'];
+		}
+		
+		config.__autoPrefixer = autoprefixer({overrideBrowserslist: list});
+	}
+	
 	return buildwatch[isWatch ? 'watch' : 'build']({
 		sourceDir,
 		moduleName,
@@ -90,6 +129,9 @@ function watchOrBuild(config, isWatch){
 		outputStaticPath: outputDir + 'modules/',
 		outputCssPath: outputDir + 'styles.css',
 		outputJsPath: outputDir + 'main.generated.js',
+		onProcessCss: cssFile => {
+			return processCss(cssFile, config);
+		},
 		onFileChange: (info) => {
 			// Inject into index.html (and mobile.html if it exists):
 			if(config.minified && !config.noIndexUpdate){
@@ -117,6 +159,9 @@ function watchOrBuild(config, isWatch){
 				outputStaticPath: outputDir + 'modules/',
 				outputCssPath: outputDir + 'styles.css',
 				outputJsPath: outputDir + 'main.generated.js',
+				onProcessCss: cssFile => {
+					return processCss(cssFile, config);
+				},
 				onFileChange: (info) => {
 					onFileBuildCallback && onFileBuildCallback(info);
 				}
@@ -151,6 +196,9 @@ function watchOrBuild(config, isWatch){
 			outputStaticPath: outputDir + 'modules/',
 			outputCssPath: outputDir + 'styles.css',
 			outputJsPath: outputDir + 'main.generated.js',
+			onProcessCss: cssFile => {
+				return processCss(cssFile, config);
+			},
 			onFileChange: (info) => {
 				// Inject into index.html (and mobile.html if it exists):
 				if(config.minified && !config.noIndexUpdate){
