@@ -76,12 +76,12 @@ function updateHtmlFile(publicUrl, fileInfo, publicDir, config, htmlFileName, op
 * Its job is to add any prefixes automatically.
 */
 function processCss(cssFile, config){
-	if(!config.__autoPrefixer){
+	if(!config.__postCss){
 		// Disabled.
 		return Promise.resolve(cssFile);
 	}
 	
-	return postcss([ autoprefixer ]).process(cssFile, {from: undefined}).then(result => {
+	return config.__postCss.process(cssFile, {from: undefined}).then(result => {
 		result.warnings().forEach(warn => {
 			console.warn(warn.toString())
 		})
@@ -111,13 +111,13 @@ function watchOrBuild(config, isWatch){
 	// Add "autoprefixer" to your appsettings.json to enable autoprefixer. It's just true, or a browserslist.
 	if(appsettings.autoprefixer){
 		console.log('[INFO] CSS autoprefixer is on');
-		var list = appsettings.browers || appsettings.autoprefixer;
+		var list = appsettings.browsers || appsettings.autoprefixer;
 		
 		if(!Array.isArray(list)){
 			list = ['defaults'];
 		}
 		
-		config.__autoPrefixer = autoprefixer({overrideBrowserslist: list});
+		config.__postCss = postcss([ autoprefixer({overrideBrowserslist: list, browsers: list}) ]);
 	}
 	
 	return buildwatch[isWatch ? 'watch' : 'build']({
