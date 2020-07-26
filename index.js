@@ -11,7 +11,7 @@
 var fs = require('fs');
 var path = require('path');
 var { buildAPI, buildUI, buildAll, watchOrBuild, setBuildCallback } = require('./build/helpers.js');
-
+var { setLocalConfig, localConfigPath } = require('./configManager/index.js');
 
 // Used for rendering React by command.
 // This is referenced out here such that any JS rebuilds can simply clear this variable.
@@ -46,6 +46,7 @@ function mapArgs()
 		{name: 'install', alias: 'i'},
 		{name: 'uninstall'},
 		{name: 'init'},
+		{name: 'sync'},
 		{name: 'create', alias: 'c'},
 		{name: 'configuration'},
 		{name: 'configure'},
@@ -231,6 +232,12 @@ function start(config){
 		var generate = require('./generate/index.js');
 		generate(config);
 		
+	}else if(config.commandLine.command == 'sync'){
+		
+		// Generate a module.
+		var sync = require('./sync/sync.js');
+		sync(config);
+		
 	}else if(config.commandLine.command == 'where'){
 		
 		// Just outputs the project directory.
@@ -284,44 +291,26 @@ function start(config){
 		
 	}else if(config.commandLine.command == 'configuration'){
 		
-		var adp = require('appdata-path')('socialstack');
-		var settingsPath = adp + path.sep + 'settings.json';
-		
-		console.log(settingsPath);
+		console.log(localConfigPath());
 		
 	}else if(config.commandLine.command == 'configure'){
 		
-		var adp = require('appdata-path')('socialstack');
+		var username = config.commandLine.u ? config.commandLine.u[0] : 'root';
+		var password = config.commandLine.p ? config.commandLine.p[0] : undefined;
+		var server = config.commandLine.s ? config.commandLine.s[0] : 'localhost';
 		
-		// Ensure dir exists:
-		fs.mkdir(adp, { recursive: true }, (err) => {
-			if (err && err.code != 'EEXIST') throw err;
-			
-			var settingsPath = adp + path.sep + 'settings.json';
-			
-			var username = config.commandLine.u ? config.commandLine.u[0] : 'root';
-			var password = config.commandLine.p ? config.commandLine.p[0] : undefined;
-			var server = config.commandLine.s ? config.commandLine.s[0] : 'localhost';
-			
-			// Write to it:
-			fs.writeFile(settingsPath, JSON.stringify(
-				{
-					databases: {
-						local: {
-							username,
-							password,
-							server
-						}
-					}
-				},
-				null,
-				'\t'
-			), () => {
-				console.log('Socialstack tools configured');
-			})
-			
-		});
-	
+		setLocalConfig({
+			databases: {
+				local: {
+					username,
+					password,
+					server
+				}
+			}
+		}).then(() => {
+			console.log('Socialstack tools configured');
+		})
+		
 	}else if(config.commandLine.command == 'init'){
 		
 		// Pulled a socialstack project - this e.g. sets up its database

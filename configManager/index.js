@@ -1,7 +1,8 @@
 var fs = require('fs');
+var path = require('path');
 var getAppDataPath = require('appdata-path');
 var adp = getAppDataPath('socialstack');
-var settingsPath = adp + '/settings.json';
+var settingsPath = adp + path.sep + 'settings.json';
 
 var _localConfig;
 
@@ -14,6 +15,10 @@ function getLocalConfig(){
 	}
 	
 	return _localConfig = new jsConfigManager(settingsPath).get();
+}
+
+function localConfigPath(){
+	return settingsPath;
 }
 
 function jsConfigManager(filepath){
@@ -45,8 +50,30 @@ function jsConfigManager(filepath){
 	};
 }
 
+function setLocalConfig(cfg){
+	
+	return new Promise((s, r) => {
+		
+		// Ensure dir exists:
+		fs.mkdir(adp, { recursive: true }, (err) => {
+			if (err && err.code != 'EEXIST') throw err;
+			
+			var settingsPath = adp + path.sep + 'settings.json';
+			
+			// Write to it:
+			fs.writeFile(settingsPath, JSON.stringify(
+				cfg,
+				null,
+				'\t'
+			), err => err ? r(err) : s());
+		});
+	});
+}
+
 module.exports = {
 	jsConfigManager,
 	getLocalConfig,
-	settingsPath
+	settingsPath,
+	setLocalConfig,
+	localConfigPath
 };
