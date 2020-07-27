@@ -5,7 +5,7 @@ var unzip = require('unzipper');
 var process = require('process');
 var { jsConfigManager, getLocalConfig, settingsPath } = require('../configManager');
 var { installModule } = require('../install/helpers.js');
-var { createDatabase } = require('./helpers.js');
+var { createDatabase, tidyUrl } = require('./helpers.js');
 var exec = require('child_process').exec;
 
 module.exports = (config) => {
@@ -64,28 +64,6 @@ function askFor(text, configName, cb){
 }
 
 var localConfig = getLocalConfig();
-
-function tidyUrl(config){
-	
-	config.url = config.url.trim();
-	var domainName = config.url;
-	var parts = domainName.split('//');
-	if(parts.length == 1){
-		// Assume https:
-		config.url = 'https://' + domainName;
-	}else{
-		domainName = parts[1];
-	}
-	
-	domainName = domainName.replace('/', '');
-	
-	// Track the domain name:
-	config.domainName = domainName;
-	
-	// DB name is just the site url:
-	config.databaseName = domainName;
-	
-}
 
 if(newConfiguration.dbMode == 'dbOnly'){
 	tidyUrl(newConfiguration);

@@ -1,5 +1,27 @@
 var { jsConfigManager, settingsPath, getLocalConfig } = require('../configManager');
 
+function tidyUrl(config){
+	
+	config.url = config.url.trim();
+	var domainName = config.url;
+	var parts = domainName.split('//');
+	if(parts.length == 1){
+		// Assume https:
+		config.url = 'https://' + domainName;
+	}else{
+		domainName = parts[1];
+	}
+	
+	domainName = domainName.replace('/', '');
+	
+	// Track the domain name:
+	config.domainName = domainName;
+	
+	// DB name is just the site url:
+	config.databaseName = domainName;
+	
+}
+
 function makeid(length) {
    var result           = '';
    var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!£$'; // must be careful with the special chars to avoid breaking the connection strings
@@ -14,6 +36,17 @@ function createSiteAdmin(connection, config, success){
 	
 	if(config.noAdminAccount){
 		return success(config);
+	}
+	
+	if(config.ContentSync){
+		console.log('ContentSync is enabled in this project, so no admin account will be created.');
+		connection.close();
+		success(config);
+		return;
+	}
+	
+	if(!config.domainName){
+		tidyUrl(config);
 	}
 	
 	console.log('Creating a site admin account..');
@@ -165,5 +198,6 @@ function createDatabase(connectionInfo, config){
 module.exports = {
 	createDatabase,
 	createSiteAdmin,
-	installDatabase
+	installDatabase,
+	tidyUrl
 };
