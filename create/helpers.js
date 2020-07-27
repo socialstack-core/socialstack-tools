@@ -2,6 +2,10 @@ var { jsConfigManager, settingsPath, getLocalConfig } = require('../configManage
 
 function tidyUrl(config){
 	
+	if(!config.url){
+		config.url = config.databaseName;
+	}
+	
 	config.url = config.url.trim();
 	var domainName = config.url;
 	var parts = domainName.split('//');
@@ -38,7 +42,7 @@ function createSiteAdmin(connection, config, success){
 		return success(config);
 	}
 	
-	if(config.ContentSync){
+	if(config.ContentSync || (config.localConfig && config.localConfig.ContentSync)){
 		console.log('ContentSync is enabled in this project, so no admin account will be created.');
 		connection.close();
 		success(config);
@@ -94,7 +98,8 @@ function installDatabase(config){
 	return createDatabase(localConfig.databases.local, {
 		databaseName: dbConfig.database,
 		databaseUser: dbConfig.user,
-		databasePassword: dbConfig.password
+		databasePassword: dbConfig.password,
+		localConfig
 	});
 }
 
