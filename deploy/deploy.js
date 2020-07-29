@@ -14,6 +14,7 @@ module.exports = config => {
 		var commit = config.commandLine['commit'];
 		var verbose = config.commandLine['v'] || config.commandLine['verbose'];
 		var build = config.commandLine['build'];
+		var content = config.commandLine['content'];
 		
 		if(!commit){
 			console.log('DRY RUN');
@@ -41,8 +42,19 @@ module.exports = config => {
 			var fileSets = [
 				{name: 'UI', local:'UI/public', remote: 'UI/public', onlyRemoveFrom: 'pack/'}, // Won't delete stuff from anywhere other than the pack directory.
 				{name: 'Admin', local:'Admin/public', remote: 'Admin/public', onlyRemoveFrom: 'pack/'},
-				{local:'bin/Api/build', remote: 'Api'} // Has total ownership of the remote Api directory
+				{local:'bin/Api/build', name: 'Api', remote: 'Api', onCheckExclude: (file) => {
+						return file.path.endsWith('.sock');
+				}} // Has total ownership of the remote Api directory
 			];
+			
+			if(content){
+				fileSets.push(
+					{name: 'Content', local: 'Content', remote: 'Content', noRemovals: true},
+					{name: 'Database', local: 'Database', remote: 'Database', onCheckExclude: (file) => {
+						return file.path.endsWith('.json');
+					}, noRemovals: true}
+				);
+			}
 			
 			var perms = 775;
 			var user = hostInfo.serverUser || 'www-data';
@@ -70,7 +82,17 @@ module.exports = config => {
 					// Calculate the patch:
 					var patch = diff(remoteFiles, localFiles);
 					
-					if(fileSet.onlyRemoveFrom){
+					if(fileSet.onCheckExclude){
+						// Remove this filetype from all parts of the patch.
+						patch.added = patch.added.filter(entry => !fileSet.onCheckExclude(entry));
+						patch.removed = patch.removed.filter(entry => !fileSet.onCheckExclude(entry));
+						patch.updated = patch.updated.filter(entry => !fileSet.onCheckExclude(entry));
+					}
+					
+					if(fileSet.noRemovals){
+						// No removals:
+						patch.removed = [];
+					}else if(fileSet.onlyRemoveFrom){
 						// Removed files must start with the given text:
 						patch.removed = patch.removed.filter(removed => removed.path.startsWith(fileSet.onlyRemoveFrom));
 					}
@@ -145,6 +167,11 @@ module.exports = config => {
 					// It ends up in, for example, /var/www/site.com/deploy/backup/TIMESTAMP/
 					var backupPromises = fileSetPatches.map(fileSetPatch => {
 						var fileSet = fileSetPatch.fileSet;
+						
+						if(fileSet.name == 'Content'){
+							// Skip backing this up:
+							return Promise.resolve(fileSetPatch);
+						}
 						
 						var srcDir = hostInfo.remoteDir + '/' + fileSet.remote;
 						var targetDir = backupDir + fileSet.remote;

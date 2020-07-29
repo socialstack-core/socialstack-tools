@@ -75,10 +75,14 @@ function createSiteAdmin(connection, config, success){
 }
 
 /*
-* First time db setup. Reads from the appsettings to install the database defined there.
+* Generates the sql to create a user/ db.
 */
-function installDatabase(config){
-	
+function generateInstallCommand(config){
+	var dbConfig = loadConnectionString(config);
+	return dbSql(dbConfig.database, dbConfig.user, dbConfig.password).join(';\r\n');
+}
+
+function loadConnectionString(config){
 	var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
 	var appsettings = appsettingsManager.get();
 	var dbConfig = {};
@@ -93,6 +97,14 @@ function installDatabase(config){
 		}
 	});
 	
+	return dbConfig;
+}
+
+/*
+* First time db setup. Reads from the appsettings to install the database defined there.
+*/
+function installDatabase(config){
+	var dbConfig = loadConnectionString(config);
 	var localConfig = getLocalConfig();
 	
 	return createDatabase(localConfig.databases.local, {
@@ -103,6 +115,17 @@ function installDatabase(config){
 	});
 }
 
+function dbSql(name, user, password){
+	var createSchema = 'CREATE SCHEMA `' + name + '`';
+	var createUser = 'CREATE USER \'' + user.replace('\'', '\\\'') + '\'@\'localhost\' IDENTIFIED BY \'' + password.replace('\'', '\\\'') + '\';' + 
+			'GRANT ALL PRIVILEGES ON `' + name + '`.* TO \'' + user.replace('\'', '\\\'') + '\'@\'localhost\'';
+	
+	return [
+		createSchema,
+		createUser
+	];
+}
+
 function createDatabase(connectionInfo, config){
 	return new Promise((success, reject) => {
 		
@@ -111,15 +134,13 @@ function createDatabase(connectionInfo, config){
 		config.databaseUser = config.databaseUser || config.databaseName + '_u';
 		config.databasePassword = config.databasePassword || makeid(10);
 		
-		var createSchema = 'CREATE SCHEMA `' + config.databaseName + '`';
-		var createUser = 'CREATE USER \'' + config.databaseUser.replace('\'', '\\\'') + '\'@\'localhost\' IDENTIFIED BY \'' + config.databasePassword.replace('\'', '\\\'') + '\';' + 
-				'GRANT ALL PRIVILEGES ON `' + config.databaseName + '`.* TO \'' + config.databaseUser.replace('\'', '\\\'') + '\'@\'localhost\'';
+		var sql = dbSql(config.databaseName, config.databaseUser, config.databasePassword);
 		
 		if(config.dbMode == 'offline'){
 			// Outputs to a file:
 			var tempPath = 'create-database.sql';
 			
-			fs.writeFile(tempPath, createSchema + ';' + createUser, () => {
+			fs.writeFile(tempPath, sql.join(';\r\n'), () => {
 				success(config);
 			});
 			return;
@@ -136,7 +157,7 @@ function createDatabase(connectionInfo, config){
 		
 		// Run the create command - it'll fail if it already exists anyway:
 		connection.query(
-		  createSchema,
+		  sql[0],
 		  function(err, results, fields) {
 			  if(err){
 				  connection.close();
@@ -168,7 +189,7 @@ function createDatabase(connectionInfo, config){
 			  console.log('Database "' + config.databaseName + '" created. Now generating a user account to use too.');
 			  
 			  connection.query(
-				createUser,
+				sql[1],
 				function(err, results, fields) {
 					
 					if(err){
@@ -204,5 +225,6 @@ module.exports = {
 	createDatabase,
 	createSiteAdmin,
 	installDatabase,
-	tidyUrl
+	tidyUrl,
+	generateInstallCommand
 };

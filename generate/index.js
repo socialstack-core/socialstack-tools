@@ -2,6 +2,7 @@ var pluralize = require('pluralize');
 var readline = require('readline');
 var fs = require('fs');
 var { jsConfigManager } = require('../configManager');
+var { generateInstallCommand } = require('../create/helpers.js');
 
 /*
 * socialstack generate Api/Worlds  --> Uses the contents of the Api directory here as a template, then generates the named module.
@@ -185,6 +186,7 @@ module.exports = (config) => {
 			PreferredUrl: baseUrl,
 			UrlSet: urlSet,
 			Url: baseUrl,
+			RemoteDirectory: '/var/www/' + baseUrl,
 			Port: appsettings.Port || 5050
 		};
 		
@@ -264,6 +266,10 @@ module.exports = (config) => {
 			}else if(first == 'systemd' || first == 'service'){
 				// SystemD service file generator.
 				generateSystemDConfig();
+				return;
+			}else if(first == 'sql'){
+				// SQL to create user/ db:
+				console.log(generateInstallCommand(config) + ';');
 				return;
 			}
 		}
@@ -361,8 +367,6 @@ module.exports = (config) => {
 			throw new Error('Unrecognised module type: ' + originalInput + '. UI, Admin, Email or Api are the acceptable types here. If you want a subdirectory, you must also add e.g. Api/ at the start.');
 		}
 	}
-	
-	console.log('Module generator starting: Writes code for you from common templates.');
 	
 	currentModule = -1;
 	handleModule();
