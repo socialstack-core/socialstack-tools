@@ -18,26 +18,45 @@ function uploadFile(src, dst, sftp){
 /*
 * Makes a remote dir
 */
-function createRemoteDirectory(dir, connection){
+function createRemoteDirectory(dir, ownerUser, connection){
+	
+	var perms = 777;
 	
 	return new Promise((success, fail) => {
-		connection.exec('mkdir -p "' + dir + '"', function(err, stream) {
+		connection.exec('sudo mkdir -p "' + dir + '"', function(err, stream) {
 			if(err){
 				return fail(err);
 			}
 			
-			success();
+			var error;
+			
+			stream.on('close', function(code, signal) {
+				if(error){
+					fail(error);
+				}else{
+					setPermsAndUser(dir, perms, ownerUser || 'www-data', connection).then(success).catch(fail);
+				}
+			})
+			.on('data', function(data){
+				// Required for close to fire
+			})
+			.stderr.on('data', function(data) {
+				// The directory doesn't exist.
+				error = String.fromCharCode.apply(null, data);
+				console.log(error);
+			});
+			
 		});
 	});
 	
 }
 
-function extractPatch(src, dst, connection){
+function extractPatch(src, dst, ownerUser, connection){
 	
 	// First, make sure target directory exists:
-	return createRemoteDirectory(dst, connection).then(
+	return createRemoteDirectory(dst, ownerUser, connection).then(
 		() => new Promise((success, fail) => {
-			connection.exec('tar -xf "' + src + '" -C "' + dst +'"', function(err, stream) {
+			connection.exec('sudo tar -xf "' + src + '" -C "' + dst +'"', function(err, stream) {
 				if(err){
 					return fail(err);
 				}
@@ -67,15 +86,21 @@ function setPermsAndUser(target, mode, user, connection){
 * Copies a directory (to back it up). Note that this will also create directories if they're needed.
 */
 
-function copyDirectory(src, dst, connection){
+function copyDirectory(src, dst, ownerUser, connection){
 	
-	return createRemoteDirectory(dst, connection).then(() => new Promise((success, fail) => {
-		connection.exec('cp -r "' + src + '" "' + dst + '"', function(err, stream) {
+	return createRemoteDirectory(dst, ownerUser, connection).then(() => new Promise((success, fail) => {
+		connection.exec('sudo cp -r "' + src + '" "' + dst + '"', function(err, stream) {
 			if(err){
 				return fail(err);
 			}
 			
-			success();
+			stream.on('close', function(code, signal) {
+				success();
+			})
+			.on('data', function(data){
+				// Required for close to fire
+			})
+			
 		});
 	}));
 }
@@ -86,7 +111,7 @@ function copyDirectory(src, dst, connection){
 function remoteFileList(dir, connection){
 	
 	return new Promise((success, fail) => {
-		connection.exec('find "' + dir + '" -printf "%d %s %T@ %f\n"', function(err, stream) {
+		connection.exec('sudo find "' + dir + '" -printf "%d %s %T@ %f\n"', function(err, stream) {
 			if (err){
 				return fail(err);
 			}

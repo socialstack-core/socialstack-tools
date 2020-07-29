@@ -44,6 +44,9 @@ module.exports = config => {
 				{local:'bin/Api/build', remote: 'Api'} // Has total ownership of the remote Api directory
 			];
 			
+			var perms = 775;
+			var user = hostInfo.serverUser || 'www-data';
+			
 			// STAGE 1 - Gather the patches
 			var setPromises = fileSets.map(fileSet => {
 				
@@ -148,7 +151,7 @@ module.exports = config => {
 						
 						console.log('Backing up "' + srcDir + '" to "' + targetDir + '"');
 						
-						return copyDirectory(srcDir, targetDir, connection).then(() => fileSetPatch);
+						return copyDirectory(srcDir, targetDir, user, connection).then(() => fileSetPatch);
 					});
 					
 					return Promise.all(backupPromises);
@@ -179,7 +182,7 @@ module.exports = config => {
 					connection.sftp(function(err, sftp) {
 						if (err) throw err;
 						
-						createRemoteDirectory(patchDir, connection).then(() => {
+						createRemoteDirectory(patchDir, user, connection).then(() => {
 							
 							console.log('1/' + patchesPendingUpload.length + '..');
 							
@@ -214,9 +217,6 @@ module.exports = config => {
 					return fileSetPatches;
 				}
 				
-				var perms = 775;
-				var user = hostInfo.serverUser || 'www-data';
-				
 				// Extract the patches now
 				return Promise.all(fileSetPatches.map(fileSetPatch => {
 					
@@ -227,7 +227,7 @@ module.exports = config => {
 						return Promise.resolve(fileSetPatch);
 					}
 					
-					return extractPatch(fileSetPatch.remotePatchPath, hostInfo.remoteDir + '/' + fileSet.remote, connection)
+					return extractPatch(fileSetPatch.remotePatchPath, hostInfo.remoteDir + '/' + fileSet.remote, user, connection)
 						.then(() => setPermsAndUser(hostInfo.remoteDir + '/' + fileSet.remote, perms, user, connection))
 						.then(() => fileSetPatch);
 				}))
@@ -270,11 +270,13 @@ module.exports = config => {
 				// Restart service (or try to):
 				restartService(config, connection);
 				
-				// Done:
-				connection.end();
-				
 				return fileSetPatches;
 			})
+			.then(() => {
+				console.log('Done');
+				// Done:
+				connection.end();
+			});
 			
 			
 		});
