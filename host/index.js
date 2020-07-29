@@ -1,6 +1,7 @@
 var path = require('path');
 var fs = require('fs');
-var { getHostsConfigDir, addHost, listHosts } = require('./helpers.js');
+var { getHostsConfigDir, addHost, listHosts, getAppSettings } = require('./helpers.js');
+var { findProjectRoot } = require('../projectHelpers/helpers.js');
 
 // socialstack host -a mySiteProd1 -addr 100.100.100.100 -user luke -key path/to/key/file
 // socialstack host -where
@@ -39,32 +40,34 @@ module.exports = (config) => {
 			address=address[0].trim();
 		}
 		
-		if(!remoteDir){
-			var appsettings = getAppSettings(config);
-			if(!appsettings || !appsettings.siteBasename){
-				remoteDir = '/var/www';
-			}else{
-				remoteDir = '/var/www/' + appsettings.siteBasename;
+		findProjectRoot(config, () => {
+			if(!remoteDir){
+				var appsettings = getAppSettings(config);
+				if(!appsettings || !appsettings.siteBasename){
+					remoteDir = '/var/www';
+				}else{
+					remoteDir = '/var/www/' + appsettings.siteBasename;
+				}
+				console.log('Using "' + remoteDir + '" as the remote directory on this host. Generated webserver and service config defaults to "/var/www/PROJECT_URL" (you\'ll get this if you call host add from within a project).');
 			}
-			console.log('Using "' + remoteDir + '" as the remote directory on this host. Generated webserver and service config defaults to "/var/www/PROJECT_URL" (you\'ll get this if you call host add from within a project).');
-		}
-		
-		addHost({
-			key,
-			remoteDir,
-			password,
-			user,
-			address,
-			hostName,
-			force
-		}).then(result => {
-		
-			if(result.unchanged){
-				console.log('A host called "' + hostName + '" is already configured. Use -f to force overwrite it. If you\'d like to inspect the file, its location is:');
-				console.log(result.path);
-			}else{
-				console.log('Added "' + hostName + '"');
-			}
+			
+			addHost({
+				key,
+				remoteDir,
+				password,
+				user,
+				address,
+				hostName,
+				force
+			}).then(result => {
+			
+				if(result.unchanged){
+					console.log('A host called "' + hostName + '" is already configured. Use -f to force overwrite it. If you\'d like to inspect the file, its location is:');
+					console.log(result.path);
+				}else{
+					console.log('Added "' + hostName + '"');
+				}
+			});
 		});
 		
 	}else if(config.commandLine['w'] || config.commandLine['where']){

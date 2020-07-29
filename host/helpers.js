@@ -1,6 +1,7 @@
 var path = require('path');
 var fs = require('fs');
 var ssh = require('ssh2');
+var { jsConfigManager } = require('../configManager');
 var { mkDirByPathSync } = require('../install/helpers.js');
 
 /*
@@ -166,7 +167,11 @@ function getAppSettings(config){
 	var appsettings = appsettingsManager.get();
 	config.loadedAppSettings = appsettings;
 	
-	var baseUrl = appsettings.BaseUrl;
+	var baseUrl = appsettings.BaseUrl || appsettings.PublicUrl;
+	
+	if(!baseUrl){
+		return null;
+	}
 	
 	var protoParts = baseUrl.split('://');
 	
@@ -180,6 +185,7 @@ function getAppSettings(config){
 		appsettings.serviceName = baseUrl;
 	}
 	
+	appsettings.siteBasename = baseUrl;
 	return appsettings;
 }
 
