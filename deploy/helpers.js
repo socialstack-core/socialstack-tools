@@ -77,7 +77,49 @@ function setPermsAndUser(target, mode, user, connection){
 			if(err){
 				return fail(err);
 			}
-			success();
+			
+			stream.on('close', function(code, signal) {
+				success();
+			})
+			.on('data', function(data){
+				// Required for close to fire
+			})
+		});
+	});
+}
+
+/*
+* Sets file owner + mode
+*/
+function handleRenames(remoteDir, renames, connection){
+	return new Promise((success, fail) => {
+		if(!renames || !renames.length){
+			return success();
+		}
+		
+		var bash = '';
+		
+		for(var i=0;i<renames.length;i++){
+			if(bash){
+				bash += ' && ';
+			}
+			var rename = renames[i];
+			bash += 'sudo mv "' + remoteDir + '/' + rename.src + '" "' + remoteDir + '/' + rename.target + '"';
+		}
+		
+		console.log(bash);
+		
+		connection.exec(bash, function(err, stream) {
+			if(err){
+				return fail(err);
+			}
+			
+			stream.on('close', function(code, signal) {
+				success();
+			})
+			.on('data', function(data){
+				// Required for close to fire
+			})
 		});
 	});
 }
@@ -360,5 +402,6 @@ module.exports = {
 	createRemoteDirectory,
 	extractPatch,
 	setPermsAndUser,
-	restartService
+	restartService,
+	handleRenames
 };

@@ -85,7 +85,8 @@ function addHost(hostCfg){
 			password,
 			hostName,
 			remoteDir,
-			force
+			force,
+			environment
 		} = hostCfg;
 		
 		if(!address){
@@ -136,7 +137,8 @@ function addHost(hostCfg){
 				user,
 				keyPath: key ? path.resolve(key) : undefined,
 				password,
-				remoteDir: remoteDir || '/var/www'
+				remoteDir: remoteDir || '/var/www',
+				environment: environment || ''
 			};
 			
 			// Make the dir if it's needed:

@@ -3,7 +3,7 @@ var fs = require('fs');
 var { getHostsConfigDir, addHost, listHosts, getAppSettings } = require('./helpers.js');
 var { findProjectRoot } = require('../projectHelpers/helpers.js');
 
-// socialstack host -a mySiteProd1 -addr 100.100.100.100 -user luke -key path/to/key/file
+// socialstack host -a mySiteProd1 -addr 100.100.100.100 -user luke -key path/to/key/file -env prod
 // socialstack host -where
 // socialstack host -list
 // socialstack host -list subDirName
@@ -18,6 +18,7 @@ module.exports = (config) => {
 		var key = config.commandLine['key'];
 		var password = config.commandLine['p'];
 		var remoteDir = config.commandLine['remoteDir']; // default is /var/www/
+		var environment = config.commandLine['env']; // anything you'd like. Default is blank (meaning just appsettings.json is used).
 		var force = config.commandLine['f'] || config.commandLine['force'];
 		
 		if(key){
@@ -26,6 +27,10 @@ module.exports = (config) => {
 		
 		if(remoteDir){
 			remoteDir=remoteDir[0].trim();
+		}
+		
+		if(environment){
+			environment=environment[0].trim();
 		}
 		
 		if(password){
@@ -54,6 +59,7 @@ module.exports = (config) => {
 			addHost({
 				key,
 				remoteDir,
+				environment,
 				password,
 				user,
 				address,

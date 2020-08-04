@@ -1,4 +1,6 @@
-var { remoteFileList, localFileList,diff, copyDirectory, uploadFile, createRemoteDirectory, extractPatch, setPermsAndUser, restartService } = require('./helpers.js');
+var { remoteFileList, localFileList,diff, copyDirectory, 
+	uploadFile, createRemoteDirectory, extractPatch, 
+	setPermsAndUser, restartService, handleRenames } = require('./helpers.js');
 var hostHelpers = require('../host/helpers.js');
 var buildHelpers = require('../build/helpers.js');
 const tmp = require('tmp');
@@ -36,16 +38,38 @@ module.exports = config => {
 			
 			var backupDir = hostInfo.remoteDir + '/deploy/backups/' + Date.now() + '/'; 
 			var patchDir = hostInfo.remoteDir + '/deploy/patches/' + Date.now() + '/'; 
-		
+			var env = hostInfo.environment || '';
+			
 			console.log('Connected to host - calculating patch');
+			
+			// Appsettings files other than this one are excluded.
+			// Note though that the one that is included must also be named "appsettings.json" on the remote server.
+			var appsettingsName = 'appsettings.' + (env ? env + '.' : '') + 'json';
 			
 			var fileSets = [
 				{name: 'UI', local:'UI/public', remote: 'UI/public', onlyRemoveFrom: 'pack/'}, // Won't delete stuff from anywhere other than the pack directory.
-				{name: 'Admin', local:'Admin/public', remote: 'Admin/public', onlyRemoveFrom: 'pack/'},
-				{local:'bin/Api/build', name: 'Api', remote: 'Api', onCheckExclude: (file) => {
-						return file.path.endsWith('.sock');
-				}} // Has total ownership of the remote Api directory
+				{name: 'Admin', local:'Admin/public', remote: 'Admin/public', onlyRemoveFrom: 'pack/'}
 			];
+			
+			var apiFileSet = {local:'bin/Api/build', name: 'Api', remote: 'Api', onCheckExclude: (file) => {
+					if(file.path.startsWith('appsettings.') && file.path.endsWith('.json')){
+						// We have an appsettings{\.?.*}.json file
+						if(file.path != appsettingsName){
+							// This file is excluded.
+							return true;
+						}
+					}
+					
+					return file.path.endsWith('.sock');
+			}}; // Has total ownership of the remote Api directory
+			
+			if(env){
+				apiFileSet.renames = [
+					{src: appsettingsName, target: 'appsettings.json'}
+				];
+			}
+			
+			fileSets.push(apiFileSet);
 			
 			if(content){
 				fileSets.push(
@@ -221,7 +245,7 @@ module.exports = config => {
 								(index => {
 									current = current.then(() => {
 										patch = patchesPendingUpload[index];
-										console.log((index + 1) + '/' + patchesPendingUpload.length + '..');
+										console.log('Uploading patch ' + (index + 1) + '/' + patchesPendingUpload.length + '..');
 										patch.remotePatchPath = patchDir + patch.fileSet.name + '.tar.gz';
 										return uploadFile(patch.compressedPatchPath, patch.remotePatchPath, sftp);
 									});
@@ -255,6 +279,7 @@ module.exports = config => {
 					}
 					
 					return extractPatch(fileSetPatch.remotePatchPath, hostInfo.remoteDir + '/' + fileSet.remote, user, connection)
+						.then(() => handleRenames(hostInfo.remoteDir + '/' + fileSet.remote, fileSet.renames, connection))
 						.then(() => setPermsAndUser(hostInfo.remoteDir + '/' + fileSet.remote, perms, user, connection))
 						.then(() => fileSetPatch);
 				}))
