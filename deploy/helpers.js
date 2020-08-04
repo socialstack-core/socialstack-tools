@@ -107,7 +107,7 @@ function handleRenames(remoteDir, renames, connection){
 			bash += 'sudo mv "' + remoteDir + '/' + rename.src + '" "' + remoteDir + '/' + rename.target + '"';
 		}
 		
-		console.log(bash);
+		console.log('Renaming ' + renames.length + ' file(s) remotely');
 		
 		connection.exec(bash, function(err, stream) {
 			if(err){
