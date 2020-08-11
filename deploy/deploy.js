@@ -320,9 +320,9 @@ module.exports = config => {
 				console.log('Restarting service (if there is one)..');
 				
 				// Restart service (or try to):
-				restartService(config, connection);
-				
-				return fileSetPatches;
+				return restartService(config, connection).then(() => {
+					return fileSetPatches;
+				});
 			})
 			.then(() => {
 				console.log('Done');

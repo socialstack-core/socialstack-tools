@@ -312,16 +312,24 @@ function restartService(config, connection) {
 	
 	var appsettings = getAppSettings(config);
 	
-	if(appsettings.serviceName){
+	if(!appsettings.serviceName){
 		return Promise.resolve(true);
 	}
 	
+	console.log('Using service name "' + appsettings.serviceName + '"');
+	
 	return new Promise((success, fail) => {
-		connection.exec('sudo service "' + appsettings.serviceName + '" restart', function(err, stream) {
+		connection.exec('sudo service ' + appsettings.serviceName + ' restart', {pty: true}, function(err, stream) {
 			if(err){
 				return fail(err);
 			}
-			success();
+			
+			stream.on('close', function(code, signal) {
+				success();
+			})
+			.on('data', function(data){
+				// Required for close to fire
+			})
 		});
 	});
 }
