@@ -319,7 +319,7 @@ function restartService(config, connection) {
 	console.log('Using service name "' + appsettings.serviceName + '"');
 	
 	return new Promise((success, fail) => {
-		connection.exec('sudo service ' + appsettings.serviceName + ' restart', {pty: true}, function(err, stream) {
+		connection.exec('sudo service ' + appsettings.serviceName + ' restart', function(err, stream) {
 			if(err){
 				return fail(err);
 			}
