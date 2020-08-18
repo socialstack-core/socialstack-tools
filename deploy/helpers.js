@@ -104,11 +104,10 @@ function handleRenames(remoteDir, renames, connection){
 				bash += ' && ';
 			}
 			var rename = renames[i];
-			bash += 'sudo mv "' + remoteDir + '/' + rename.src + '" "' + remoteDir + '/' + rename.target + '"';
+			bash += 'sudo mv -f "' + remoteDir + '/' + rename.src + '" "' + remoteDir + '/' + rename.target + '"';
 		}
 		
 		console.log('Renaming ' + renames.length + ' file(s) remotely');
-		
 		connection.exec(bash, function(err, stream) {
 			if(err){
 				return fail(err);
@@ -119,7 +118,8 @@ function handleRenames(remoteDir, renames, connection){
 			})
 			.on('data', function(data){
 				// Required for close to fire
-			})
+			}).on('error', function(d){
+			});
 		});
 	});
 }
