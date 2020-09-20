@@ -6,10 +6,6 @@ var process = require('process');
 var configManager = require('../configManager');
 var exec = require('child_process').exec;
 
-// The repo is https only, because it's (at least) 2019.
-var sourceHostGit = configManager.getLocalConfig().sourceRepoGit || 'git@source.socialstack.dev';
-var sourceHostHttps = configManager.getLocalConfig().sourceRepoHttps || 'https://source.socialstack.dev';
-
 function installAllModules(modules, config, asSubModule, useHttps){
 	
 	var pendingInstall = installModule(modules[0], config, asSubModule, useHttps);
@@ -61,6 +57,40 @@ function deleteFolderRecursive(dirPath) {
   }
 };
 
+function getHost(opts){
+	var host = 'source.socialstack.dev';
+	
+	if(opts.repository){
+		// Either a dns address, or an alias.
+		// Look it up in alias lookup via config:
+		var localCfg = configManager.getLocalConfig();
+		
+		if(localCfg && localCfg.repositories){
+			var info = localCfg.repositories[opts.repository];
+			if(info){
+				if(typeof info == 'string'){
+					host = info;
+				}else if(info.host){
+					host = info.host;
+				}else{
+					throw new Error('"' + opts.repository + '" is an alias in your repositories config, but it doesn\'t have a field called "host". This should be the DNS address of the repository.');
+				}
+				host = info.host;
+			}else if(opts.repository.indexOf('.') != -1){
+				host = opts.repository;
+			}else{
+				throw new Error('Didn\'t recognise "' + opts.repository + '" as either a repository alias or a DNS address. Check your repositories array in your tools config.');
+			}
+		}else if(opts.repository.indexOf('.') != -1){
+			host = opts.repository;
+		}else{
+			throw new Error('Didn\'t recognise "' + opts.repository + '" as either a repository alias or a DNS address. Check your repositories array in your tools config.');
+		}
+	}
+	
+	return opts.https ? 'https://' + host : 'git@' + host;
+}
+
 function uninstallModule(moduleName, config){
 	
 	return new Promise((success, reject) => {
@@ -68,6 +98,13 @@ function uninstallModule(moduleName, config){
 		if(!moduleName || !moduleName.trim() || moduleName == 'project'){
 			success();
 			return;
+		}
+		
+		var repo = null;
+		var colon = moduleName.indexOf(':');
+		if(colon != -1){
+			repo = moduleName.substring(0, colon);
+			moduleName = moduleName.substring(colon+1);
 		}
 		
 		var fwdSlashes = moduleName.replace(/\./gi, '/');
@@ -84,7 +121,11 @@ function uninstallModule(moduleName, config){
 			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
 		}else if(moduleFilePath != ''){
 			// It's a package:
-			var packagePath = sourceHostHttps + '/packages/' + fwdSlashes.toLowerCase() + '/raw/master/package.json';
+			var packagePath = getHost({
+				https: true,
+				repository: repo,
+				config
+			}) + '/packages/' + fwdSlashes.toLowerCase() + '/raw/master/package.json';
 			
 			https.get(packagePath, function(res) {
 				let body = "";
@@ -191,6 +232,13 @@ function runCmd(cmd, config){
 function installModule(moduleName, config, asSubModule, useHttps){
 	return new Promise((success, reject) => {
 		
+		var repo = null;
+		var colon = moduleName.indexOf(':');
+		if(colon != -1){
+			repo = moduleName.substring(0, colon);
+			moduleName = moduleName.substring(colon+1);
+		}
+		
 		var fwdSlashes = moduleName.replace(/\./gi, '/').replace(/\\/gi, '/');
 		
 		var moduleFilePath = (moduleName == 'project') ? '' : fwdSlashes;
@@ -205,7 +253,11 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
 		}else if(moduleFilePath != ''){
 			// It's a package:
-			var packagePath = sourceHostHttps + '/packages/' + fwdSlashes.toLowerCase() + '/raw/master/package.json';
+			var packagePath = getHost({
+				https: true,
+				repository: repo,
+				config
+			}) + '/packages/' + fwdSlashes.toLowerCase() + '/raw/master/package.json';
 			
 			https.get(packagePath, function(res) {
 				let body = "";
@@ -239,11 +291,11 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			// Must've already authed with the source repo for this to be successful.
 			var remotePath = 'modules/' + fwdSlashes.toLowerCase() + '.git';
 			
-			if(useHttps){
-				remotePath = sourceHostHttps + '/' + remotePath;
-			}else{
-				remotePath = sourceHostGit + ':' + remotePath;
-			}
+			remotePath = getHost({
+				https: useHttps,
+				repository: repo,
+				config
+			}) + (useHttps ? '/' : ':') + remotePath;
 			
 			var attempt = 0;
 			
@@ -316,7 +368,11 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			var repoName = moduleName.split('/');
 			repoName = repoName[repoName.length-1].toLowerCase();
 			
-			var fromUrl = sourceHostHttps + '/modules/' + fwdSlashes.toLowerCase() + '/-/archive/master/' + repoName + '-master.zip';
+			var fromUrl = getHost({
+				https: true,
+				repository: repo,
+				config
+			}) + '/modules/' + fwdSlashes.toLowerCase() + '/-/archive/master/' + repoName + '-master.zip';
 			
 			https.get(fromUrl, function(response) {
 				response.pipe(unzip.Parse()).on('entry', function (entry) {
