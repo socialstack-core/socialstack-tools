@@ -11,7 +11,7 @@ namespace Api.Entities
 	/// Handles entities.
 	/// Instanced automatically. Use injection to use this service, or Startup.Services.Get.
 	/// </summary>
-	public partial class EntityService : AutoService<FullyQualifiedEntity>, IEntityService
+	public partial class EntityService : AutoService<FullyQualifiedEntity>
     {
 		/// <summary>
 		/// Instanced automatically. Use injection to use this service, or Startup.Services.Get.

@@ -10,7 +10,7 @@ namespace Api.Entity
 	/// <summary>
 	/// Instanced automatically. Use injection to use this service, or Startup.Services.Get.
 	/// </summary>
-	public partial class EntityService : IEntityService
+	public partial class EntityService
     {
 		/// <summary>
 		/// Instanced automatically. Use injection to use this service, or Startup.Services.Get.

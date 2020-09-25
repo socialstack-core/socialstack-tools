@@ -45,6 +45,7 @@ module.exports = config => {
 			// Appsettings files other than this one are excluded.
 			// Note though that the one that is included must also be named "appsettings.json" on the remote server.
 			var appsettingsName = 'appsettings.' + (env ? env + '.' : '') + 'json';
+			config.appsettingsName = appsettingsName;
 			
 			var fileSets = [
 				{name: 'UI', local:'UI/public', remote: 'UI/public', onlyRemoveFrom: 'pack/'}, // Won't delete stuff from anywhere other than the pack directory.
