@@ -38,7 +38,7 @@ namespace Api.Entities
 				Roles.Member.Revoke("entity_load", "entity_list");
 				*/
 				
-				return Task.FromResult(source);
+				return new ValueTask<object>(source);
 			}, 20);
 		}
 	}
