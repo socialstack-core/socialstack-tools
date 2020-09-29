@@ -5,8 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/var/www/Url/Api/
-ExecStart=/usr/bin/dotnet SocialStack.Api.dll
+WorkingDirectory=/var/www/Url/
+ExecStart=/usr/bin/dotnet Api/SocialStack.Api.dll
 Restart=on-failure
 
 [Install]
