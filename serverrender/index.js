@@ -44,7 +44,11 @@ function getRenderer(config){
 	try{
 		appSettings = require(config.projectRoot + '/appsettings.json');
 	}catch(e){
-		console.log(e);
+		try{
+			appSettings = require(config.projectRoot + '/Api/appsettings.json');
+		}catch(e2){
+			console.log(e2);
+		}
 	}
 	
 	var location = new URL(appSettings ? appSettings.BaseUrl || appSettings.PublicUrl : '');
