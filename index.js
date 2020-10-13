@@ -14,6 +14,64 @@ var { buildAPI, buildUI, buildAll, watchOrBuild, setBuildCallback } = require('.
 var { setLocalConfig, localConfigPath } = require('./configManager/index.js');
 var { findProjectRoot, isProjectRoot } = require('./projectHelpers/helpers.js');
 
+// console.log() colour support
+const ConsoleReset = "\x1b[0m";
+const ConsoleBright = "\x1b[1m";
+const ConsoleDim = "\x1b[2m";
+const ConsoleUnderscore = "\x1b[4m";
+const ConsoleBlink = "\x1b[5m";
+const ConsoleReverse = "\x1b[7m";
+const ConsoleHidden = "\x1b[8m";
+
+const ConsoleFgBlack = "\x1b[30m";
+const ConsoleFgRed = "\x1b[31m";
+const ConsoleFgGreen = "\x1b[32m";
+const ConsoleFgYellow = "\x1b[33m";
+const ConsoleFgBlue = "\x1b[34m";
+const ConsoleFgMagenta = "\x1b[35m";
+const ConsoleFgCyan = "\x1b[36m";
+const ConsoleFgWhite = "\x1b[37m";
+
+const ConsoleBgBlack = "\x1b[40m";
+const ConsoleBgRed = "\x1b[41m";
+const ConsoleBgGreen = "\x1b[42m";
+const ConsoleBgYellow = "\x1b[43m";
+const ConsoleBgBlue = "\x1b[44m";
+const ConsoleBgMagenta = "\x1b[45m";
+const ConsoleBgCyan = "\x1b[46m";
+const ConsoleBgWhite = "\x1b[47m";
+
+
+
+function escapeSequence(...args) {
+	var escapeSequence = "";
+	
+	for (var i = 0; i < args.length; i++) {
+		
+		switch (args[i]) {
+			// modifier
+			case ConsoleReset:
+			case ConsoleBright:
+			case ConsoleDim:
+			case ConsoleUnderscore:
+			case ConsoleBlink:
+			case ConsoleReverse:
+			case ConsoleHidden:
+				escapeSequence += args[i];
+				break;
+				
+			// colour
+			default:
+				escapeSequence += args[i] + "%s";
+				break;
+			
+		}
+		
+	}
+	
+	return escapeSequence;	
+}
+
 // Used for rendering React by command.
 // This is referenced out here such that any JS rebuilds can simply clear this variable.
 var renderers = null;
@@ -38,6 +96,7 @@ function mapArgs()
 	result.command = args[2].toLowerCase();
 	
 	var commandOps = [
+		{name: 'help', alias: '/?'},
 		{name: 'watch', alias: 'w'},
 		{name: 'build', alias: 'b'},
 		{name: 'buildui'},
@@ -45,7 +104,7 @@ function mapArgs()
 		{name: 'host'},
 		{name: 'deploy'},
 		{name: 'install', alias: 'i'},
-		{name: 'uninstall'},
+		{name: 'uninstall', alias: 'u'},
 		{name: 'init'},
 		{name: 'sync'},
 		{name: 'create', alias: 'c'},
@@ -105,6 +164,7 @@ function mapArgs()
 }
 
 var commandsThatWorkWithoutBeingInAProject = {
+	'help': true,
 	'create': true,
 	'version': true,
 	'configuration': true,
@@ -387,6 +447,165 @@ function start(config){
 			
 		}});
 		
+	}else if(config.commandLine.command == 'help'){
+		var info = require('./package.json');
+		var title = " SocialStack Tools v" + info.version;
+		//var commandColour = ConsoleFgWhite;
+		//var noteColour = ConsoleFgYellow;
+		var commandColour = ConsoleFgYellow;
+		var noteColour = ConsoleFgRed;
+		
+		console.log();
+		console.log(escapeSequence(ConsoleBright, ConsoleFgWhite), title);
+		console.log(ConsoleReset, "-".repeat(title.length-1));
+		console.log();
+		
+		console.log("The following commands are available:");
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour), "socialstack help", " / ", "socialstack /?");
+		console.log(ConsoleReset, "  outputs the help text for SocialStack tools as shown here");
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack watch", " / ", "socialstack /w", " *");
+		console.log(ConsoleReset, "  starts a watcher which checks for changes in your UI/Source and Admin/Source directories.");
+		console.log("   When a change happens, your UI will be rebuilt. This process doesn't exit.");		
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack build", " / ", "socialstack /b", " *");
+		console.log(ConsoleReset, "  builds the UI, API and optionally native apps with Cordova.");
+		console.log("   Use the optional -prod command to minify and pre-gzip the UI builds for you:");
+		console.log();
+		console.log(commandColour, "    socialstack build -prod");
+		console.log(ConsoleReset);
+		console.log("   It's recommended for pipelines to use this build command.");		
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack buildui", " *");
+		console.log(ConsoleReset, "  builds UI/Source and Admin/Source, then quits.");
+		console.log("   If you'd like to make a production (minified and pre-gzipped) build, add the -prod flag:");
+		console.log();
+		console.log(commandColour, "    socialstack buildui -prod");
+		console.log(ConsoleReset);
+
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack buildapi", " *");
+		console.log(ConsoleReset, "  a convenience build command (defaults to outputting into Api/Build).");
+		console.log("   Note that the API is separate from the UI, so there is no order requirement - ");
+		console.log("   you can build the API and UI in whatever order you want, or build everything as seen above.");		
+		console.log();
+
+/*
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack host", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+*/
+
+/*
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack deploy", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+*/
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack install", " / ", "socialstack /i", " *");
+		console.log(ConsoleReset, "  install the named module(s) from any repositories you have configured, as a submodule - for instance:");
+		console.log();
+		console.log(commandColour, "    socialstack i Api/HelloWorld");
+		console.log(ConsoleReset);
+		console.log("   You can list multiple modules here to install them all. You can also use package names:");
+		console.log();
+		console.log(commandColour, "    socialstack i Tags");
+		console.log(ConsoleReset);
+		console.log("   Refer to https://source.socialstack.dev/modules for available modules.");
+		console.log("   Refer to https://source.socialstack.dev/packages for available packages.");
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack uninstall", " / ", "socialstack /u", " *");
+		console.log(ConsoleReset, "  remove the named module(s) (or packages).");
+		console.log("   Like the install command, you can list multiple modules - for instance:");
+		console.log();
+		console.log(commandColour, "    socialstack u Api/HelloWorld");
+		console.log(ConsoleReset);
+
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack init", " *");
+		console.log(ConsoleReset, "  creates a database for the current project");
+		console.log();
+
+/*
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack sync", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+*/
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack create", " / ", "socialstack /c", " *");
+		console.log(ConsoleReset, "  creates a new blank SocialStack project in your working directory.");
+		console.log("   Optionally provide it a domain name like this:");
+		console.log();
+		console.log(commandColour, "    socialstack create example.com");
+		console.log(ConsoleReset);
+		console.log("   This will also create a database for you too, if you've setup your database config -");
+		console.log("   (see https://www.npmjs.com/package/socialstack).");
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack configuration", " *");
+		console.log(ConsoleReset, "  returns the location of the configuration file for the current project");
+		console.log();
+
+/*
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack configure", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+*/
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack migrate", " / ", "socialstack /m", " *");
+		console.log(ConsoleFgRed, "  ** CURRENTLY UNSUPPORTED **");
+		console.log(ConsoleReset, "  In the future this will be used to automatically convert websites to or from");
+		console.log("   other frameworks via simple, shared commands");
+		console.log();
+
+/*
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack interactive", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack render", " / ", "socialstack /r", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack add", " / ", "socialstack /a", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack share", " / ", "socialstack /s", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+*/
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack version", " / ", "socialstack /v", " *");
+		console.log(ConsoleReset, "  outputs the currently installed version of SocialStack tools");
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack generate", " / ", "socialstack /g", " *");
+		console.log(ConsoleReset, "  creates a new module.  For instance, to create a HelloWorld module under UI, use:");
+		console.log();
+		console.log(commandColour, "    socialstack g UI/HelloWorld");
+		console.log(ConsoleReset);
+		console.log("   This will automatically create a barebones class and stylesheet for the new module");
+		console.log();
+
+/*
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack where", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack id", " *");
+		console.log(ConsoleReset, "  ---");
+		console.log();
+*/
+
+		console.log();
+		console.log(escapeSequence(ConsoleBright, noteColour, ConsoleReset, noteColour), "*", " only available within the context of a project");
+
+		console.log(ConsoleReset);
 	}
 	
 }
