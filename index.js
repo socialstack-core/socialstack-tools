@@ -16,9 +16,9 @@ var { findProjectRoot, isProjectRoot } = require('./projectHelpers/helpers.js');
 
 // Used for rendering React by command.
 // This is referenced out here such that any JS rebuilds can simply clear this variable.
-var renderer = null;
+var renderers = null;
 setBuildCallback(() => {
-	renderer = null;
+	renderers = null;
 })
 
 /*
@@ -197,7 +197,7 @@ function start(config){
 		
 		var serverrender = require('./serverrender/index.js');
 		
-		renderer = serverrender.getRenderer(config);
+		var rdr = serverrender.getRenderer(config, "UI");
 		
 		var canvas = config.commandLine.canvas;
 		
@@ -218,7 +218,7 @@ function start(config){
 			context = {};
 		}
 		
-		renderer.render({canvas, context}).then(result => {
+		rdr.render({canvas, context}).then(result => {
 			console.log(result);
 		});
 		
@@ -329,6 +329,7 @@ function start(config){
 			if(action == "render"){
 				
 				var toRender;
+				var modules = message.request.modules || 'Admin';
 				
 				if(message.request.multiple){
 					// This is an array of [canvas, context].
@@ -351,9 +352,16 @@ function start(config){
 				}
 				
 				// Get or setup a renderer:
-				if(renderer == null){
+				if(renderers == null){
+					renderers = {};
+				}
+				
+				var renderer = renderers[modules];
+				
+				if(!renderer){
 					// Note: Renderer is in the 'global' scope such that a js file rebuild forces a new renderer instance.
-					renderer = serverrender.getRenderer(config);
+					renderer = serverrender.getRenderer(config, modules);
+					renderers[modules] = renderer;
 				}
 				
 				// Request to render them now:

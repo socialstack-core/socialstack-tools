@@ -2,10 +2,10 @@ var fetch = require('node-fetch');
 var fs = require('fs');
 var renderToString = require('preact-render-to-string');
 
-function loadFrontend(window, config){
+function loadFrontend(window, config, moduleSet){
 	
 	// The JS file is at..
-	var jsFile = config.projectRoot + '/Admin/public/en-admin/pack/main.generated.js';
+	var jsFile = config.projectRoot + '/' + moduleSet + '/public' + (moduleSet == 'Admin' ? '/en-admin' : '') + '/pack/main.generated.js';
 	
 	try{
 		// Go get the JS now:
@@ -24,19 +24,20 @@ function loadFrontend(window, config){
 		};
 	}
 	
-	var _App = window.__mm['Admin/Start/App.js'].call();
+	var startup = window.__mm[moduleSet + '/Start/App.js'];
+	var _App = startup && startup.call ? startup.call().default : null;
 	var _Canvas = window.__mm['UI/Canvas/Canvas.js'].call();
 	
 	return {
 		window,
-		App: _App.default,
+		App: _App,
 		Canvas: _Canvas.default,
 		React: window.React,
 		Modules: window.__mm
 	};
 }
 
-function getRenderer(config){
+function getRenderer(config, moduleSet){
 	
 	// Try getting site config, so we know the absolute URL, name etc too:
 	var appSettings;
@@ -126,7 +127,7 @@ function getRenderer(config){
 	};
 	
 	// Load the JS:
-	var frontend = loadFrontend(window, config);
+	var frontend = loadFrontend(window, config, moduleSet);
 	
 	function renderWithFetch(canvasInstance, success){
 		

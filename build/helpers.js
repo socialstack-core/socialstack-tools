@@ -252,7 +252,7 @@ function buildAPI(config){
 	return new Promise((success, reject) => {
 		
 		//  dotnet publish Api.csproj -o obj/tm
-		const child = spawn('dotnet', ['publish', 'Api.csproj', '-o', 'bin/Api/build'], {
+		const child = spawn('dotnet', ['publish', 'Api.csproj', '-o', 'bin/Api/build', '-c', 'Release'], {
 			cwd: config.projectRoot
 		});
 		

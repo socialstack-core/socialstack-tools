@@ -176,15 +176,25 @@ module.exports = (config) => {
 		
 		var urlSet = baseUrl;
 		
+		
+		var wwwUrl = baseUrl;
+		
 		if(baseUrl.indexOf('www.') != 0){
-			urlSet += ' www.' + baseUrl;
+			wwwUrl = 'www.' + baseUrl;
 		}
 		
-		urlSet += ' *.' + baseUrl;
+		// e.g. www.site.com -> site.com
+		var rootUrl = wwwUrl.substring(4);
+		
+		/// www.site.com *.site.com site.com
+		var urlSetNoRoot = wwwUrl + ' *.' + baseUrl;
+		var urlSet = urlSetNoRoot + ' ' + rootUrl;
 		
 		var swaps = {
-			PreferredUrl: baseUrl,
+			PreferredUrl: wwwUrl,
 			UrlSet: urlSet,
+			UrlsNoRoot: urlSetNoRoot,
+			RootUrl: rootUrl,
 			Url: baseUrl,
 			RemoteDirectory: '/var/www/' + baseUrl,
 			Port: appsettings.Port || 5050
