@@ -1,7 +1,19 @@
-/*
-	Optional stylesheet
-*/
-
-.fully-qualified-entity{
+// optional stylesheet
+.fully-qualified-entity {
 	
 }
+
+/* uncomment to add device-specific styles for this component here
+ * NB: refer to UI/Source/ThirdParty/Functions/UserAgent for additional <html> classes which can be referenced here
+html.device-ipad {
+
+	.fully-qualified-entity {
+	}
+}
+
+html.device-mobile {
+
+	.fully-qualified-entity {
+	}
+}
+*/
