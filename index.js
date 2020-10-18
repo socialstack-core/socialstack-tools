@@ -463,16 +463,19 @@ function start(config){
 		console.log("The following commands are available:");
 		console.log();
 
-		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour), "socialstack help", " / ", "socialstack /?");
+		console.log(escapeSequence(ConsoleBright, commandColour), "socialstack help");
+		console.log(escapeSequence(ConsoleBright, commandColour), "socialstack /?");
 		console.log(ConsoleReset, "  outputs the help text for SocialStack tools as shown here");
 		console.log();
 
-		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack watch", " / ", "socialstack w", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack watch", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack w", " *");
 		console.log(ConsoleReset, "  starts a watcher which checks for changes in your UI/Source and Admin/Source directories.");
 		console.log("   When a change happens, your UI will be rebuilt. This process doesn't exit.");		
 		console.log();
 
-		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack build", " / ", "socialstack b", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack build", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack b", " *");
 		console.log(ConsoleReset, "  builds the UI, API and optionally native apps with Cordova.");
 		console.log("   Use the optional -prod command to minify and pre-gzip the UI builds for you:");
 		console.log();
@@ -506,7 +509,8 @@ function start(config){
 		console.log();
 */
 
-		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack install", " / ", "socialstack i", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack install", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack i", " *");
 		console.log(ConsoleReset, "  install the named module(s) from any repositories you have configured, as a submodule - for instance:");
 		console.log();
 		console.log(commandColour, "    socialstack i Api/HelloWorld");
@@ -519,7 +523,8 @@ function start(config){
 		console.log("   Refer to https://source.socialstack.dev/packages for available packages.");
 		console.log();
 
-		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack uninstall", " / ", "socialstack u", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack uninstall", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack u", " *");
 		console.log(ConsoleReset, "  remove the named module(s) (or packages).");
 		console.log("   Like the install command, you can list multiple modules - for instance:");
 		console.log();
@@ -536,7 +541,8 @@ function start(config){
 		console.log();
 */
 
-		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack create", " / ", "socialstack c", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour), "socialstack create");
+		console.log(escapeSequence(ConsoleBright, commandColour), "socialstack c");
 		console.log(ConsoleReset, "  creates a new blank SocialStack project in your working directory.");
 		console.log("   Optionally provide it a domain name like this:");
 		console.log();
@@ -546,8 +552,8 @@ function start(config){
 		console.log("   (see https://www.npmjs.com/package/socialstack).");
 		console.log();
 
-		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack configuration", " *");
-		console.log(ConsoleReset, "  returns the location of the configuration file for the current project");
+		console.log(escapeSequence(ConsoleBright, commandColour), "socialstack configuration");
+		console.log(ConsoleReset, "  returns the location of the configuration file for socialstack tools");
 		console.log();
 
 /*
@@ -556,7 +562,8 @@ function start(config){
 		console.log();
 */
 
-		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack migrate", " / ", "socialstack m", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack migrate", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack m", " *");
 		console.log(ConsoleFgRed, "  ** CURRENTLY UNSUPPORTED **");
 		console.log(ConsoleReset, "  In the future this will be used to automatically convert websites to or from");
 		console.log("   other frameworks via simple, shared commands");
@@ -580,11 +587,13 @@ function start(config){
 		console.log();
 */
 
-		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack version", " / ", "socialstack v", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour), "socialstack version");
+		console.log(escapeSequence(ConsoleBright, commandColour), "socialstack v");
 		console.log(ConsoleReset, "  outputs the currently installed version of SocialStack tools");
 		console.log();
 
-		console.log(escapeSequence(ConsoleBright, commandColour, ConsoleFgWhite, commandColour, noteColour), "socialstack generate", " / ", "socialstack g", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack generate", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack g", " *");
 		console.log(ConsoleReset, "  creates a new module.  For instance, to create a HelloWorld module under UI, use:");
 		console.log();
 		console.log(commandColour, "    socialstack g UI/HelloWorld");
