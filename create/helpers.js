@@ -55,23 +55,48 @@ function createSiteAdmin(connection, config, success){
 	
 	console.log('Creating a site admin account..');
 	
-	// Create site admin (password is "admin"):
-	var createAdminUser = 'USE `' + config.databaseName + '`;CREATE TABLE `site_user` (`Id` int(11) NOT NULL AUTO_INCREMENT,`FirstName` varchar(40) DEFAULT NULL,`LastName` varchar(40) DEFAULT NULL,`Email` varchar(80) DEFAULT NULL,`Role` int(11) NOT NULL,' + 
-	'`JoinedUtc` datetime NOT NULL, `Username` varchar(40) DEFAULT NULL,`PasswordHash` varchar(80) DEFAULT NULL,PRIMARY KEY (`Id`));' +
-	'INSERT INTO site_user(`Id`, `PasswordHash`, `Email`, `FirstName`, `LastName`, `Role`, `JoinedUtc`, `Username`) VALUES (1, "$P$68awep7Ri9CjDs7WuPAZyGfjCB1nXZ.", "admin@' + config.domainName + '", "Site", "Admin", 1, NOW(), "admin");';
+	var adminUser = {
+		Id: 1, 
+		PasswordHash: "$P$68awep7Ri9CjDs7WuPAZyGfjCB1nXZ.",
+		Email: 'admin@' + config.domainName,
+		FirstName: "Site",
+		LastName: "Admin",
+		Role: 1,
+		JoinedUtc: new Date(),
+		Username: "admin"
+	};
 	
-	connection.query(
-		  createAdminUser,
-		  function(err, results, fields) {
-			  if(err){
-				  console.log(err);
-				  console.log('Error occurred whilst trying to setup an admin account for you. Skipping it.');
+	if(connection.type == 'mongodb'){
+		// Create site admin (password is "admin"):
+		adminUser._id = adminUser.Id;
+		delete adminUser.Id;
+		
+		connection.db.collection("site_user").insertOne(adminUser, (err, result) => {
+			if (err) {
+			  console.log(err);
+			  console.log('Error occurred whilst trying to setup an admin account for you. Skipping it.');
+			}
+			connection.close();
+			success(config);
+		});
+	}else{
+		// Create site admin (password is "admin"):
+		var createAdminUser = 'USE `' + config.databaseName + '`;CREATE TABLE `site_user` (`Id` int(11) NOT NULL AUTO_INCREMENT,`FirstName` varchar(40) DEFAULT NULL,`LastName` varchar(40) DEFAULT NULL,`Email` varchar(80) DEFAULT NULL,`Role` int(11) NOT NULL,' + 
+		'`JoinedUtc` datetime NOT NULL, `Username` varchar(40) DEFAULT NULL,`PasswordHash` varchar(80) DEFAULT NULL,PRIMARY KEY (`Id`));' +
+		'INSERT INTO site_user(`Id`, `PasswordHash`, `Email`, `FirstName`, `LastName`, `Role`, `JoinedUtc`, `Username`) VALUES (1, "$P$68awep7Ri9CjDs7WuPAZyGfjCB1nXZ.", "admin@' + config.domainName + '", "Site", "Admin", 1, NOW(), "admin");';
+		
+		connection.query(
+			  createAdminUser,
+			  function(err, results, fields) {
+				  if(err){
+					  console.log(err);
+					  console.log('Error occurred whilst trying to setup an admin account for you. Skipping it.');
+				  }
+				  connection.close();
+				  success(config);
 			  }
-			  connection.close();
-			  success(config);
-		  }
-	);
-	
+		);
+	}
 }
 
 /*
@@ -128,11 +153,63 @@ function dbSql(name, user, password){
 
 function createDatabase(connectionInfo, config){
 	return new Promise((success, reject) => {
-		
-		console.log('Setting up database');
-		
 		config.databaseUser = config.databaseUser || config.databaseName + '_u';
 		config.databasePassword = config.databasePassword || makeid(10);
+		
+		var dbType = connectionInfo.type || 'mysql';
+		dbType = dbType.trim().toLowerCase();
+		
+		if(dbType == 'mongo' || dbType == 'mongodb'){
+			console.log('Setting up Mongo database');
+			
+			config.databaseName = config.databaseName.replace('.', '_');
+			const MongoClient = require('mongodb').MongoClient;
+			var url = 'mongodb://' + (connectionInfo.server || 'localhost');
+			
+			var options = {useUnifiedTopology: true};
+			
+			if(connectionInfo.username){
+				options['auth.user'] = connectionInfo.username;
+				options['auth.password'] = connectionInfo.password;
+			}
+			
+			MongoClient.connect(url, options, (err, client) => {
+				
+				if(err){
+					console.log('Failed to connect to MongoDB. Here\'s the full error:');
+					throw err;
+				}
+				
+				var db = client.db(config.databaseName);
+				var admin = db.admin();
+				
+				admin.addUser(config.databaseUser, config.databasePassword, {
+					roles: [
+					   { role: "dbOwner", db: config.databaseName }
+					]
+				}, (err,result) => {
+					
+					if(err && err.code == 51003){
+						console.log('Database already existed - skipping setting it up entirely.');
+						
+						return success(config);
+					}else if(result && result.ok){
+						console.log('Database and user created. Setting up admin account.');
+						
+						// Create site admin account:
+						createSiteAdmin({type: 'mongodb', db, client, close: ()=>client.close()}, config, success);
+						
+					}else{
+						console.log('Unable to create MongoDB db/user:');
+						throw err;
+					}
+					
+				});
+			});
+			
+		}else{
+			console.log('Setting up MySQL database');
+		}
 		
 		var sql = dbSql(config.databaseName, config.databaseUser, config.databasePassword);
 		
