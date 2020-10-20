@@ -76,6 +76,8 @@ function getRenderer(config, moduleSet){
 		parseFloat: global.parseFloat,
 		Boolean: global.Boolean,
 		Function: global.Function,
+		Event: global.Event,
+		CustomEvent: global.CustomEvent,
 		Array: global.Array,
 		Int8Array: global.Int8Array,
 		Uint8Array: global.Uint8Array,
