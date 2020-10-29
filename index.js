@@ -113,6 +113,7 @@ function mapArgs()
 		{name: 'migrate', alias: 'm'},
 		{name: 'interactive'},
 		{name: 'render', alias: 'r'},
+		{name: 'repository'},
 		{name: 'add', alias: 'a'},
 		{name: 'share', alias: 's'},
 		{name: 'version', alias: 'v'},
@@ -170,7 +171,8 @@ var commandsThatWorkWithoutBeingInAProject = {
 	'configuration': true,
 	'host': true,
 	'configure': true,
-	'id': true
+	'id': true,
+	'repository': true
 };
 
 module.exports = (config) => {
@@ -364,6 +366,11 @@ function start(config){
 		var migrate = require('./migrate/index.js');
 		
 		migrate(config);
+		
+	}else if(config.commandLine.command == 'repository'){
+		
+		var repository = require('./repository/index.js');
+		repository(config);
 		
 	}else if(config.commandLine.command == 'interactive'){
 		// Interactive mode. We'll send and receive data over stdio.

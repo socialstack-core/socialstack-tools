@@ -57,38 +57,165 @@ function deleteFolderRecursive(dirPath) {
   }
 };
 
-function getHost(opts){
-	var host = 'source.socialstack.dev';
+function getRepositoryUrl(opts){
+	
+	// Note: if you change this, please also update the example in the repo:
+	// https://source.socialstack.dev/documentation/guide/blob/master/DeveloperGuide/Commands/repo-description.json
+	var defaultHost = {
+		git: {
+			url: 'git@source.socialstack.dev:',
+			modules: {
+				'*': '{URL}modules/{MODULE_URL}.git'
+			}
+		},
+		https: {
+			url: 'https://source.socialstack.dev/',
+			modules: {
+				'*': '{URL}modules/{MODULE_URL}.git'
+			},
+			packages: {
+				'*':  '{URL}packages/{MODULE_URL}/raw/master/package.json'
+			},
+			archives: {
+				'*': '{URL}modules/{MODULE_URL}/-/archive/master/{NAME_URL}-master.zip'
+			}
+		}
+	};
+	
+	var host = defaultHost;
 	
 	if(opts.repository){
+		host = null;
 		// Either a dns address, or an alias.
 		// Look it up in alias lookup via config:
 		var localCfg = configManager.getLocalConfig();
 		
 		if(localCfg && localCfg.repositories){
-			var info = localCfg.repositories[opts.repository];
-			if(info){
-				if(typeof info == 'string'){
-					host = info;
-				}else if(info.host){
-					host = info.host;
-				}else{
-					throw new Error('"' + opts.repository + '" is an alias in your repositories config, but it doesn\'t have a field called "host". This should be the DNS address of the repository.');
-				}
-				host = info.host;
-			}else if(opts.repository.indexOf('.') != -1){
-				host = opts.repository;
-			}else{
-				throw new Error('Didn\'t recognise "' + opts.repository + '" as either a repository alias or a DNS address. Check your repositories array in your tools config.');
-			}
-		}else if(opts.repository.indexOf('.') != -1){
-			host = opts.repository;
-		}else{
-			throw new Error('Didn\'t recognise "' + opts.repository + '" as either a repository alias or a DNS address. Check your repositories array in your tools config.');
+			host = localCfg.repositories[opts.repository];
+		}
+		
+		if(!host){
+			console.log(defaultHost);
+			throw new Error(
+				'Didn\'t recognise "' + opts.repository + '" as a repository alias. '+
+				'Check your "repositories" array in your tools config. As an example, the default one is above.'
+			);
 		}
 	}
 	
-	return opts.https ? 'https://' + host : 'git@' + host;
+	if(host.remote){
+		if(host._cached){
+			hostPromise = Promise.resolve(host._cached);
+		}else{
+			console.log('Getting repository information..');
+			hostPromise = getRemoteJson(host.remote).then(hostData => {
+				host._cached = hostData;
+				return hostData;
+			});
+		}
+		
+	}else{
+		hostPromise = Promise.resolve(host);
+	}
+	
+	return hostPromise
+		.then(host => {
+		
+		host = opts.https ? host.https : host.git;
+		
+		if(!host){
+			console.log(defaultHost);
+			throw new Error(
+				'Host "' + (opts.repository || '{default}') + '" exists but it doesn\'t have config for ' + (opts.https ? 'https' : 'git') + '.' + 
+				' As an example, the default one is above.'
+			);
+		}
+		
+		if(!host.url){
+			console.log(defaultHost);
+			throw new Error(
+				'"' + opts.repository + '" has repository config, but it doesn\'t have a "url".' + 
+				' As an example, the default one is above.'
+			);
+		}
+		
+		var url = host.url;
+		
+		var modulePath = opts.modulePath || opts.packagePath || opts.archivePath;
+		
+		if(modulePath){
+			
+			if(modulePath[0] == '/'){
+				modulePath = modulePath.substring(1);
+			}
+			
+			if(modulePath[modulePath.length-1] == '/'){
+				modulePath = modulePath.substring(0, modulePath.length-1);
+			}
+			
+			// Split into pieces:
+			var pathParts = modulePath.split('/');
+			
+			// Repo name:
+			var name = pathParts[pathParts.length-1];
+			
+			// Name lowercase:
+			var nameUrl = name.toLowerCase();
+			
+			// Path lowercase:
+			var moduleUrl = modulePath.toLowerCase();
+			
+			// Patterns to use when figuring out the path to the module:
+			var patternsName = '';
+			
+			if(opts.modulePath){
+				patternsName = 'modules';
+			}else if(opts.packagePath){
+				patternsName = 'packages';
+			}else{
+				patternsName = 'archives';
+			}
+			
+			var urlPatterns = host[patternsName];
+			
+			if(!urlPatterns) {
+				console.log(defaultHost);
+				throw new Error(
+					'"' + opts.repository + '" has repository config but it doesn\'t support ' + patternsName + ' via ' + (opts.https ? 'https' : 'git') + '.' +
+					' As an example, the default one is above.'
+				);
+			}
+			
+			// Use the most specific pattern available. They are all "starts with", or a wildcard, and always lowercase.
+			// "api": ..
+			// "ui/functions": ..
+			// "*": ..
+			
+			var patternToUse = urlPatterns['*'];
+			
+			for(var len = pathParts.length-1; len>=0;len--){
+				
+				var checkForPattern = pathParts.join('/').toLowerCase();
+				pathParts.pop();
+				if(urlPatterns[checkForPattern]){
+					patternToUse = urlPatterns[checkForPattern];
+					break;
+				}
+				
+			}
+			
+			var builtStr = patternToUse
+				.replace(/\{URL\}/g, host.url)
+				.replace(/\{MODULE\}/g, modulePath)
+				.replace(/\{MODULE_URL\}/g, moduleUrl)
+				.replace(/\{NAME\}/g, name)
+				.replace(/\{NAME_URL\}/g, nameUrl);
+			
+			return builtStr;
+		}
+		
+		return url;
+	});
 }
 
 function uninstallModule(moduleName, config){
@@ -121,34 +248,21 @@ function uninstallModule(moduleName, config){
 			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
 		}else if(moduleFilePath != ''){
 			// It's a package:
-			var packagePath = getHost({
+			getRepositoryUrl({
 				https: true,
 				repository: repo,
-				config
-			}) + '/packages/' + fwdSlashes.toLowerCase() + '/raw/master/package.json';
-			
-			https.get(packagePath, function(res) {
-				let body = "";
-				res.on("data", (chunk) => {
-					body += chunk;
-				});
-
-				res.on("end", () => {
-					try {
-						let json = JSON.parse(body);
-						if(json && json.dependencies && json.dependencies.length){
-							
-							uninstallAllModules(json.dependencies, config).then(success);
-							
-						}else{
-							console.log("Warning: Empty or otherwise malformed package. Uninstalled nothing from it.");
-						}
-						return;
-						
-					} catch (error) {
-						console.error(error.message);
-					};
-				});
+				config,
+				packagePath: fwdSlashes
+			})
+			.then(packagePath => getRemoteJson(packagePath))
+			.then(json => {
+				if(json && json.dependencies && json.dependencies.length){
+					
+					uninstallAllModules(json.dependencies, config).then(success);
+					
+				}else{
+					console.log("Warning: Empty or otherwise malformed package. Uninstalled nothing from it.");
+				}
 			});
 			
 			return;
@@ -203,6 +317,27 @@ function uninstallModule(moduleName, config){
 	});
 }
 
+function getRemoteJson(url){
+	// get json from given url
+	return new Promise((success, rej) => {
+		https.get(url, function(res) {
+			let body = "";
+			res.on("data", (chunk) => {
+				body += chunk;
+			});
+
+			res.on("end", () => {
+				try {
+					let json = JSON.parse(body);
+					return success(json);
+				} catch (error) {
+					console.error(error.message);
+				};
+			});
+		});
+	});
+}
+
 function runCmd(cmd, config){
 	return new Promise((success, reject) => {
 		
@@ -253,34 +388,21 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
 		}else if(moduleFilePath != ''){
 			// It's a package:
-			var packagePath = getHost({
+			getRepositoryUrl({
 				https: true,
 				repository: repo,
-				config
-			}) + '/packages/' + fwdSlashes.toLowerCase() + '/raw/master/package.json';
-			
-			https.get(packagePath, function(res) {
-				let body = "";
-				res.on("data", (chunk) => {
-					body += chunk;
-				});
-
-				res.on("end", () => {
-					try {
-						let json = JSON.parse(body);
-						if(json && json.dependencies && json.dependencies.length){
-							
-							installAllModules(json.dependencies, config, asSubModule, useHttps).then(success);
-							
-						}else{
-							console.log("Warning: Empty or otherwise malformed package. Installed nothing.");
-						}
-						return;
-						
-					} catch (error) {
-						console.error(error.message);
-					};
-				});
+				config,
+				packagePath: fwdSlashes
+			})
+			.then(packagePath => getRemoteJson(packagePath))
+			.then(json => {
+				if(json && json.dependencies && json.dependencies.length){
+					
+					installAllModules(json.dependencies, config, asSubModule, useHttps).then(success);
+					
+				}else{
+					console.log("Warning: Empty or otherwise malformed package. Installed nothing.");
+				}
 			});
 			
 			return;
@@ -289,17 +411,10 @@ function installModule(moduleName, config, asSubModule, useHttps){
 		if(asSubModule){
 			
 			// Must've already authed with the source repo for this to be successful.
-			var remotePath = 'modules/' + fwdSlashes.toLowerCase() + '.git';
-			
-			remotePath = getHost({
-				https: useHttps,
-				repository: repo,
-				config
-			}) + (useHttps ? '/' : ':') + remotePath;
 			
 			var attempt = 0;
 			
-			function tryGitPull(){
+			function tryGitPull(remotePath){
 			
 				exec(
 					'git submodule add --force "' + remotePath + '" "' + moduleFilePath + '"', {
@@ -312,7 +427,7 @@ function installModule(moduleName, config, asSubModule, useHttps){
 						attempt++;
 						
 						if(attempt<5){
-							tryGitPull();
+							tryGitPull(remotePath);
 							return;
 						}
 						console.log(err);
@@ -343,7 +458,13 @@ function installModule(moduleName, config, asSubModule, useHttps){
 				});
 			}
 			
-			tryGitPull();
+			getRepositoryUrl({
+				https: useHttps,
+				repository: repo,
+				config,
+				modulePath: fwdSlashes
+			})
+			.then(remotePath => tryGitPull(remotePath));
 			
 		}else{
 			
@@ -365,32 +486,32 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			// Unzips whilst it downloads. There's no temporary file use here.
 			
 			// https://source.socialstack.cf/modules/project/-/archive/master/project-master.zip
-			var repoName = moduleName.split('/');
-			repoName = repoName[repoName.length-1].toLowerCase();
 			
-			var fromUrl = getHost({
+			getRepositoryUrl({
 				https: true,
 				repository: repo,
-				config
-			}) + '/modules/' + fwdSlashes.toLowerCase() + '/-/archive/master/' + repoName + '-master.zip';
-			
-			https.get(fromUrl, function(response) {
-				response.pipe(unzip.Parse()).on('entry', function (entry) {
-					
-					var pathParts = entry.path.split('/');
-					pathParts.shift();
-					var filePath = pathParts.join('/');
-					
-					if(entry.type == 'File'){
-						mkDirByPathSync(moduleFilePath + path.dirname(filePath));
-						entry.pipe(fs.createWriteStream(moduleFilePath + filePath));
-					}else{
-						mkDirByPathSync(moduleFilePath + filePath);
-						entry.autodrain()
-					}
-					
-				}).on('close', function() {
-					success();
+				config,
+				archivePath: fwdSlashes
+			}).then(fromUrl => {
+				
+				https.get(fromUrl, function(response) {
+					response.pipe(unzip.Parse()).on('entry', function (entry) {
+						
+						var pathParts = entry.path.split('/');
+						pathParts.shift();
+						var filePath = pathParts.join('/');
+						
+						if(entry.type == 'File'){
+							mkDirByPathSync(moduleFilePath + path.dirname(filePath));
+							entry.pipe(fs.createWriteStream(moduleFilePath + filePath));
+						}else{
+							mkDirByPathSync(moduleFilePath + filePath);
+							entry.autodrain()
+						}
+						
+					}).on('close', function() {
+						success();
+					});
 				});
 			});
 		}
