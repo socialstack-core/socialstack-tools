@@ -2,6 +2,7 @@ var { remoteFileList, localFileList,diff, copyDirectory,
 	uploadFile, createRemoteDirectory, extractPatch, 
 	setPermsAndUser, restartService, handleRenames } = require('./helpers.js');
 var hostHelpers = require('../host/helpers.js');
+var cloudHelpers = require('../cloud/helpers.js');
 var buildHelpers = require('../build/helpers.js');
 const tmp = require('tmp');
 const tar = require('tar');
@@ -334,6 +335,8 @@ module.exports = config => {
 			
 		});
 		
+	}else{
+		// Cloud deployment
+		return cloudHelpers.runCmd(config);
 	}
-	
 };
