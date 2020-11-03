@@ -272,8 +272,12 @@ function buildAPI(config){
 		});
 		
 		child.on('close', (code) => {
-			console.log('API build success');
-			success();
+			if(!code){
+				console.log('API build success');
+				success();
+			}else{
+				reject('API build failed. See above for more details.');
+			}
 		});
 	});
 }

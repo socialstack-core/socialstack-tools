@@ -1,6 +1,6 @@
 var { remoteFileList, localFileList,diff, copyDirectory, 
 	uploadFile, createRemoteDirectory, extractPatch, 
-	setPermsAndUser, restartService, handleRenames } = require('./helpers.js');
+	setPermsAndUser, restartService, handleRenames, getAppSettings } = require('./helpers.js');
 var hostHelpers = require('../host/helpers.js');
 var cloudHelpers = require('../cloud/helpers.js');
 var buildHelpers = require('../build/helpers.js');
@@ -47,6 +47,14 @@ module.exports = config => {
 			// Note though that the one that is included must also be named "appsettings.json" on the remote server.
 			var appsettingsName = 'appsettings.' + (env ? env + '.' : '') + 'json';
 			config.appsettingsName = appsettingsName;
+			
+			// Attempt to get app settings for the platform. This requires that it exists, and errors if it doesn't.
+			var appSettings = getAppSettings(config);
+			
+			if(!appSettings){
+				connection.end();
+				throw new Error(config.appsettingsName + " either doesn't exist or it is missing the required BaseUrl field.");
+			}
 			
 			var fileSets = [
 				{name: 'UI', local:'UI/public', remote: 'UI/public', onlyRemoveFrom: 'pack/'}, // Won't delete stuff from anywhere other than the pack directory.
@@ -330,10 +338,19 @@ module.exports = config => {
 				console.log('Done');
 				// Done:
 				connection.end();
+			})
+			.catch(e => {
+				e && e.message ? console.log(e.message) : console.error(e);
+				return;
 			});
 			
 			
+		})
+		.catch(e => {
+			e && e.message ? console.log(e.message) : console.error(e);
+			return;
 		});
+		
 		
 	}else{
 		// Cloud deployment

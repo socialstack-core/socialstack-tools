@@ -312,14 +312,32 @@ function restartService(config, connection) {
 	
 	var appsettings = getAppSettings(config);
 	
-	if(!appsettings.serviceName){
+	var svcName = appsettings.serviceName || appsettings.ServiceName;
+	
+	if(!svcName){
+		// No explicit service name. Is it a SS cloud project?
+		var cloudMeta = appsettings.cloud || appsettings.Cloud;
+		
+		if(cloudMeta && (cloudMeta.projectId || cloudmeta.ProjectId)){
+			
+			// It's either live-api or stage-api depending on env.
+			if(config.appsettingsName == 'appsettings.prod.json'){
+				svcName = 'live-api';
+			}else{
+				svcName = 'stage-api';
+			}
+			
+		}
+	}
+	
+	if(!svcName){
 		return Promise.resolve(true);
 	}
 	
-	console.log('Using service name "' + appsettings.serviceName + '"');
+	console.log('Using service name "' + svcName + '"');
 	
 	return new Promise((success, fail) => {
-		connection.exec('sudo service ' + appsettings.serviceName + ' restart', function(err, stream) {
+		connection.exec('sudo service ' + svcName + ' restart', function(err, stream) {
 			if(err){
 				return fail(err);
 			}
@@ -340,8 +358,13 @@ function getAppSettings(config){
 		return config.loadedAppSettings;
 	}
 	
-	var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
+	var appsettingsManager = new jsConfigManager(config.projectRoot + "/" + config.appsettingsName);
 	var appsettings = appsettingsManager.get();
+	
+	if(!appsettings || !appsettings.BaseUrl){
+		return null;
+	}
+	
 	config.loadedAppSettings = appsettings;
 	
 	var baseUrl = appsettings.BaseUrl;
@@ -411,5 +434,6 @@ module.exports = {
 	extractPatch,
 	setPermsAndUser,
 	restartService,
-	handleRenames
+	handleRenames,
+	getAppSettings
 };
