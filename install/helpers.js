@@ -59,8 +59,13 @@ function deleteFolderRecursive(dirPath) {
 
 var mainstreamRepos = {};
 
-mainstreamRepos['npm'] = {};
-mainstreamRepos['nuget'] = {};
+mainstreamRepos['npm'] = {
+	cmd: 'npm install "{NAME_URL}" --save'
+};
+
+mainstreamRepos['nuget'] = {
+	cmd: 'dotnet add package "{NAME_NO_VERSION}"'
+};
 
 function getRepositoryUrl(opts){
 	
@@ -91,30 +96,21 @@ function getRepositoryUrl(opts){
 	
 	if(opts.repository){
 		
-		// Handle special case repo's like npm and nuget:
-		if(mainstreamRepos[opts.repository.toLowerCase()]){
-			
-			// Host is a mainstream repository:
-			host = mainstreamRepos[opts.repository.toLowerCase()];
-			
-		}else{
-			
-			host = null;
-			// Either a dns address, or an alias.
-			// Look it up in alias lookup via config:
-			var localCfg = configManager.getLocalConfig();
-			
-			if(localCfg && localCfg.repositories){
-				host = localCfg.repositories[opts.repository];
-			}
-			
-			if(!host){
-				console.log(defaultHost);
-				throw new Error(
-					'Didn\'t recognise "' + opts.repository + '" as a repository alias. '+
-					'Check your "repositories" array in your tools config. As an example, the default one is above.'
-				);
-			}
+		host = null;
+		// Either a dns address, or an alias.
+		// Look it up in alias lookup via config:
+		var localCfg = configManager.getLocalConfig();
+		
+		if(localCfg && localCfg.repositories){
+			host = localCfg.repositories[opts.repository];
+		}
+		
+		if(!host){
+			console.log(defaultHost);
+			throw new Error(
+				'Didn\'t recognise "' + opts.repository + '" as a repository alias. '+
+				'Check your "repositories" array in your tools config. As an example, the default one is above.'
+			);
 		}
 	}
 	
@@ -426,6 +422,19 @@ function installDependencies(moduleFilePath, config, onDone){
 	});
 }
 
+function cmdInstall(cmd, config, success){
+	
+	return runCmd(cmd, config).then(success).catch(e => {
+		console.log("[!] Unable to install a dependency. Attempted to run the following command:");
+		console.log('');
+		console.log(cmd);
+		console.log('');
+		console.log("The error was as follows", e);
+		console.log("Continuing to install other dependencies");
+	});
+	
+}
+
 function installModule(moduleName, config, asSubModule, useHttps){
 	return new Promise((success, reject) => {
 		
@@ -434,6 +443,58 @@ function installModule(moduleName, config, asSubModule, useHttps){
 		if(colon != -1){
 			repo = moduleName.substring(0, colon);
 			moduleName = moduleName.substring(colon+1);
+		}
+		
+		if(repo && mainstreamRepos[repo.toLowerCase()]){
+			
+			// Host is a mainstream repository:
+			var repoMeta = mainstreamRepos[repo.toLowerCase()];
+			
+			if(repoMeta.cmd){
+				console.log(moduleName);
+				var modulePath = moduleName;
+				
+				if(modulePath[0] == '/'){
+					modulePath = modulePath.substring(1);
+				}
+				
+				if(modulePath[modulePath.length-1] == '/'){
+					modulePath = modulePath.substring(0, modulePath.length-1);
+				}
+				
+				// Split into pieces:
+				var pathParts = modulePath.split('/');
+				
+				// Repo name:
+				var name = pathParts[pathParts.length-1];
+				
+				// Name lowercase:
+				var nameUrl = name.toLowerCase();
+				
+				// Path lowercase:
+				var moduleUrl = modulePath.toLowerCase();
+				
+				var nameNoVersion = name;
+				
+				var verStart = nameNoVersion.indexOf('@');
+				
+				if(verStart != -1){
+					nameNoVersion = name.substring(0, verStart);
+				}
+				
+				return cmdInstall(
+					repoMeta.cmd
+						.replace(/\{MODULE\}/g, modulePath)
+						.replace(/\{MODULE_URL\}/g, moduleUrl)
+						.replace(/\{NAME\}/g, name)
+						.replace(/\{NAME_NO_VERSION\}/g, nameNoVersion)
+						.replace(/\{NAME_URL\}/g, nameUrl),
+					config,
+					success
+				);
+			}
+			
+			return;
 		}
 		
 		var fwdSlashes = tidyModuleName(moduleName);
@@ -484,6 +545,12 @@ function installModule(moduleName, config, asSubModule, useHttps){
 					},
 					function(err, stdout, stderr){
 						if(err){
+							
+							if(err.code && err.code == 128){
+								console.log("[FAILED] Module doesn't exist at the remote repository. Tried url: " + remotePath);
+								reject("Module doesn't exist");
+								return;
+							}
 							
 							attempt++;
 							

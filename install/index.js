@@ -37,5 +37,7 @@ module.exports = (config) => {
 	
 	Promise.all(pendingDownloads).then(() => {
 		console.log('Done');
+	}).catch(e => {
+		console.log(e);
 	});
 };
