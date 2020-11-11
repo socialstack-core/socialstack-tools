@@ -407,14 +407,47 @@ function installDependencies(moduleFilePath, config, onDone){
 			// parse:
 			try{
 				var pkg = JSON.parse(content);
+				
+				var pendingPromises = [];
+				
 				if(pkg && Array.isArray(pkg.dependencies)){
 					
-					installAllModules(pkg.dependencies, config, true, true).then(() => onDone());
+					pendingPromises.push(
+						installAllModules(pkg.dependencies, config, true, true)
+					);
 					
-				}else{
-					// pkg.json empty/ has no deps - skip:
-					onDone();
 				}
+				
+				if(pkg.scripts && pkg.scripts.install){
+					// Exec the install script by require()'ing it.
+					try{
+						console.log("Running the module's install script..");
+						var installScriptPath = config.projectRoot + '/' + moduleFilePath + '/' + pkg.scripts.install;
+						var installScript = require(installScriptPath);
+						
+						if(typeof installScript === "function"){
+							// Invoke it. It can optionally return a promise.
+							var promise = installScript(config, {
+								install: module.exports,
+								configManager,
+								unzip
+							}, moduleFilePath);
+							
+							if(promise){
+								pendingPromises.push(promise);
+							}
+						}
+						
+					}catch(e){
+						console.log('Skipping a failed install script.');
+						console.log('This is likely not an issue with Socialstack tools and instead came from ' + installScriptPath + " which was referenced from the package.json");
+						console.log(e);
+					}
+				}
+				
+				// Wait for the pending promises then continue:
+				Promise.all(pendingPromises).then(() => onDone());
+				
 			}catch(e){
 				console.log(moduleFilePath + ' has an invalid package.json - here\'s the error:', e);
 			}
