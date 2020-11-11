@@ -57,6 +57,11 @@ function deleteFolderRecursive(dirPath) {
   }
 };
 
+var mainstreamRepos = {};
+
+mainstreamRepos['npm'] = {};
+mainstreamRepos['nuget'] = {};
+
 function getRepositoryUrl(opts){
 	
 	// Note: if you change this, please also update the example in the repo:
@@ -85,21 +90,31 @@ function getRepositoryUrl(opts){
 	var host = defaultHost;
 	
 	if(opts.repository){
-		host = null;
-		// Either a dns address, or an alias.
-		// Look it up in alias lookup via config:
-		var localCfg = configManager.getLocalConfig();
 		
-		if(localCfg && localCfg.repositories){
-			host = localCfg.repositories[opts.repository];
-		}
-		
-		if(!host){
-			console.log(defaultHost);
-			throw new Error(
-				'Didn\'t recognise "' + opts.repository + '" as a repository alias. '+
-				'Check your "repositories" array in your tools config. As an example, the default one is above.'
-			);
+		// Handle special case repo's like npm and nuget:
+		if(mainstreamRepos[opts.repository.toLowerCase()]){
+			
+			// Host is a mainstream repository:
+			host = mainstreamRepos[opts.repository.toLowerCase()];
+			
+		}else{
+			
+			host = null;
+			// Either a dns address, or an alias.
+			// Look it up in alias lookup via config:
+			var localCfg = configManager.getLocalConfig();
+			
+			if(localCfg && localCfg.repositories){
+				host = localCfg.repositories[opts.repository];
+			}
+			
+			if(!host){
+				console.log(defaultHost);
+				throw new Error(
+					'Didn\'t recognise "' + opts.repository + '" as a repository alias. '+
+					'Check your "repositories" array in your tools config. As an example, the default one is above.'
+				);
+			}
 		}
 	}
 	
@@ -218,6 +233,26 @@ function getRepositoryUrl(opts){
 	});
 }
 
+function tidyModuleName(moduleName){
+	
+	// Api.Thing -> Api/Thing except for .Bundle which remains as-is.
+	var bundle = false;
+	
+	if(moduleName.toLowerCase().endsWith('.bundle')){
+		bundle = moduleName.substring(moduleName.length - 7);
+		moduleName = moduleName.substring(0,moduleName.length - 7);
+	}
+	
+	var noDots = moduleName.replace(/\./gi, '/').replace(/\\/gi, '/');
+	
+	if(bundle){
+		noDots += bundle;
+	}
+	
+	return noDots;
+	
+}
+
 function uninstallModule(moduleName, config){
 	
 	return new Promise((success, reject) => {
@@ -234,7 +269,7 @@ function uninstallModule(moduleName, config){
 			moduleName = moduleName.substring(colon+1);
 		}
 		
-		var fwdSlashes = moduleName.replace(/\./gi, '/');
+		var fwdSlashes = tidyModuleName(moduleName);
 		
 		var moduleFilePath = fwdSlashes;
 		
@@ -364,6 +399,33 @@ function runCmd(cmd, config){
 	});
 }
 
+/*
+* Attempts to install dependencies for the given module path, 
+*/
+function installDependencies(moduleFilePath, config, onDone){
+	fs.readFile(config.projectRoot + '/' + moduleFilePath + '/package.json', {encoding: 'utf8'}, (err, content) => {
+		if(err){
+			// No package.json file - skip:
+			onDone();
+		}else{
+			// parse:
+			try{
+				var pkg = JSON.parse(content);
+				if(pkg && Array.isArray(pkg.dependencies)){
+					
+					installAllModules(pkg.dependencies, config, true, true).then(() => onDone());
+					
+				}else{
+					// pkg.json empty/ has no deps - skip:
+					onDone();
+				}
+			}catch(e){
+				console.log(moduleFilePath + ' has an invalid package.json - here\'s the error:', e);
+			}
+		}
+	});
+}
+
 function installModule(moduleName, config, asSubModule, useHttps){
 	return new Promise((success, reject) => {
 		
@@ -374,7 +436,7 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			moduleName = moduleName.substring(colon+1);
 		}
 		
-		var fwdSlashes = moduleName.replace(/\./gi, '/').replace(/\\/gi, '/');
+		var fwdSlashes = tidyModuleName(moduleName);
 		
 		var moduleFilePath = (moduleName == 'project') ? '' : fwdSlashes;
 		
@@ -421,41 +483,44 @@ function installModule(moduleName, config, asSubModule, useHttps){
 						cwd: config.projectRoot
 					},
 					function(err, stdout, stderr){
-					
-					if(err){
-						
-						attempt++;
-						
-						if(attempt<5){
-							tryGitPull(remotePath);
-							return;
-						}
-						console.log(err);
-					}else{
-						if(stdout){
-							// console.log(stdout);
-						}
-						
-						if(attempt != 0){
+						if(err){
 							
-							exec(
-								'git reset --hard', {
-									cwd: config.projectRoot + '/' + moduleFilePath
-								},
-								function(err, stdout, stderr){
-									success();
-								}
-							);
-							return;
+							attempt++;
+							
+							if(attempt<5){
+								tryGitPull(remotePath);
+								return;
+							}
+							console.log(err);
+						}else{
+							if(stdout){
+								// console.log(stdout);
+							}
+							
+							if(attempt != 0){
+								
+								exec(
+									'git reset --hard', {
+										cwd: config.projectRoot + '/' + moduleFilePath
+									},
+									function(err, stdout, stderr){
+										success();
+									}
+								);
+								return;
+							}
+							
+							if(stderr){
+								console.log(stderr);
+							}
 						}
 						
-						if(stderr){
-							console.log(stderr);
-						}
+						// If package.json exists, install dependencies too.
+						installDependencies(moduleFilePath, config, () => {
+							success();
+						});
 					}
-					
-					success();
-				});
+				);
 			}
 			
 			getRepositoryUrl({
