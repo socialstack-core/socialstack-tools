@@ -33,8 +33,8 @@ SocialStack tools are used directly by a running API (unless disabled, which you
 Currently socialstack projects require the following:
 
 * Node.js 8+
-* [.NET Core 3.1 SDK](https://dotnet.microsoft.com/download/dotnet-core/3.1). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
-* If you're using Visual Studio, 2019 or newer is required for .NET Core 3.1.
+* [.NET Core 5.0 SDK](https://dotnet.microsoft.com/download/dotnet-core/5.0). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
+* If you're using Visual Studio, 2019 (v16.8) or newer is required for .NET Core 5.0.
 * MySQL. Version 8 is recommended.
 * Git
 
