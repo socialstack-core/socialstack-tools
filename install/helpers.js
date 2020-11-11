@@ -579,11 +579,13 @@ function installModule(moduleName, config, asSubModule, useHttps){
 					function(err, stdout, stderr){
 						if(err){
 							
+							/*
 							if(err.code && err.code == 128){
 								console.log("[FAILED] Module doesn't exist at the remote repository. Tried url: " + remotePath);
 								reject("Module doesn't exist");
 								return;
 							}
+							*/
 							
 							attempt++;
 							
