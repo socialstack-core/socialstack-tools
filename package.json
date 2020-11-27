@@ -1,6 +1,6 @@
 {
   "name": "socialstack",
-  "version": "1.0.133",
+  "version": "1.0.134",
   "description": "Tools for easily managing SocialStack projects.",
   "main": "index.js",
   "scripts": {
