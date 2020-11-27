@@ -18,6 +18,7 @@ module.exports = config => {
 		var verbose = config.commandLine['v'] || config.commandLine['verbose'];
 		var build = config.commandLine['build'];
 		var content = config.commandLine['content'];
+		var uiOnly = config.commandLine['uiOnly'] || config.commandLine['ui'];
 		
 		if(!commit){
 			console.log('DRY RUN');
@@ -25,9 +26,13 @@ module.exports = config => {
 			console.log('Files will *not* be changed on the remote host. Use the -commit flag to actually apply changes.');
 		}
 		
+		if(uiOnly){
+			console.log("UI only mode. API will be ignored.");
+		}
+		
 		host = host[0];
 		
-		var buildPromise = build ? buildHelpers.buildAll({prod: true}, config) : Promise.resolve(true);
+		var buildPromise = build ? buildHelpers.buildAll({prod: true, noApi: uiOnly}, config) : Promise.resolve(true);
 		
 		// Wait for build:
 		buildPromise
@@ -79,7 +84,9 @@ module.exports = config => {
 				];
 			}
 			
-			fileSets.push(apiFileSet);
+			if(!uiOnly){
+				fileSets.push(apiFileSet);
+			}
 			
 			if(content){
 				fileSets.push(
@@ -324,6 +331,11 @@ module.exports = config => {
 				
 				if(!commit){
 					console.log('DRY RUN - Skipping service restart');
+					return fileSetPatches;
+				}
+				
+				if(uiOnly){
+					// No need to restart the service
 					return fileSetPatches;
 				}
 				
