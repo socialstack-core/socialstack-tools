@@ -141,6 +141,44 @@ function watchOrBuild(config, isWatch){
 	})
 	.then(uiMap => {
 		
+/*
+		var aliases = 'module.exports = {\r\n';
+		var entrypoint = 'global.__mm = {\r\n';
+		
+		for(var k in uiMap.modules){
+			
+			// If this file is the "root" of a module, create an alias for it.
+			
+			var mod = uiMap.modules[k];
+			
+			var modFilePath;
+			
+			if(mod.isThirdParty){
+				modFilePath = "UI/Source/ThirdParty" + k.substring(2);
+			}else{
+				modFilePath = "UI/Source" + k.substring(2);
+			}
+			
+			var pathPieces = mod.parentModule.split('/');
+			var lastPiece = pathPieces[pathPieces.length-1];
+			
+			var fPathPieces = modFilePath.split('/');
+			var lastFPiece = fPathPieces[fPathPieces.length-1];
+			
+			if(lastFPiece == lastPiece + '.js' || lastFPiece == lastPiece + '.jsx' || lastFPiece == lastPiece + '.ts' || lastFPiece == lastPiece + '.tsx'){
+				aliases += '"' + mod.parentModule + '$": "' + modFilePath + '",\r\n';
+				
+				entrypoint += '"' + mod.parentModule + '/' + lastFPiece + '": require("' + mod.parentModule + '"),\r\n';
+				
+			}else{
+				aliases += '"' + mod.parentModule + '/' + lastFPiece + '$": "' + modFilePath + '",\r\n';
+			}
+		}
+		
+		console.log(aliases + '};');
+		console.log(entrypoint + '};\r\nstart();');
+*/
+
 		// Email modules:
 		var sourceDir = config.projectRoot + '/Email/Source';
 		var publicDir = config.projectRoot + '/Email/public';
