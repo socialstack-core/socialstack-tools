@@ -189,6 +189,7 @@ function watchOrBuild(config, isWatch){
 		minified: config.minified,
 		compress: config.compress,
 		relativePaths: config.relativePaths,
+		baseUrl: config.baseUrl,
 		outputStaticPath: outputDir + 'modules/',
 		outputCssPath: outputDir + 'styles.css',
 		outputJsPath: outputDir + 'main.generated.js',
@@ -219,6 +220,7 @@ function watchOrBuild(config, isWatch){
 				minified: config.minified,
 				compress: config.compress,
 				relativePaths: config.relativePaths,
+				baseUrl: config.baseUrl,
 				outputStaticPath: outputDir + 'modules/',
 				outputCssPath: outputDir + 'styles.css',
 				outputJsPath: outputDir + 'main.generated.js',
@@ -256,6 +258,7 @@ function watchOrBuild(config, isWatch){
 			minified: config.minified,
 			compress: config.compress,
 			relativePaths: config.relativePaths,
+			baseUrl: config.baseUrl,
 			outputStaticPath: outputDir + 'modules/',
 			outputCssPath: outputDir + 'styles.css',
 			outputJsPath: outputDir + 'main.generated.js',
@@ -303,6 +306,10 @@ function buildAll(opts, config){
 function buildUI(config, isWatch){
 	if(config.commandLine.relativePaths){
 		config.relativePaths = true;
+	}
+	
+	if(config.commandLine.baseUrl){
+		config.baseUrl = Array.isArray(config.commandLine.baseUrl) ? config.commandLine.baseUrl[0] : config.commandLine.baseUrl;
 	}
 	
 	config.minified = (config.commandLine.prod || config.commandLine.minified) ? true : false;
