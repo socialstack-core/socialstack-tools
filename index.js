@@ -110,6 +110,7 @@ function mapArgs()
 		{name: 'create', alias: 'c'},
 		{name: 'configuration'},
 		{name: 'configure'},
+		{name: 'upgrade'},
 		{name: 'migrate', alias: 'm'},
 		{name: 'interactive'},
 		{name: 'render', alias: 'r'},
@@ -203,6 +204,12 @@ function start(config){
 	var isWatch = config.commandLine.command == 'watch';
 	
 	if(isWatch || config.commandLine.command == 'buildui'){
+		
+		// -force is used to use socialstack's internal build chain anyway when a custom one was detected.
+		if(config.commandLine.force){
+			config.force = true;
+		}
+		
 		buildUI(config, isWatch);
 	}else if(config.commandLine.command == 'buildapi'){
 		buildAPI(config);
@@ -212,6 +219,11 @@ function start(config){
 		if(config.commandLine.prod){
 			config.minified = true;
 			config.compress = true;
+		}
+		
+		// -force is used to use socialstack's internal build chain anyway when a custom one was detected.
+		if(config.commandLine.force){
+			config.force = true;
 		}
 		
 		buildAll({
@@ -299,6 +311,11 @@ function start(config){
 		
 		// Deploys a project over SSH.
 		require('./deploy/deploy.js')(config);
+		
+	}else if(config.commandLine.command == 'upgrade'){
+		
+		// Deploys a project over SSH.
+		require('./upgrade/upgrade.js')(config);
 		
 	}else if(config.commandLine.command == 'configuration'){
 		

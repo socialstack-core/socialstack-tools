@@ -90,6 +90,62 @@ function processCss(cssFile, config){
 	
 }
 
+function getCustomBuildConfig(path){
+	// Straight try to read the .json file:
+	var appsettingsManager = new jsConfigManager(path + "/package.json");
+	var packageJson = appsettingsManager.get();
+	
+	return packageJson && packageJson.scripts && packageJson.scripts.build;
+}
+
+function generateAliases(map){
+	
+	var aliases = 'module.exports = {\r\n';
+	var entrypoint = 'global.__mm = {\r\n';
+	
+	for(var k in map.modules){
+		
+		// If this file is the "root" of a module, create an alias for it.
+		
+		var mod = map.modules[k];
+		
+		var modFilePath;
+		
+		var pathPieces = mod.parentModule.split('/');
+		var lastPiece = pathPieces[pathPieces.length-1];
+		
+		// E.g. "UI" or "Admin"
+		var primaryBundle = pathPieces[0];
+		
+		// Skip files directly in the primary bundle directory. This is, e.g. UI/entrypoint.js and UI/aliases.js:
+		if(k.split('/').length<=2){
+			continue;
+		}
+		
+		if(mod.isThirdParty){
+			modFilePath = primaryBundle + "/Source/ThirdParty" + k.substring(primaryBundle.length);
+		}else{
+			modFilePath = primaryBundle + "/Source" + k.substring(primaryBundle.length);
+		}
+		
+		var fPathPieces = modFilePath.split('/');
+		var lastFPiece = fPathPieces[fPathPieces.length-1];
+		
+		if(lastFPiece == lastPiece + '.js' || lastFPiece == lastPiece + '.jsx' || lastFPiece == lastPiece + '.ts' || lastFPiece == lastPiece + '.tsx'){
+			aliases += '"' + mod.parentModule + '$": "' + modFilePath + '",\r\n';
+			
+			entrypoint += '"' + mod.parentModule + '/' + lastFPiece + '": require("' + mod.parentModule + '"),\r\n';
+			
+		}else{
+			aliases += '"' + mod.parentModule + '/' + lastFPiece + '$": "' + modFilePath + '",\r\n';
+		}
+	}
+	
+	// console.log(aliases + '};');
+	// console.log(entrypoint + '};\r\nstart();');
+
+}
+
 function watchOrBuild(config, isWatch){
 	
 	// Site UI:
@@ -97,6 +153,13 @@ function watchOrBuild(config, isWatch){
 	var publicDir = config.projectRoot + '/UI/public';
 	var outputDir = publicDir + '/pack/';
 	var moduleName = 'UI';
+	
+	// If either a package.json exists in projectRoot or the UI folder, check if it contains a custom build cmd.
+	// If it does, reject the request unless config.force is true.
+	if(!config.force && (getCustomBuildConfig(config.projectRoot) || getCustomBuildConfig(config.projectRoot + '/UI'))){
+		console.log('Note: UI build/ watch was not started because the project has custom build configuration. See the project readme or ask the project owner for how the UI should be built. This happens because the project has a package.json with a "build" script in it. You can force this build to proceed anyway with -force.');
+		return Promise.resolve(true);
+	}
 	
 	if(!fs.existsSync(sourceDir)){
 		console.log('Note: We\'re running with a prebuilt UI. This is a normal mode and happens because your "UI/Source" directory doesn\'t exist. If this isn\'t intentional and you\'d like to be able to runtime update your UI modules, we tried to find it here - make sure this exists: ' + sourceDir);
@@ -141,44 +204,6 @@ function watchOrBuild(config, isWatch){
 	})
 	.then(uiMap => {
 		
-/*
-		var aliases = 'module.exports = {\r\n';
-		var entrypoint = 'global.__mm = {\r\n';
-		
-		for(var k in uiMap.modules){
-			
-			// If this file is the "root" of a module, create an alias for it.
-			
-			var mod = uiMap.modules[k];
-			
-			var modFilePath;
-			
-			if(mod.isThirdParty){
-				modFilePath = "UI/Source/ThirdParty" + k.substring(2);
-			}else{
-				modFilePath = "UI/Source" + k.substring(2);
-			}
-			
-			var pathPieces = mod.parentModule.split('/');
-			var lastPiece = pathPieces[pathPieces.length-1];
-			
-			var fPathPieces = modFilePath.split('/');
-			var lastFPiece = fPathPieces[fPathPieces.length-1];
-			
-			if(lastFPiece == lastPiece + '.js' || lastFPiece == lastPiece + '.jsx' || lastFPiece == lastPiece + '.ts' || lastFPiece == lastPiece + '.tsx'){
-				aliases += '"' + mod.parentModule + '$": "' + modFilePath + '",\r\n';
-				
-				entrypoint += '"' + mod.parentModule + '/' + lastFPiece + '": require("' + mod.parentModule + '"),\r\n';
-				
-			}else{
-				aliases += '"' + mod.parentModule + '/' + lastFPiece + '$": "' + modFilePath + '",\r\n';
-			}
-		}
-		
-		console.log(aliases + '};');
-		console.log(entrypoint + '};\r\nstart();');
-*/
-
 		// Email modules:
 		var sourceDir = config.projectRoot + '/Email/Source';
 		var publicDir = config.projectRoot + '/Email/public';
@@ -243,6 +268,8 @@ function watchOrBuild(config, isWatch){
 					updateIndex('/en-admin/pack/', info, publicDir, config);
 				}
 			}
+		}).then(adminMaps => {
+			
 		});
 		
 	});
