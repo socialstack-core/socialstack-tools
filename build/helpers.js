@@ -211,35 +211,30 @@ function watchOrBuild(config, isWatch){
 		var outputDir = publicDir + '/pack/';
 		var moduleName = 'Email';
 		
-		return new Promise((success, reject) => {
+		return buildwatch[isWatch ? 'watch' : 'build']({
+			// include: [uiMap],
+			sourceDir,
+			moduleName,
+			minified: config.minified,
+			compress: config.compress,
+			relativePaths: config.relativePaths,
+			baseUrl: config.baseUrl,
+			outputStaticPath: outputDir + 'modules/',
+			outputCssPath: outputDir + 'styles.css',
+			outputJsPath: outputDir + 'main.generated.js',
+			onProcessCss: cssFile => {
+				return processCss(cssFile, config);
+			},
+			onFileChange: (info) => {
+				onFileBuildCallback && onFileBuildCallback(info);
+			}
+		}).then(emailMap => {
 			
-			buildwatch[isWatch ? 'watch' : 'build']({
-				// include: [uiMap],
-				sourceDir,
-				moduleName,
-				minified: config.minified,
-				compress: config.compress,
-				relativePaths: config.relativePaths,
-				baseUrl: config.baseUrl,
-				outputStaticPath: outputDir + 'modules/',
-				outputCssPath: outputDir + 'styles.css',
-				outputJsPath: outputDir + 'main.generated.js',
-				onProcessCss: cssFile => {
-					return processCss(cssFile, config);
-				},
-				onFileChange: (info) => {
-					onFileBuildCallback && onFileBuildCallback(info);
-				}
-			}).then(emailMap => {
-				
-				success(
-					{
-						uiMap,
-						emailMap
-					}
-				);
-				
-			}).catch(reject);
+			return {
+				uiMap,
+				emailMap
+			};
+			
 		});
 		
 	})
@@ -251,7 +246,7 @@ function watchOrBuild(config, isWatch){
 		var outputDir = publicDir + '/pack/';
 		var moduleName = 'Admin';
 		
-		buildwatch[isWatch ? 'watch' : 'build']({
+		return buildwatch[isWatch ? 'watch' : 'build']({
 			include: [maps.uiMap, maps.emailMap],
 			sourceDir,
 			moduleName,
@@ -271,10 +266,7 @@ function watchOrBuild(config, isWatch){
 					updateIndex('/en-admin/pack/', info, publicDir, config);
 				}
 			}
-		}).then(adminMaps => {
-			
 		});
-		
 	});
 	
 }

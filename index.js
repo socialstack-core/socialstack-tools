@@ -203,16 +203,38 @@ function start(config){
 	
 	var isWatch = config.commandLine.command == 'watch';
 	
-	if(isWatch || config.commandLine.command == 'buildui'){
+	if(isWatch){
+		
+		if(config.commandLine.force){
+			config.force = true;
+		}
+		
+		buildUI(config, isWatch).catch(e => {
+			console.log("Watch request failed");
+			process.exit(1);
+		});
+		
+	}else if(config.commandLine.command == 'buildui'){
 		
 		// -force is used to use socialstack's internal build chain anyway when a custom one was detected.
 		if(config.commandLine.force){
 			config.force = true;
 		}
 		
-		buildUI(config, isWatch);
+		buildUI(config, isWatch).then(() => {
+			console.log("Build success");
+		}).catch(e => {
+			console.log("Build failed");
+			process.exit(1);
+		});
+		
 	}else if(config.commandLine.command == 'buildapi'){
-		buildAPI(config);
+		
+		buildAPI(config).catch(e => {
+			console.log("Build failed");
+			process.exit(1);
+		});
+		
 	}else if(config.commandLine.command == 'build'){
 		
 		// Builds both API and UI
@@ -230,7 +252,10 @@ function start(config){
 			noUi: config.commandLine.noUI,
 			noApi: config.commandLine.noApi,
 			noApp: config.commandLine.noApp
-		}, config);
+		}, config).catch(e => {
+			console.log("Build failed");
+			process.exit(1);
+		});
 		
 	}else if(config.commandLine.command == 'id'){
 		
@@ -396,17 +421,22 @@ function start(config){
 		var serverrender = require('./serverrender/index.js');
 		
 		if(config.commandLine.p){
-			console.error('Obsolete usage of socialstack tools. Upgrade your Api/StackTools module to continue using this version of socialstack tools.');
+			console.error('Obsolete usage of socialstack tools. Upgrade the Api/StackTools module in this project to continue using this version of socialstack tools.');
 			return;
 		}
 		
 		if(config.commandLine.parent){
-			config.parent = config.commandLine.parent[0];
+			console.error('Old usage of socialstack tools detected. Upgrade the Api/StackTools module in this project to prevent stray node.js processes being created on forced quits.');
+			return;
+		}
+		
+		if(config.commandLine.lockfile){
+			config.lockfile = config.commandLine.lockfile[0];
 		}
 		
 		var interactive = require('./interactive/index.js');
 		
-		interactive({onRequest: function(message){
+		config.onRequest = function(message){
 			
 			var action = message.request.action;
 			
@@ -469,7 +499,9 @@ function start(config){
 				message.response({unknown: action});
 			}
 			
-		}});
+		};
+		
+		interactive(config);
 		
 	}else if(config.commandLine.command == 'help'){
 		var info = require('./package.json');
