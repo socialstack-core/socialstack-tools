@@ -426,8 +426,7 @@ function start(config){
 		}
 		
 		if(config.commandLine.parent){
-			console.error('Old usage of socialstack tools detected. Upgrade the Api/StackTools module in this project to prevent stray node.js processes being created on forced quits.');
-			return;
+			console.error('[NOTE] Old usage of socialstack tools detected. Upgrade the Api/StackTools module in this project to prevent stray node.js processes being created on forced quits. Proceeding anyway.');
 		}
 		
 		if(config.commandLine.lockfile){
