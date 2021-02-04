@@ -12,14 +12,14 @@ Only do this on a development machine. It's not needed anywhere else.
 
 ```
 	-- Create the user account:
-	CREATE USER 'sstools'@'localhost' IDENTIFIED BY 'sstools!'; -- Invent a password here!
+	CREATE USER 'sstools'@'localhost' IDENTIFIED BY 'ssto0ls.dev'; -- Invent a password here!
 	-- Grant that user full access to the db:
 	GRANT ALL PRIVILEGES ON *.* TO 'sstools'@'localhost' WITH GRANT OPTION;
 	FLUSH PRIVILEGES;
 ```
 
 ```
-socialstack configure -u "sstools" -p "sstools!"
+socialstack configure -u "sstools" -p "ssto0ls.dev"
 ```
 
 A few actions that the socialstack tools perform require MySQL admin rights on a development machine. This is so it can, for example, automatically create new databases for you. Whilst optional, it's highly recommended to set this access up. The account details are stored in a file which can also be located by running `socialstack configuration`.
