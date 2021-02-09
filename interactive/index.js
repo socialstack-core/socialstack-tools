@@ -37,37 +37,54 @@ module.exports = (config) => {
 	}
 	
 	process.stdin.on('data', function(chunk) {
-		var requestMessage;
+		var requestMessages;
 		
 		try{
-			requestMessage = JSON.parse(chunk.toString());
+			// Parse as an array because the watch call blocks which means multiple chunks can be received simultaneously 
+			// if they were sent whilst the js thread was blocked.
+			// Treating them all as an array with commas after each one greatly simplifies the protocol.
+			var chunkStr = chunk.toString();
+			
+			if(chunkStr.length && chunkStr[chunkStr.length-1] == '}'){
+				// Old project - still support it:
+				requestMessages = [
+					JSON.parse(chunkStr)
+				];
+			}else{
+				requestMessages = JSON.parse("[" + chunkStr + "null]");
+			}
 		}catch(e){
 			console.log(e);
 			return;
 		}
 		
-		var id = requestMessage._id;
-		
-		var _responded = false;
-		try{
+		for(var i=0;i<requestMessages.length;i++){
+			var requestMessage = requestMessages[i];
+			if(!requestMessage){
+				continue;
+			}
+			var id = requestMessage._id;
 			
-			// handle the request now:
-			config.onRequest({
-				request: requestMessage,
-				response: function(message){
-					_responded = true;
-					response(message, id);
+			var _responded = false;
+			try{
+				
+				// handle the request now:
+				config.onRequest({
+					request: requestMessage,
+					response: function(message){
+						_responded = true;
+						response(message, id);
+					}
+				});
+			}catch(e){
+				console.log(e);
+				
+				if(!_responded){
+					// Make sure we always provide a response:
+					response({error: e.toString()}, id);
 				}
-			});
-		}catch(e){
-			console.log(e);
-			
-			if(!_responded){
-				// Make sure we always provide a response:
-				response({error: e.toString()}, id);
 			}
 		}
-		
 	});
 	
 	/*

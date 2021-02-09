@@ -122,9 +122,12 @@ function getRenderer(config, moduleSet){
 		title: '',
 		location,
 		document: {
+			server: true,
 			addEventListener: function(){},
-			removeEventListener: function(){}
+			removeEventListener: function(){},
+			getElementById: function(){return null}
 		},
+		server: true,
 		apiHost: 'http://localhost:5050'
 	};
 	
