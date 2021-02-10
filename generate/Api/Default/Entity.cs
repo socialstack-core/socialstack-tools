@@ -20,11 +20,6 @@ namespace Api.Entities
         [DatabaseField(Length = 200)]
 		[Localized]
 		public string Name;
-
-		/// <summary>
-		/// A page this entity appears on.
-		/// </summary>
-		public int PageId;
 		
 		/// <summary>
 		/// The content of this entity.
