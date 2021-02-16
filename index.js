@@ -209,7 +209,36 @@ function start(config){
 			config.force = true;
 		}
 		
-		buildUI(config, isWatch).catch(e => {
+		// If we're given a lockfile to check, we'll check if it's still locked regularly. The moment it is not locked, we terminate.
+		if(config.commandLine.lockfile){
+			setInterval(function(){
+				
+				// Does the lockfile exist, and can we open it?
+				// If both are true, the host process is still up.
+				
+				var readStream = fs.createReadStream(config.commandLine.lockfile[0]);
+				
+				readStream.on('open', function () {
+					// The lockfile is no longer locked, but we're still up. Halt now.
+					console.log('UI watcher is exiting as lockfile is no longer locked by host process.');
+					process.exit(0);
+				});
+				
+				readStream.on('error', function(err) {
+					if(err.code == 'EBUSY'){
+						// Lockfile is successfully locked. Do nothing.
+					}else{
+						console.log('UI watcher is exiting as lockfile either did not exist or had an unknown error. ', err);
+						process.exit(0);
+					}
+				});
+				
+				// process.exit(0);
+				
+			}, 2000);
+		}
+		
+		buildUI(config, true).catch(e => {
 			console.log("Watch request failed");
 			process.exit(1);
 		});
@@ -221,7 +250,7 @@ function start(config){
 			config.force = true;
 		}
 		
-		buildUI(config, isWatch).then(() => {
+		buildUI(config, false).then(() => {
 			console.log("Build success");
 		}).catch(e => {
 			console.log("Build failed");
@@ -290,36 +319,6 @@ function start(config){
 		
 		// Just outputs the project directory.
 		console.log(config.projectRoot);
-		
-	}else if(config.commandLine.command == 'render'){
-		// Renders UI's (this typically actually happens over the interactive mode below).
-		
-		var serverrender = require('./serverrender/index.js');
-		
-		var rdr = serverrender.getRenderer(config, "UI");
-		
-		var canvas = config.commandLine.canvas;
-		
-		if(!canvas){
-			console.error("Please provide -canvas to render.");
-			return;
-		}
-		
-		if(canvas){
-			canvas = canvas[0];
-		}
-		
-		var context = config.commandLine.context;
-		
-		if(context){
-			context = JSON.parse(context[0]);
-		}else{
-			context = {};
-		}
-		
-		rdr.render({canvas, context}).then(result => {
-			console.log(result);
-		});
 		
 	}else if(config.commandLine.command == 'version'){
 		
@@ -439,57 +438,7 @@ function start(config){
 			
 			var action = message.request.action;
 			
-			if(action == "render"){
-				
-				var toRender;
-				var modules = message.request.modules || 'Admin';
-				
-				if(message.request.multiple){
-					// This is an array of [canvas, context].
-					toRender = message.request.multiple;
-				}else if(message.request.contexts){
-					// This is an array of contexts, but one canvas.
-					var { canvas } = message.request;
-					toRender = message.request.contexts.map(context => {
-						
-						return {
-							context,
-							canvas
-						};
-					})
-				}else{
-					toRender = [{
-						canvas: message.request.canvas,
-						context: message.request.context
-					}];
-				}
-				
-				// Get or setup a renderer:
-				if(renderers == null){
-					renderers = {};
-				}
-				
-				var renderer = renderers[modules];
-				
-				if(!renderer){
-					// Note: Renderer is in the 'global' scope such that a js file rebuild forces a new renderer instance.
-					renderer = serverrender.getRenderer(config, modules);
-					renderers[modules] = renderer;
-				}
-				
-				// Request to render them now:
-				var pendingRenders = toRender.map(renderer.render);
-				
-				Promise.all(pendingRenders).then(results => {
-					
-					// Send the response:
-					message.response({
-						results
-					});
-					
-				});
-				
-			}else if(action == "watch"){
+			if(action == "watch"){
 				config.minified = message.request.prod || message.request.minified;
 				config.compress = message.request.prod || message.request.compress;
 				watchOrBuild(config, true);
