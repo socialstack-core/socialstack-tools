@@ -23,7 +23,7 @@
     "postcss": "^7.0.35",
     "preact": "^10.5.12",
     "preact-render-to-string": "^5.1.12",
-    "react-lite-builder": "^2.0.1",
+    "react-lite-builder": "^2.0.4",
     "recursive-watch": "^1.1.4",
     "require-nocache": "^1.0.0",
     "sass": "^1.32.7",
