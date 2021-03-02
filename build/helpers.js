@@ -170,10 +170,10 @@ function watchOrBuild(config, isWatch){
 	// If project contains new build system, use modular mode.
 	
 	if(fs.existsSync(config.projectRoot + '/Api/ThirdParty/CanvasRenderer/compiler.generated.js')){
-		config.modular = true;
+		config.bundled = false;
 	}
 	
-	if(config.modular){
+	if(!config.bundled){
 		
 		// Ask for a modular build for 3 bundles:
 		return liteBuilder.modular.build({
@@ -205,7 +205,7 @@ function watchOrBuild(config, isWatch){
 	
 	var buildwatch = liteBuilder.buildwatch;
 	
-	var doIndex = !config.modular && config.minified && !config.noIndexUpdate;
+	var doIndex = config.minified && !config.noIndexUpdate;
 	
 	return buildwatch[isWatch ? 'watch' : 'build']({
 		sourceDir,
@@ -322,6 +322,10 @@ function buildAll(opts, config){
 function buildUI(config, isWatch){
 	if(config.commandLine.relativePaths){
 		config.relativePaths = true;
+	}
+	
+	if(config.commandLine.old || config.commandLine.bundled){
+		config.bundled = true;
 	}
 	
 	if(config.commandLine.baseUrl){
