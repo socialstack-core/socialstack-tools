@@ -10,7 +10,7 @@ var onFileBuildCallback = null;
 
 // React-lite-builder is also a socialstack project.
 // It'll let you use Socialstack's UI modules without a Socialstack server if you use it directly.
-var buildwatch = require('react-lite-builder').buildwatch;
+var liteBuilder = require('react-lite-builder');
 
 /*
  publicUrl: the base path of the URL where the publicDir is accessible from.
@@ -166,6 +166,26 @@ function watchOrBuild(config, isWatch){
 		return Promise.resolve(true);
 	}
 	
+	// Temporary workaround whilst the old build chain is depr but still used, and for where both should use the same set of cmd args.
+	// If project contains new build system, use modular mode.
+	
+	if(fs.existsSync(config.projectRoot + '/Api/ThirdParty/CanvasRenderer/compiler.generated.js')){
+		config.modular = true;
+	}
+	
+	if(config.modular){
+		
+		// Ask for a modular build for 3 bundles:
+		return liteBuilder.modular.build({
+			bundles: ["UI", "Admin", "Email"],
+			projectRoot: config.projectRoot,
+			minified: config.minified
+		});
+		
+	}
+	
+	console.log("Using depreciated full bundle mode. Consider using -modular for increased page load performance on modern browsers.");
+	
 	// Load the site config:
 	// If it includes "autoprefixer", then autoprefixer will be turned on for this project.
 	var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
@@ -182,6 +202,10 @@ function watchOrBuild(config, isWatch){
 		
 		config.__postCss = postcss([ autoprefixer({overrideBrowserslist: list, browsers: list}) ]);
 	}
+	
+	var buildwatch = liteBuilder.buildwatch;
+	
+	var doIndex = !config.modular && config.minified && !config.noIndexUpdate;
 	
 	return buildwatch[isWatch ? 'watch' : 'build']({
 		sourceDir,
