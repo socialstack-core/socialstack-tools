@@ -19,6 +19,7 @@ module.exports = config => {
 		var build = config.commandLine['build'];
 		var content = config.commandLine['content'];
 		var uiOnly = config.commandLine['uiOnly'] || config.commandLine['ui'];
+		var bundled = config.commandLine['bundled'] || config.commandLine['old'];
 		
 		if(!commit){
 			console.log('DRY RUN');
@@ -32,7 +33,7 @@ module.exports = config => {
 		
 		host = host[0];
 		
-		var buildPromise = build ? buildHelpers.buildAll({prod: true, noApi: uiOnly}, config) : Promise.resolve(true);
+		var buildPromise = build ? buildHelpers.buildAll({prod: true, noApi: uiOnly, bundled}, config) : Promise.resolve(true);
 		
 		// Wait for build:
 		buildPromise

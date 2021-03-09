@@ -301,6 +301,7 @@ function buildAll(opts, config){
 	
 	config.minified = (opts.prod || opts.minified) ? true : false;
 	config.compress = (opts.prod || opts.compress) ? true : false;
+	config.bundled = (opts.bundled) ? true : false;
 	
 	if(!opts.noUi){
 		// Build UI:
