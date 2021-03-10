@@ -441,6 +441,7 @@ function start(config){
 			if(action == "watch"){
 				config.minified = message.request.prod || message.request.minified;
 				config.compress = message.request.prod || message.request.compress;
+				config.bundled = true;
 				watchOrBuild(config, true);
 				message.response({success: true});
 			}else{
