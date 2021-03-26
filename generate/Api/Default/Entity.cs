@@ -10,7 +10,7 @@ namespace Api.Entities
 	/// <summary>
 	/// AnEntity
 	/// </summary>
-	public partial class Entity : RevisionRow
+	public partial class Entity : VersionedContent<int>
 	{
 		// Example fields. None are required:
 		/*
