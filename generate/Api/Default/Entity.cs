@@ -10,7 +10,7 @@ namespace Api.Entities
 	/// <summary>
 	/// AnEntity
 	/// </summary>
-	public partial class Entity : VersionedContent<int>
+	public partial class Entity : VersionedContent<uint>
 	{
 		// Example fields. None are required:
 		/*
