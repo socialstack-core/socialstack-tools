@@ -10,7 +10,7 @@ var onFileBuildCallback = null;
 
 // React-lite-builder is also a socialstack project.
 // It'll let you use Socialstack's UI modules without a Socialstack server if you use it directly.
-var liteBuilder = require('react-lite-builder');
+var liteBuilder = require('../builder');
 
 /*
  publicUrl: the base path of the URL where the publicDir is accessible from.
