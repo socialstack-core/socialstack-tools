@@ -10,7 +10,6 @@
 
 var fs = require('fs');
 var path = require('path');
-var { buildAPI, buildUI, buildAll, watchOrBuild, setBuildCallback } = require('./build/helpers.js');
 var { setLocalConfig, localConfigPath } = require('./configManager/index.js');
 var { findProjectRoot, isProjectRoot } = require('./projectHelpers/helpers.js');
 
@@ -72,13 +71,6 @@ function escapeSequence(...args) {
 	return escapeSequence;	
 }
 
-// Used for rendering React by command.
-// This is referenced out here such that any JS rebuilds can simply clear this variable.
-var renderers = null;
-setBuildCallback(() => {
-	renderers = null;
-})
-
 /*
 * Converts the raw command line args into operation/ flag set.
 */
@@ -101,6 +93,7 @@ function mapArgs()
 		{name: 'build', alias: 'b'},
 		{name: 'buildui'},
 		{name: 'buildapi'},
+		{name: 'buildapp'},
 		{name: 'host'},
 		{name: 'deploy'},
 		{name: 'install', alias: 'i'},
@@ -173,7 +166,8 @@ var commandsThatWorkWithoutBeingInAProject = {
 	'host': true,
 	'configure': true,
 	'id': true,
-	'repository': true
+	'repository': true,
+	'buildapp': true
 };
 
 module.exports = (config) => {
@@ -238,6 +232,9 @@ function start(config){
 			}, 2000);
 		}
 		
+		// Only include when about to build to avoid blocking up e.g. generate commands with the huge amount of JS this ultimately includes.
+		var { buildUI } = require('./build/helpers.js');
+		
 		buildUI(config, true).catch(e => {
 			console.log("Watch request failed");
 			process.exit(1);
@@ -250,14 +247,51 @@ function start(config){
 			config.force = true;
 		}
 		
+		// Only include when about to build to avoid blocking up e.g. generate commands with the huge amount of JS this ultimately includes.
+		var { buildUI } = require('./build/helpers.js');
+		
 		buildUI(config, false).then(() => {
 			console.log("Build success");
 		}).catch(e => {
 			console.log("Build failed");
+			console.log(e);
+			process.exit(1);
+		});
+		
+	}else if(config.commandLine.command == 'buildapp'){
+		
+		// Requires:
+		// apiUrl - the URL the app will use to talk to the API
+		// instanceUrl - the URL of an instance where it can obtain all the localisations etc (typically a stage site).
+		
+		if(!config.commandLine.apiUrl){
+			console.error('-apiUrl is required. It\'s of the form "https://mysite.com/" and will be the API location the built app will use.');
+			process.exit(1);
+		}
+		
+		if(!config.commandLine.instanceUrl){
+			console.error('-instanceUrl is required. It\'s of the form "https://mysite.com/" and will be the instance that is used to generate all the localised JS files, plus any static media.');
+			process.exit(1);
+		}
+		
+		config.apiUrl = config.commandLine.apiUrl[0];
+		config.instanceUrl = config.commandLine.instanceUrl[0];
+		
+		// Only include when about to build to avoid blocking up e.g. generate commands with the huge amount of JS this ultimately includes.
+		var { buildApp } = require('./build/app.js');
+		
+		buildApp(config, false).then(() => {
+			console.log("Build success");
+		}).catch(e => {
+			console.log("Build failed");
+			console.log(e);
 			process.exit(1);
 		});
 		
 	}else if(config.commandLine.command == 'buildapi'){
+		
+		// Only include when about to build to avoid blocking up e.g. generate commands with the huge amount of JS this ultimately includes.
+		var { buildAPI } = require('./build/helpers.js');
 		
 		buildAPI(config).catch(e => {
 			console.log("Build failed");
@@ -276,6 +310,9 @@ function start(config){
 		if(config.commandLine.force){
 			config.force = true;
 		}
+		
+		// Only include when about to build to avoid blocking up e.g. generate commands with the huge amount of JS this ultimately includes.
+		var { buildAll } = require('./build/helpers.js');
 		
 		buildAll({
 			noUi: config.commandLine.noUI,
@@ -439,6 +476,10 @@ function start(config){
 			var action = message.request.action;
 			
 			if(action == "watch"){
+				
+				// Only include when about to build to avoid blocking up e.g. generate commands with the huge amount of JS this ultimately includes.
+				var { watchOrBuild } = require('./build/helpers.js');
+				
 				config.minified = message.request.prod || message.request.minified;
 				config.compress = message.request.prod || message.request.compress;
 				config.bundled = true;

@@ -6,8 +6,6 @@ const postcss = require('postcss');
 const { spawn } = require('child_process');
 var { jsConfigManager } = require('../configManager');
 
-var onFileBuildCallback = null;
-
 // React-lite-builder is also a socialstack project.
 // It'll let you use Socialstack's UI modules without a Socialstack server if you use it directly.
 var liteBuilder = require('../builder');
@@ -250,7 +248,6 @@ function watchOrBuild(config, isWatch){
 				return processCss(cssFile, config);
 			},
 			onFileChange: (info) => {
-				onFileBuildCallback && onFileBuildCallback(info);
 			}
 		}).then(emailMap => {
 			
@@ -375,8 +372,4 @@ function buildAPI(config){
 	});
 }
 
-function setBuildCallback(cb){
-	onFileBuildCallback = cb;
-}
-
-module.exports = { buildAPI, buildUI, buildAll, watchOrBuild, setBuildCallback };
+module.exports = { buildAPI, buildUI, buildAll, watchOrBuild };
