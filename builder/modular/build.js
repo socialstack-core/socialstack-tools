@@ -37,7 +37,7 @@ module.exports = function build(config)
 		for(var k in globalMap.npmPackages){
 			// Add via require. This will result in a parse of the file, 
 			// followed by potentially addRequire-ing dependencies too.
-			npmPromises.push(npmBundle.addRequire(k));
+			// npmPromises.push(npmBundle.addRequire(k));
 		}
 		
 		proms.push(Promise.all(npmPromises).then(() => npmBundle.buildEverything()));
