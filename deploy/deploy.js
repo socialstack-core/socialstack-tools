@@ -64,6 +64,7 @@ module.exports = config => {
 			
 			var fileSets = [
 				{name: 'UI', local:'UI/public', remote: 'UI/public', onlyRemoveFrom: 'pack/'}, // Won't delete stuff from anywhere other than the pack directory.
+				{name: 'Email', local:'Email/public', remote: 'Email/public', onlyRemoveFrom: 'pack/'}, // Won't delete stuff from anywhere other than the pack directory.
 				{name: 'Admin', local:'Admin/public', remote: 'Admin/public', onlyRemoveFrom: 'pack/'}
 			];
 			
