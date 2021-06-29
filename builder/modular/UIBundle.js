@@ -108,6 +108,29 @@ class UIBundle
 			// Remove /ThirdParty/ and build module path that it represents:
 			modulePath = modulePath.replace("/ThirdParty/", "/");
 		}
+		
+		if (modulePath.indexOf(".Bundle/") != -1)
+		{
+			// Remove *.Bundle/ and build module path that it represents:
+			var pieces = modulePath.split('/');
+			var newPath = "";
+			for (var i = 0; i < pieces.length; i++)
+			{
+				if (pieces[i].endsWith(".Bundle"))
+				{
+					continue;
+				}
+
+				if (newPath != "")
+				{
+					newPath += "/";
+				}
+
+				newPath += pieces[i];
+			}
+
+			modulePath = newPath;
+		}
 
 		// Use shortform module name if the last directory of the modulePath matches the filename.
 		if (!modulePath.endsWith("/" + fileNameNoType))
