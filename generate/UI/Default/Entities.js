@@ -1,37 +1,67 @@
 // Module import examples - none are required:
 // import webRequest from 'UI/Functions/WebRequest';
 // import Loop from 'UI/Loop';
+// import { useSession } from 'UI/Session';
+// import { useState, useEffect } from 'react'; 
+// import Container from 'UI/Container';
+// import Row from 'UI/Row';
+// import Col from 'UI/Column';
+// import myVectorImage from './filename.svg';
+// import myRasterImage from './filename.jpg';
+// import getRef from 'UI/Functions/GetRef'; 
 
-export default class Entities extends React.Component {
-	
-	/*
-	// If you want to use state in your react component, uncomment this constructor:
-	constructor(props){
-		super(props);
-		this.state = {
+export default function Entities(props) {
+	// reference propTypes
+	//const { title, size, width } = props;
+
+	/* access session info, such as the currently logged-in user:
+	const { session } = useSession();
+	// session.user
+	// session.locale
+	*/
+
+	/* runs only after component initialisation (comparable to legacy componentDidMount lifecycle method)
+	useEffect(() => {
+		// ...
+	}, []);
+	*/
+
+	/* runs after both component initialisation and each update (comparable to legacy componentDidMount / componentDidUpdate lifecycle methods)
+	useEffect(() => {
+		// ...
+	});
+	*/
+
+	/* to handle window events such as resize / scroll, etc:
+	const [width, setWidth] = useState(window.innerWidth);
+	useEffect(() => {
+		const handleResize = () => setWidth(window.innerWidth);
+		window.addEventListener('resize', handleResize);
+		
+		// optional return used to clean up
+		return () => {
+			window.removeEventListener('resize', handleResize);
 		};
 		
-		// example of how to reference this within a function
-		//this.clickHandler = this.clickHandler.bind(this);
-	}
-	*/
+	});
 
-	/*
-	clickHandler(event) {
-		this.setState({
-		});
-	}
+
+	/* reference images in the same component folder:
+	var vectorUrl = getRef(myVectorImage, { url: true });
+	var rasterUrl = getRef(myRasterImage, { size: 128, url: true }); // where size represents the closest size required (see Api\ThirdParty\Uploader\UploaderConfig.cs for supported sizes)
+	// omit size parameter to return original image resolution
 	*/
 	
-	render(){
-		// reference propTypes
-		//var { title, size, width } = this.props;
-		
-		return <div className="fully-qualified-entity">
-		</div>;
-		
-	}
-	
+	return (
+		<div className="fully-qualified-entity">
+			<Container>
+				<Row>
+					<Col size={12}>
+					</Col>
+				</Row>
+			</Container>
+		</div>
+	);
 }
 
 /*
