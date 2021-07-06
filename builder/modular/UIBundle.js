@@ -424,7 +424,9 @@ class UIBundle
 	}
 
 	outputFile(fileName, content){
-		fs.writeFileSync(this.packDir + '/' + fileName, content, {encoding: 'utf8'});
+		var outputPath = path.resolve(this.packDir + '/' + fileName);
+		console.log("Outputting '" + fileName + "' to: ", outputPath);
+		fs.writeFileSync(outputPath, content, {encoding: 'utf8'});
 	}
 
 	/// <summary>
