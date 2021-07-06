@@ -22,8 +22,6 @@ function copyStaticFile(fullPath, targetPath, onlyIfNewer, onDone){
 			// Make sure dir exists:
 			mkdir(targetDirectory);
 			
-			console.log(from + '->' + to);
-			
 			// Copy into it:
 			fs.copyFile(from, to, (err) => {
 				if(err){
