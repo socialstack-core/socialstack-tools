@@ -13,14 +13,19 @@ function copyStaticFile(fullPath, targetPath, onlyIfNewer, onDone){
 			fullPath = fullPath.replace(/\\/g, path.sep).replace(/\//g, path.sep);
 			targetPath = targetPath.replace(/\\/g, path.sep).replace(/\//g, path.sep);
 			
+			var from = path.resolve(fullPath);
+			var to = path.resolve(targetPath);
+			
 			// Targeting dir:
-			var targetDirectory = path.dirname(targetPath);
+			var targetDirectory = path.dirname(to);
 			
 			// Make sure dir exists:
 			mkdir(targetDirectory);
 			
+			console.log(from + '->' + to);
+			
 			// Copy into it:
-			fs.copyFile(fullPath, targetPath, (err) => {
+			fs.copyFile(from, to, (err) => {
 				if(err){
 					console.error(err);
 					return;
