@@ -54,12 +54,13 @@ export default function Entities(props) {
 	
 	return (
 		<div className="fully-qualified-entity">
-			<Container>
+			{/*<Container>
 				<Row>
 					<Col size={12}>
 					</Col>
 				</Row>
 			</Container>
+			*/}
 		</div>
 	);
 }
