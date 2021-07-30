@@ -132,6 +132,10 @@ function installDatabase(config){
 	var dbConfig = loadConnectionString(config);
 	var localConfig = getLocalConfig();
 	
+	if(localConfig == null || localConfig.databases == null || localConfig.databases.local == null){
+		return Promise.reject("Unable to create the database as socialstack tools hasn't been configured with a database instance. You'll need to follow the configuration part of the socialstack tools install guide for this command to work. https://source.socialstack.dev/documentation/guide/blob/master/DeveloperGuide/Readme.md#socialstack-tools");
+	}
+	
 	return createDatabase(localConfig.databases.local, {
 		databaseName: dbConfig.database,
 		databaseUser: dbConfig.user,
