@@ -379,7 +379,7 @@ function getAppSettings(config){
 	
 	appsettings.siteBasename = baseUrl;
 	
-	if(appsettings.serviceName === undefined){
+	if(appsettings.serviceName === undefined && appsettings.ServiceName === undefined){
 		appsettings.serviceName = baseUrl;
 	}
 	
