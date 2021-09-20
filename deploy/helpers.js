@@ -1,5 +1,6 @@
 var path = require('path');
 var fs = require('fs');
+const tmp = require('tmp');
 var { jsConfigManager } = require('../configManager');
 
 function uploadFile(src, dst, sftp){
@@ -13,6 +14,21 @@ function uploadFile(src, dst, sftp){
 		});
 	});
 	
+}
+
+function uploadTextFile(text, dst, sftp){
+	
+	var tmpFile = tmp.tmpNameSync();
+	fs.writeFileSync(tmpFile, text, {encoding: 'utf8'});
+	
+	return new Promise((success, fail) => {
+		sftp.fastPut(tmpFile, dst, err => {
+			if(err){
+				return fail(err);
+			}
+			success();
+		});
+	});
 }
 
 /*
@@ -306,6 +322,194 @@ function findNewEntries(prevLookup, newList){
 }
 
 /*
+function setupNginx(config, connection) {
+	
+	var appsettings = getAppSettings(config);
+	var hostInfo = connection.hostInfo;
+	
+	var svcName = appsettings.serviceName || appsettings.ServiceName;
+	
+	if(!svcName){
+		// It's either "prod" or "stage" depending on env.
+		if(config.appsettingsName == 'appsettings.prod.json'){
+			svcName = 'prod';
+		}else{
+			svcName = 'stage';
+		}
+	}
+	
+	console.log('Using service name "' + svcName + '"');
+	
+	return new Promise((success, fail) => {
+		var fPath = '/lib/systemd/system/' + svcName + '.service';
+		
+		connection.exec('sudo [ -f ' + fPath + ' ]', function(err, stream) {
+			if(err){
+				return fail(err);
+			}
+			
+			stream.on('close', function(code, signal) {
+				
+				if(code == 1){
+					// Create the service - upload it via the sftp handler.
+					console.log("Creating service file now..");
+					
+					uploadTextFile(buildSvcFile(hostInfo.remoteDir + '/'), '/tmp/tmpSvcFile.service', connection.ftpConnection).then(() => {
+						
+						connection.exec(
+							'sudo mv /tmp/tmpSvcFile.service ' + fPath + ' && ' +
+							'sudo chown -R www-data:www-data /var/www && '+
+							'sudo systemctl enable ' + svcName + '.service && '+
+							'sudo systemctl daemon-reload && '+
+							'sudo service ' + svcName + ' start', function(err, stream) {
+							if(err){
+								return fail(err);
+							}
+							
+							stream.on('close', function(code, signal) {
+								success();
+							})
+							.on('data', function(data){
+								// Required for close to fire
+							})
+						});
+						
+					});
+				}
+				else
+				{
+					// regular restart
+					connection.exec('sudo service ' + svcName + ' restart', function(err, stream) {
+						if(err){
+							return fail(err);
+						}
+						
+						stream.on('close', function(code, signal) {
+							success();
+						})
+						.on('data', function(data){
+							// Required for close to fire
+						})
+					});
+				}
+			})
+			.on('data', function(data){
+				// Required for close to fire
+			})
+		});
+	});
+}
+*/
+
+/*
+* restarts the API service (if there is one).
+*/
+function setupOrRestartService(config, connection) {
+	
+	var appsettings = getAppSettings(config);
+	var hostInfo = connection.hostInfo;
+	
+	var svcName = appsettings.serviceName || appsettings.ServiceName;
+	
+	if(!svcName){
+		// It's either "prod" or "stage" depending on env.
+		if(config.appsettingsName == 'appsettings.prod.json'){
+			svcName = 'prod';
+		}else{
+			svcName = 'stage';
+		}
+	}
+	
+	console.log('Using service name "' + svcName + '"');
+	
+	return new Promise((success, fail) => {
+		var fPath = '/lib/systemd/system/' + svcName + '.service';
+		
+		connection.exec('sudo [ -f ' + fPath + ' ]', function(err, stream) {
+			if(err){
+				return fail(err);
+			}
+			
+			stream.on('close', function(code, signal) {
+				
+				if(code == 1){
+					// Create the service - upload it via the sftp handler.
+					console.log("Creating service file now..");
+					
+					uploadTextFile(buildSvcFile(hostInfo.remoteDir + '/'), '/tmp/tmpSvcFile.service', connection.ftpConnection).then(() => {
+						
+						connection.exec(
+							'sudo mv /tmp/tmpSvcFile.service ' + fPath + ' && ' +
+							'sudo chown -R www-data:www-data /var/www && '+
+							'sudo systemctl enable ' + svcName + '.service && '+
+							'sudo systemctl daemon-reload && '+
+							'sudo service ' + svcName + ' start', function(err, stream) {
+							if(err){
+								return fail(err);
+							}
+							
+							stream.on('close', function(code, signal) {
+								success();
+							})
+							.on('data', function(data){
+								// Required for close to fire
+							})
+						});
+						
+					});
+				}
+				else
+				{
+					// regular restart
+					connection.exec('sudo service ' + svcName + ' restart', function(err, stream) {
+						if(err){
+							return fail(err);
+						}
+						
+						stream.on('close', function(code, signal) {
+							success();
+						})
+						.on('data', function(data){
+							// Required for close to fire
+						})
+					});
+				}
+			})
+			.on('data', function(data){
+				// Required for close to fire
+			})
+		});
+	});
+}
+
+function buildSvcFile(path){
+	return '[Unit]\nDescription=Align API - Runs the .NET Core API\nAfter=network.target\n\n[Service]\nType=simple\nUser=www-data\nWorkingDirectory=' + path + '\nExecStart=/usr/bin/dotnet Api/SocialStack.Api.dll\nRestart=on-failure\n\n[Install]\nWantedBy=multi-user.target';
+}
+
+function reloadUI(config, connection){
+	
+	return new Promise((success, fail) => {
+		
+		var appsettings = getAppSettings(config);
+		
+		var cmd = 'curl http://localhost:' + (appsettings.Port || 5000) + '/v1/monitoring/ui-reload';
+		
+		connection.exec(cmd, function(err, stream) {
+			if(err){
+				return fail(err);
+			}
+			
+			stream.on('close', function(code, signal) {
+				success();
+			})
+			.on('data', function(data){
+				// Required for close to fire
+			})
+		});
+	});
+}
+
+/*
 * restarts the API service (if there is one).
 */
 function restartService(config, connection) {
@@ -315,23 +519,12 @@ function restartService(config, connection) {
 	var svcName = appsettings.serviceName || appsettings.ServiceName;
 	
 	if(!svcName){
-		// No explicit service name. Is it a SS cloud project?
-		var cloudMeta = appsettings.cloud || appsettings.Cloud;
-		
-		if(cloudMeta && (cloudMeta.projectId || cloudmeta.ProjectId)){
-			
-			// It's either live-api or stage-api depending on env.
-			if(config.appsettingsName == 'appsettings.prod.json'){
-				svcName = 'live-api';
-			}else{
-				svcName = 'stage-api';
-			}
-			
+		// It's either "prod" or "stage" depending on env.
+		if(config.appsettingsName == 'appsettings.prod.json'){
+			svcName = 'prod';
+		}else{
+			svcName = 'stage';
 		}
-	}
-	
-	if(!svcName){
-		return Promise.resolve(true);
 	}
 	
 	console.log('Using service name "' + svcName + '"');
@@ -429,11 +622,14 @@ module.exports = {
 	localFileList,
 	diff,
 	uploadFile,
+	uploadTextFile,
 	copyDirectory,
 	createRemoteDirectory,
 	extractPatch,
 	setPermsAndUser,
 	restartService,
+	setupOrRestartService,
 	handleRenames,
-	getAppSettings
+	getAppSettings,
+	reloadUI
 };

@@ -1,6 +1,6 @@
 var { remoteFileList, localFileList,diff, copyDirectory, 
 	uploadFile, createRemoteDirectory, extractPatch, 
-	setPermsAndUser, restartService, handleRenames, getAppSettings } = require('./helpers.js');
+	setPermsAndUser, setupOrRestartService, handleRenames, getAppSettings, reloadUI } = require('./helpers.js');
 var hostHelpers = require('../host/helpers.js');
 var cloudHelpers = require('../cloud/helpers.js');
 var buildHelpers = require('../build/helpers.js');
@@ -237,10 +237,6 @@ module.exports = config => {
 			.then(fileSetPatches => {
 				var patchesPendingUpload = fileSetPatches.filter(fileSetPatch => !!fileSetPatch.compressedPatchPath);
 				
-				if(!patchesPendingUpload.length){
-					return fileSetPatches;
-				}
-				
 				console.log('Uploading ' + patchesPendingUpload.length + ' patches');
 				
 				if(!commit){
@@ -252,27 +248,33 @@ module.exports = config => {
 					connection.sftp(function(err, sftp) {
 						if (err) throw err;
 						
-						createRemoteDirectory(patchDir, user, connection).then(() => {
-							
-							console.log('1/' + patchesPendingUpload.length + '..');
-							
-							var patch = patchesPendingUpload[0];
-							patch.remotePatchPath = patchDir + patch.fileSet.name + '.tar.gz';
-							var current = uploadFile(patch.compressedPatchPath, patch.remotePatchPath, sftp);
-							
-							for(var i=1;i<patchesPendingUpload.length; i++){
-								(index => {
-									current = current.then(() => {
-										patch = patchesPendingUpload[index];
-										console.log('Uploading patch ' + (index + 1) + '/' + patchesPendingUpload.length + '..');
-										patch.remotePatchPath = patchDir + patch.fileSet.name + '.tar.gz';
-										return uploadFile(patch.compressedPatchPath, patch.remotePatchPath, sftp);
-									});
-								})(i);
-							}
-							
-							current.then(() => success(fileSetPatches));
-						});
+						connection.ftpConnection = sftp;
+						
+						if(patchesPendingUpload.length){
+							createRemoteDirectory(patchDir, user, connection).then(() => {
+								
+								console.log('1/' + patchesPendingUpload.length + '..');
+								
+								var patch = patchesPendingUpload[0];
+								patch.remotePatchPath = patchDir + patch.fileSet.name + '.tar.gz';
+								var current = uploadFile(patch.compressedPatchPath, patch.remotePatchPath, sftp);
+								
+								for(var i=1;i<patchesPendingUpload.length; i++){
+									(index => {
+										current = current.then(() => {
+											patch = patchesPendingUpload[index];
+											console.log('Uploading patch ' + (index + 1) + '/' + patchesPendingUpload.length + '..');
+											patch.remotePatchPath = patchDir + patch.fileSet.name + '.tar.gz';
+											return uploadFile(patch.compressedPatchPath, patch.remotePatchPath, sftp);
+										});
+									})(i);
+								}
+								
+								current.then(() => success(fileSetPatches));
+							});
+						}else{
+							success(fileSetPatches);
+						}
 					});
 					
 				})
@@ -337,14 +339,18 @@ module.exports = config => {
 				}
 				
 				if(uiOnly){
-					// No need to restart the service
-					return fileSetPatches;
+					// No need to restart the service - ask server to locally reload its UI instead
+					console.log('Hot loading the UI..');
+					
+					return reloadUI(config, connection).then(() => {
+						return fileSetPatches;
+					});
 				}
 				
-				console.log('Restarting service (if there is one)..');
+				console.log('Restarting or creating service..');
 				
-				// Restart service (or try to):
-				return restartService(config, connection).then(() => {
+				// Check if there is a service file - if not, it'll be created.
+				return setupOrRestartService(config, connection).then(() => {
 					return fileSetPatches;
 				});
 			})
