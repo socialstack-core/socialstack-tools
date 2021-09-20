@@ -141,7 +141,10 @@ function mapArgs()
 		
 		if (argVal.length>1 && argVal[0] =='-') {
 			lastFlag = argVal.substring(1);
-			result[lastFlag] = [];
+			
+			if(!result[lastFlag]){
+				result[lastFlag] = [];
+			}
 		} else {
 			if(!lastFlag){
 				lastFlag = '-';
