@@ -28,7 +28,7 @@ function tidyUrl(config){
 
 function makeid(length) {
    var result           = '';
-   var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!£$'; // must be careful with the special chars to avoid breaking the connection strings
+   var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!$'; // must be careful with the special chars to avoid breaking the connection strings
    var charactersLength = characters.length;
    for ( var i = 0; i < length; i++ ) {
       result += characters.charAt(Math.floor(Math.random() * charactersLength));
