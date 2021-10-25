@@ -87,7 +87,16 @@ Entities.propTypes = {
 		{ name: '11/12', value: 11 },
 		{ name: '12/12 (100%)', value: 12 }
 	],
-	
+
+	// alternatively, specify property parameters on a more granular level
+	scrolledBackgroundColor: {
+        type: 'color',
+        label: 'Background colour (when scrolled)', // optional replacement label
+        help: 'Default background colour when page has been scrolled', // optional help text to be shown along with the field (default position is between the label and field)
+        helpPosition: 'icon' // help text position can be set on a per-field basis by including helpPosition (above, below or icon - with icon, the help text is hidden as alt text on an info icon displayed alongside the field)
+        placeholder: 'Select a colour' // by default, placeholder inherits the default value (if any) - set here to override this if necessary
+    }	
+
 	// All <Input type='x' /> values are supported - checkbox, color etc.
 	// Also the special id type which can be used to select some other piece of content (by entity name), like this:
 	templateToUse: {type: 'id', content: 'Template'}
