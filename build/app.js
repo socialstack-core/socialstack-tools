@@ -129,6 +129,7 @@ function buildApp(config){
 			
 			console.log("Preparing static assets (3/4)");
 			
+			/*
 			return get('pack/static-assets/list.json').then(assetList => {
 				assetList = JSON.parse(assetList);
 				
@@ -142,6 +143,7 @@ function buildApp(config){
 				
 				return Promise.all(promises);
 			});
+			*/
 			
 			// Todo: create static assets folder. only update if actually necessary though, and delete files that don't exist anymore.
 			
