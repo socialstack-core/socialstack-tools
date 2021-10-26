@@ -110,13 +110,13 @@ function buildApp(config){
 	}
 	
 	// Get list of locales:
-	console.log("Getting locales from instance (1/4)");
+	console.log("Getting locales from instance (1/5)");
 	return get('v1/locale/list', true)
 		.then(localeJson => {
 			
 			var locales = JSON.parse(localeJson).results;
 			
-			console.log(locales.length + " locale(s) found. Obtaining JS/ CSS files, one per locale (2/4)");
+			console.log(locales.length + " locale(s) found. Obtaining JS/ CSS files, one per locale (2/5)");
 			
 			var promisesJs = locales.map(locale => get('pack/main.js?lid=' + locale.id).then(fileContent => saveFile('App/www/pack/main.' + locale.code + '.js', fileContent)));
 			var promisesCss = locales.map(locale => get('pack/main.css?lid=' + locale.id).then(fileContent => saveFile('App/www/pack/main.' + locale.code + '.css', fileContent)));
@@ -127,7 +127,7 @@ function buildApp(config){
 		})
 		.then(() => {
 			
-			console.log("Preparing static assets (3/4)");
+			console.log("Preparing static assets (3/5) {temporarily skipping}");
 			
 			/*
 			return get('pack/static-assets/list.json').then(assetList => {
@@ -150,9 +150,9 @@ function buildApp(config){
 		})
 		.then(() => {
 			
-			console.log("Constructing HTML (4/4)");
+			console.log("Constructing HTML (4/5)");
 			
-			var appSpecificJs = fs.readFileSync(__dirname + "/urlLookup.js", {encoding: 'utf8'});
+			var appSpecificJs = 'var contentSource="' + config.apiUrl + '";' + fs.readFileSync(__dirname + "/urlLookup.js", {encoding: 'utf8'});
 			
 			// Todo: construct HTML pg with static pages in there.
 			return post('pack/static-assets/mobile-html', {localeId: 1, apiHost: config.apiUrl, customJs: appSpecificJs}, true).then(html => {
@@ -161,8 +161,13 @@ function buildApp(config){
 				
 			});
 			
+		})
+		.then(() => {
+			
+			console.log("Invoking cordova (5/5) {temporarily skipping}");
+			
+			
 		});
-	
 }
 
 module.exports = {
