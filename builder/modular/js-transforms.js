@@ -568,7 +568,7 @@ var minifiedPlugin = createPlugin(true);
 var nonMinifiedPlugin = createPlugin(false);
 
 var presetsES8 = [
-	[presetEnv, {targets:{chrome: 60}, modules: false}],
+	[presetEnv, {targets:{chrome: 59}, modules: false}],
 	[presetTs, {isTSX: true, allExtensions: true}],
 	[presetReact, {useSpread: true, pragma: '_h'}]
 ];
