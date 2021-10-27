@@ -322,6 +322,8 @@ function start(config){
 		var { buildAll } = require('./build/helpers.js');
 		
 		buildAll({
+			prod: config.minified,
+			compress: config.compress,
 			noUi: config.commandLine.noUI,
 			noApi: config.commandLine.noApi,
 			noApp: config.commandLine.noApp

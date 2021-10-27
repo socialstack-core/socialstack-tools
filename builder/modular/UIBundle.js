@@ -621,7 +621,7 @@ class UIBundle
 			file.content,
 			file.modulePath, // Module path
 			file.fullModulePath,
-			this.minified
+			{minified:this.minified}
 		);
 		
 		// Get the src:
