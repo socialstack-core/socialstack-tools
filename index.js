@@ -250,6 +250,10 @@ function start(config){
 			config.force = true;
 		}
 		
+		if(config.commandLine.prod){
+			config.minified = true;
+		}
+		
 		// Only include when about to build to avoid blocking up e.g. generate commands with the huge amount of JS this ultimately includes.
 		var { buildUI } = require('./build/helpers.js');
 		
