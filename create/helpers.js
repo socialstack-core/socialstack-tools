@@ -84,7 +84,7 @@ function createSiteAdmin(connection, config, success){
 		// Create site admin (password is "admin"):
 		var createAdminUser = 'USE `' + config.databaseName + '`;CREATE TABLE `site_user` (`Id` int(11) NOT NULL AUTO_INCREMENT,`FirstName` varchar(40) DEFAULT NULL,`LastName` varchar(40) DEFAULT NULL,`Email` varchar(80) DEFAULT NULL,`Role` int(11) NOT NULL,' + 
 		'`CreatedUtc` datetime NOT NULL, `EditedUtc` datetime NOT NULL, `Username` varchar(40) DEFAULT NULL,`PasswordHash` varchar(80) DEFAULT NULL,PRIMARY KEY (`Id`));' +
-		'INSERT INTO site_user(`Id`, `PasswordHash`, `Email`, `FirstName`, `LastName`, `Role`, `CreatedUtc`, `CreatedUtc`, `Username`) VALUES (1, "$P$68awep7Ri9CjDs7WuPAZyGfjCB1nXZ.", "admin@' + config.domainName + '", "Site", "Admin", 1, NOW(), NOW(), "admin");';
+		'INSERT INTO site_user(`Id`, `PasswordHash`, `Email`, `FirstName`, `LastName`, `Role`, `CreatedUtc`, `EditedUtc`, `Username`) VALUES (1, "$P$68awep7Ri9CjDs7WuPAZyGfjCB1nXZ.", "admin@' + config.domainName + '", "Site", "Admin", 1, NOW(), NOW(), "admin");';
 		
 		connection.query(
 			  createAdminUser,
