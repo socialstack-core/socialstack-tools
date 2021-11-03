@@ -32,7 +32,7 @@ function deployToHost(host, config, verbose, uiOnly, content, commit){
 		
 		if(!appSettings){
 			connection.end();
-			throw new Error(config.appsettingsName + " either doesn't exist or it is missing the required BaseUrl field.");
+			throw new Error(config.appsettingsName + " either doesn't exist or it is missing the required PublicUrl field.");
 		}
 		
 		var fileSets = [

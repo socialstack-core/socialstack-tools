@@ -164,30 +164,30 @@ module.exports = (config) => {
 		var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
 		var appsettings = appsettingsManager.get();
 		
-		var baseUrl = appsettings.BaseUrl;
+		var publicUrl = appsettings.PublicUrl;
 		
-		var protoParts = baseUrl.split('://');
+		var protoParts = publicUrl.split('://');
 		
 		if(protoParts.length > 1){
-			baseUrl = protoParts[1];
+			publicUrl = protoParts[1];
 		}
 		
-		baseUrl = baseUrl.replace(/\//gi, '');
+		publicUrl = publicUrl.replace(/\//gi, '');
 		
-		var urlSet = baseUrl;
+		var urlSet = publicUrl;
 		
 		
-		var wwwUrl = baseUrl;
+		var wwwUrl = publicUrl;
 		
-		if(baseUrl.indexOf('www.') != 0){
-			wwwUrl = 'www.' + baseUrl;
+		if(publicUrl.indexOf('www.') != 0){
+			wwwUrl = 'www.' + publicUrl;
 		}
 		
 		// e.g. www.site.com -> site.com
 		var rootUrl = wwwUrl.substring(4);
 		
 		/// www.site.com *.site.com site.com
-		var urlSetNoRoot = wwwUrl + ' *.' + baseUrl;
+		var urlSetNoRoot = wwwUrl + ' *.' + publicUrl;
 		var urlSet = urlSetNoRoot + ' ' + rootUrl;
 		
 		var swaps = {
@@ -195,8 +195,8 @@ module.exports = (config) => {
 			UrlSet: urlSet,
 			UrlsNoRoot: urlSetNoRoot,
 			RootUrl: rootUrl,
-			Url: baseUrl,
-			RemoteDirectory: '/var/www/' + baseUrl,
+			Url: publicUrl,
+			RemoteDirectory: '/var/www/' + publicUrl,
 			Port: appsettings.Port || 5050
 		};
 		
@@ -211,18 +211,18 @@ module.exports = (config) => {
 		var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
 		var appsettings = appsettingsManager.get();
 		
-		var baseUrl = appsettings.BaseUrl;
+		var publicUrl = appsettings.PublicUrl;
 		
-		var protoParts = baseUrl.split('://');
+		var protoParts = publicUrl.split('://');
 		
 		if(protoParts.length > 1){
-			baseUrl = protoParts[1];
+			publicUrl = protoParts[1];
 		}
 		
-		baseUrl = baseUrl.replace(/\//gi, '');
+		publicUrl = publicUrl.replace(/\//gi, '');
 		
 		var swaps = {
-			Url: baseUrl
+			Url: publicUrl
 		};
 		
 		copyTemplate(__dirname + '/SystemD', swaps, targetDirectory, 'SystemD Config (Linux service config)');

@@ -82,7 +82,7 @@ if(newConfiguration.dbMode == 'dbOnly'){
 	}
 	
 	delete appsettings.PostponedDatabase;
-	newConfiguration.url = appsettings.BaseUrl;
+	newConfiguration.url = appsettings.PublicUrl;
 	tidyUrl(newConfiguration);
 	
 	createDatabase(localConfig.databases.local, newConfiguration).then(() => {
@@ -158,7 +158,6 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 			setTimeout(function(){
 				var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
 				var appsettings = appsettingsManager.get();
-				appsettings.BaseUrl = cfg.url;
 				appsettings.PublicUrl = cfg.url;
 				if(cfg.container){
 					appsettings.Container = 1;

@@ -554,26 +554,26 @@ function getAppSettings(config){
 	var appsettingsManager = new jsConfigManager(config.projectRoot + "/" + config.appsettingsName);
 	var appsettings = appsettingsManager.get();
 	
-	if(!appsettings || !appsettings.BaseUrl){
+	if(!appsettings || !appsettings.PublicUrl){
 		return null;
 	}
 	
 	config.loadedAppSettings = appsettings;
 	
-	var baseUrl = appsettings.BaseUrl;
+	var publicUrl = appsettings.PublicUrl;
 	
-	var protoParts = baseUrl.split('://');
+	var protoParts = publicUrl.split('://');
 	
 	if(protoParts.length > 1){
-		baseUrl = protoParts[1];
+		publicUrl = protoParts[1];
 	}
 	
-	baseUrl = baseUrl.replace(/\//gi, '');
+	publicUrl = publicUrl.replace(/\//gi, '');
 	
-	appsettings.siteBasename = baseUrl;
+	appsettings.siteBasename = publicUrl;
 	
 	if(appsettings.serviceName === undefined && appsettings.ServiceName === undefined){
-		appsettings.serviceName = baseUrl;
+		appsettings.serviceName = publicUrl;
 	}
 	
 	return appsettings;

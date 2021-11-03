@@ -169,25 +169,25 @@ function getAppSettings(config){
 	var appsettings = appsettingsManager.get();
 	config.loadedAppSettings = appsettings;
 	
-	var baseUrl = appsettings.BaseUrl || appsettings.PublicUrl;
+	var publicUrl = appsettings.PublicUrl;
 	
-	if(!baseUrl){
+	if(!publicUrl){
 		return null;
 	}
 	
-	var protoParts = baseUrl.split('://');
+	var protoParts = publicUrl.split('://');
 	
 	if(protoParts.length > 1){
-		baseUrl = protoParts[1];
+		publicUrl = protoParts[1];
 	}
 	
-	baseUrl = baseUrl.replace(/\//gi, '');
+	publicUrl = publicUrl.replace(/\//gi, '');
 	
 	if(appsettings.serviceName === undefined){
-		appsettings.serviceName = baseUrl;
+		appsettings.serviceName = publicUrl;
 	}
 	
-	appsettings.siteBasename = baseUrl;
+	appsettings.siteBasename = publicUrl;
 	return appsettings;
 }
 

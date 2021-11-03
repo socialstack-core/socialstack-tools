@@ -52,7 +52,7 @@ function getRenderer(config, moduleSet){
 		}
 	}
 	
-	var location = new URL(appSettings ? appSettings.BaseUrl || appSettings.PublicUrl : '');
+	var location = new URL(appSettings ? appSettings.PublicUrl : '');
 	
 	var pendingRequests = [];
 	
