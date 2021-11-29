@@ -573,7 +573,7 @@ function installModule(moduleName, config, asSubModule, useHttps){
 			function tryGitPull(remotePath){
 			
 				exec(
-					'git submodule add --force "' + remotePath + '" "' + moduleFilePath + '"', {
+					'git submodule add -b master --force "' + remotePath + '" "' + moduleFilePath + '"', {
 						cwd: config.projectRoot
 					},
 					function(err, stdout, stderr){
