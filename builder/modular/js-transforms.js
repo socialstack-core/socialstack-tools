@@ -563,7 +563,7 @@ function createPlugin(minified){
 	});
 }
 
-var configuredMangleNames = [mangleNames, {exclude: {'_h': true}}];
+var configuredMangleNames = [mangleNames, {exclude: {'_h': true}, keepClassName: true}];
 var minifiedPlugin = createPlugin(true);
 var nonMinifiedPlugin = createPlugin(false);
 
