@@ -186,7 +186,7 @@ module.exports = (config) => {
 		// Find the project root next.
 		findProjectRoot(config, (result) => {
 			if(!result){
-				console.error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI and an Api directory to be a project.');
+				console.error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI or an Api directory to be a project.');
 				return;
 			}
 			

@@ -9,16 +9,16 @@ var path = require('path');
 function isProjectRoot(dirPath, callback){
 	// The root can be identified by looking for the dir with 'UI' and 'Api' child directories.
 	var pending = 2;
-	var matchesRequired = 2;
+	var matched = false;
 	
 	function dirReturn(err, stats){
 		pending--;
 		if(!err && stats.isDirectory()){
-			matchesRequired--;
+			matched = true;
 		}
 		
 		if(pending == 0){
-			callback(matchesRequired == 0);
+			callback(matched);
 		}
 	}
 	
