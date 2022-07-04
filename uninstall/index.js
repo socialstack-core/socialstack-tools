@@ -1,5 +1,5 @@
 var configManager = require('../configManager');
-var { uninstallModule } = require('../install/helpers.js');
+var { uninstallModules } = require('../install/helpers.js');
 
 module.exports = (config) => {
 	
@@ -9,14 +9,9 @@ module.exports = (config) => {
 		console.log("Please specify the module(s) you'd like to uninstall");
 	}
 	
-	var pendingRemovals = [];
-	
-	for(var i=0;i<modules.length;i++){
-		console.log('Attempting to uninstall ' + modules[i]);
-		pendingRemovals.push(uninstallModule(modules[i], config, true));
-	}
-	
-	Promise.all(pendingRemovals).then(() => {
+	uninstallModules(modules, config).then(() => {
 		console.log('Done');
+	}).catch(e => {
+		console.log(e);
 	});
 };

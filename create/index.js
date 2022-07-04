@@ -4,7 +4,7 @@ var path = require('path');
 var unzip = require('unzipper');
 var process = require('process');
 var { jsConfigManager, getLocalConfig, settingsPath } = require('../configManager');
-var { installModule } = require('../install/helpers.js');
+var { installModules } = require('../install/helpers.js');
 var { createDatabase, tidyUrl } = require('./helpers.js');
 var exec = require('child_process').exec;
 
@@ -151,7 +151,7 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 		// Download the base project for this module set (in parallel)
 		console.log('Setting up the main project files.');
 		
-		return installModule('project', config).then(() => {
+		return installModules(['project'], config).then(() => {
 			// At this point change the guids and apply any new DB config:
 			
 			// Wait a little to make sure the file is available:
@@ -190,36 +190,7 @@ askFor('What\'s the public URL of your live website? Include the http or https, 
 				}
 			}
 			
-			var asSubModule = true;
-			var useHttps = true;
-			
-			if(config.commandLine.r || config.commandLine.repo){
-				// Install as a submodule or a straight checkout if we're not in a git repo already.
-				asSubModule = true;
-			}else if(config.commandLine.files){
-				asSubModule = false;
-			}
-			
-			if(config.commandLine.https){
-				// Install as a submodule or a straight checkout if we're not in a git repo already.
-				useHttps = true;
-			}else if(config.commandLine.ssh){
-				useHttps = false;
-			}
-			
-			var pendingInstall = installModule(modules[0], config, asSubModule, useHttps);
-			
-			for(var i=1;i<modules.length;i++){
-				(function(index){
-					var module = modules[index];
-					pendingInstall = pendingInstall.then(() => {
-						console.log("Installing module " + (index+1) + "/" + modules.length);
-						return installModule(module, config, asSubModule, useHttps);
-					});
-				})(i);
-			}
-			
-			return pendingInstall;
+			return installModules(modules, config);
 		});
 		
 	}

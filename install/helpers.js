@@ -5,57 +5,10 @@ var unzip = require('unzipper');
 var process = require('process');
 var configManager = require('../configManager');
 var exec = require('child_process').exec;
+var getAppDataPath = require('appdata-path');
+var adp = getAppDataPath('socialstack');
 
-function installAllModules(modules, config, asSubModule, useHttps){
-	
-	var pendingInstall = installModule(modules[0], config, asSubModule, useHttps);
-	
-	for(var i=1;i<modules.length;i++){
-		(function(index){
-			var module = modules[index];
-			pendingInstall = pendingInstall.then(() => {
-				console.log("Installing module " + (index+1) + "/" + modules.length);
-				return installModule(module, config, asSubModule, useHttps);
-			});
-		})(i);
-	}
-	
-	return pendingInstall;
-}
-
-function uninstallAllModules(modules, config, asSubModule, useHttps){
-	
-	var pendingRemove = uninstallModule(modules[0], config, asSubModule, useHttps);
-	
-	for(var i=1;i<modules.length;i++){
-		(function(index){
-			var module = modules[index];
-			pendingRemove = pendingRemove.then(() => {
-				console.log("Uninstalling module " + (index+1) + "/" + modules.length);
-				return uninstallModule(module, config, asSubModule, useHttps);
-			});
-		})(i);
-	}
-	
-	return pendingRemove;
-}
-
-function deleteFolderRecursive(dirPath) {
-	if(!dirPath || dirPath == '/'){
-		return;
-	}
-  if (fs.existsSync(dirPath)) {
-		fs.readdirSync(dirPath).forEach((file, index) => {
-		var curPath = path.join(dirPath, file);
-		if (fs.lstatSync(curPath).isDirectory()) { // recurse
-			deleteFolderRecursive(curPath);
-		} else { // delete file
-			fs.unlinkSync(curPath);
-		}
-    });
-    fs.rmdirSync(dirPath);
-  }
-};
+var moduleRepository = 'cloud.socialstack.dev';
 
 var mainstreamRepos = {};
 
@@ -67,167 +20,339 @@ mainstreamRepos['nuget'] = {
 	cmd: 'dotnet add package "{NAME_NO_VERSION}"'
 };
 
-function getRepositoryUrl(opts){
+// Returns zip file stream
+function getOrCacheZip(moduleMeta){
 	
-	// Note: if you change this, please also update the example in the repo:
-	// https://source.socialstack.dev/documentation/guide/blob/master/DeveloperGuide/Commands/repo-description.json
-	var defaultHost = {
-		git: {
-			url: 'git@source.socialstack.dev:',
-			modules: {
-				'*': '{URL}modules/{MODULE_URL}.git'
-			}
-		},
-		https: {
-			url: 'https://source.socialstack.dev/',
-			modules: {
-				'*': '{URL}modules/{MODULE_URL}.git'
-			},
-			packages: {
-				'*':  '{URL}packages/{MODULE_URL}/raw/master/package.json'
-			},
-			archives: {
-				'*': '{URL}modules/{MODULE_URL}/-/archive/master/{NAME_URL}-master.zip'
-			}
-		}
-	};
+	var moduleCache = adp + '/module_cache';
 	
-	var host = defaultHost;
-	
-	if(opts.repository){
+	return new Promise((success, reject) => {
 		
-		host = null;
-		// Either a dns address, or an alias.
-		// Look it up in alias lookup via config:
-		var localCfg = configManager.getLocalConfig();
+		var moduleCachePath = moduleCache + '/' + moduleMeta.id;
 		
-		if(localCfg && localCfg.repositories){
-			host = localCfg.repositories[opts.repository];
-		}
-		
-		if(!host){
-			console.log(defaultHost);
-			throw new Error(
-				'Didn\'t recognise "' + opts.repository + '" as a repository alias. '+
-				'Check your "repositories" array in your tools config. As an example, the default one is above.'
-			);
-		}
-	}
-	
-	if(host.remote){
-		if(host._cached){
-			hostPromise = Promise.resolve(host._cached);
-		}else{
-			console.log('Getting repository information..');
-			hostPromise = getRemoteJson(host.remote).then(hostData => {
-				host._cached = hostData;
-				return hostData;
+		fs.mkdir(moduleCachePath, { recursive: true }, (err) => {
+			if (err && err.code != 'EEXIST') throw err;
+			
+			var zipPath = '/' + moduleMeta.latestVersionCode + '.zip';
+			
+			var readStream = fs.createReadStream(moduleCachePath + zipPath);
+			
+			// This will wait until we know the readable stream is actually valid before piping
+			readStream.on('open', function () {
+				success(readStream);
 			});
-		}
-		
-	}else{
-		hostPromise = Promise.resolve(host);
-	}
-	
-	return hostPromise
-		.then(host => {
-		
-		host = opts.https ? host.https : host.git;
-		
-		if(!host){
-			console.log(defaultHost);
-			throw new Error(
-				'Host "' + (opts.repository || '{default}') + '" exists but it doesn\'t have config for ' + (opts.https ? 'https' : 'git') + '.' + 
-				' As an example, the default one is above.'
-			);
-		}
-		
-		if(!host.url){
-			console.log(defaultHost);
-			throw new Error(
-				'"' + opts.repository + '" has repository config, but it doesn\'t have a "url".' + 
-				' As an example, the default one is above.'
-			);
-		}
-		
-		var url = host.url;
-		
-		var modulePath = opts.modulePath || opts.packagePath || opts.archivePath;
-		
-		if(modulePath){
 			
-			if(modulePath[0] == '/'){
-				modulePath = modulePath.substring(1);
-			}
-			
-			if(modulePath[modulePath.length-1] == '/'){
-				modulePath = modulePath.substring(0, modulePath.length-1);
-			}
-			
-			// Split into pieces:
-			var pathParts = modulePath.split('/');
-			
-			// Repo name:
-			var name = pathParts[pathParts.length-1];
-			
-			// Name lowercase:
-			var nameUrl = name.toLowerCase();
-			
-			// Path lowercase:
-			var moduleUrl = modulePath.toLowerCase();
-			
-			// Patterns to use when figuring out the path to the module:
-			var patternsName = '';
-			
-			if(opts.modulePath){
-				patternsName = 'modules';
-			}else if(opts.packagePath){
-				patternsName = 'packages';
-			}else{
-				patternsName = 'archives';
-			}
-			
-			var urlPatterns = host[patternsName];
-			
-			if(!urlPatterns) {
-				console.log(defaultHost);
-				throw new Error(
-					'"' + opts.repository + '" has repository config but it doesn\'t support ' + patternsName + ' via ' + (opts.https ? 'https' : 'git') + '.' +
-					' As an example, the default one is above.'
-				);
-			}
-			
-			// Use the most specific pattern available. They are all "starts with", or a wildcard, and always lowercase.
-			// "api": ..
-			// "ui/functions": ..
-			// "*": ..
-			
-			var patternToUse = urlPatterns['*'];
-			
-			for(var len = pathParts.length-1; len>=0;len--){
+			readStream.on('error', function(err) {
+				// Doesn't exist in cache.
+				var url = 'https://' + moduleRepository + '/content/modules/' + moduleMeta.id + zipPath;
 				
-				var checkForPattern = pathParts.join('/').toLowerCase();
-				pathParts.pop();
-				if(urlPatterns[checkForPattern]){
-					patternToUse = urlPatterns[checkForPattern];
-					break;
+				https.get(url, function(response) {
+					
+					if(response.statusCode == 200 && response.headers['content-type'] == 'application/zip'){
+						
+						var cacheWriteStream = fs.createWriteStream(moduleCachePath + zipPath);
+						
+						response.pipe(cacheWriteStream);
+						
+						cacheWriteStream.on('finish', () => {
+							
+							// try opening again:
+							readStream = fs.createReadStream(moduleCachePath + zipPath);
+							
+							readStream.on('open', function () {
+								success(readStream);
+							});
+							
+							readStream.on('error', function(err) {
+								console.log(err);
+								reject("Invalid cache i/o.");
+							});
+						});
+					}
+					else
+					{
+						reject("Invalid response from module service");
+					}
+				});
+				
+			});
+		});
+		
+	});
+	
+}
+
+// Simply deletes the directory
+function uninstallModules(modules, config){
+	
+	return new Promise((success, reject) => {
+		
+		var projectRoot = path.normalize(config.projectRoot);
+		
+		modules.forEach(module => {
+			
+			// Get the file path:
+			var modulePath = getModuleFilePath({name: module});
+			
+			if(modulePath){
+				
+				// Sync folder delete:
+				if(!deleteFolderRecursive(projectRoot + '/' + modulePath)){
+					console.log("Can't uninstall '" + module + "' because it doesn't exist in this project (skipping)");
+				}
+			}
+			
+		});
+		
+		success();
+	});
+	
+}
+
+// Uses metadata from module info to obtain the correct module zip
+function installSingleModuleInternal(moduleMeta, moduleFilePath, config, addMeta){
+	console.log('Installing ' + moduleMeta.name);
+	
+	// Does the zip exist in the local cache?
+	return getOrCacheZip(moduleMeta).then(zipStream => {
+		
+		// zipstream is coming from the cache.
+		
+		return new Promise((success, reject) => {
+		
+			// If the module path exists, delete it.
+			deleteFolderRecursive(moduleFilePath);
+			
+			zipStream.pipe(unzip.Parse()).on('entry', function (entry) {
+				
+				
+				if(entry.type == 'File'){
+					
+					mkDirByPathSync(moduleFilePath + path.dirname(entry.path));
+					entry.pipe(fs.createWriteStream(moduleFilePath + entry.path));
+				}else{
+					mkDirByPathSync(moduleFilePath + entry.path);
+					entry.autodrain()
 				}
 				
-			}
+			}).on('close', function() {
+				success();
+			});
 			
-			var builtStr = patternToUse
-				.replace(/\{URL\}/g, host.url)
-				.replace(/\{MODULE\}/g, modulePath)
-				.replace(/\{MODULE_URL\}/g, moduleUrl)
-				.replace(/\{NAME\}/g, name)
-				.replace(/\{NAME_URL\}/g, nameUrl);
-			
-			return builtStr;
-		}
+		});
 		
-		return url;
+	})
+	.then(() => {
+		// Add the meta file.
+		if(addMeta){
+			
+			fs.writeFileSync(
+				moduleFilePath + 'module.installer.json',
+				'{"repository": ' + moduleMeta.repositoryId + ', "moduleId": ' + moduleMeta.id + ', "versionCode": ' + moduleMeta.latestVersionCode + '}'
+			);
+			
+		}
+	}).then(() => {
+		
+		return installDependencies(moduleFilePath, config);
+		
 	});
 }
+
+var _memCachedModuleList = null;
+function getModuleList(){
+	// Future todo: Cache response and ask for changes since {time}
+	
+	if(_memCachedModuleList){
+		return Promise.resolve(_memCachedModuleList);
+	}
+	
+	return new Promise((success, reject) => {
+		
+		https.get('https://' + moduleRepository + '/v1/module/list', function(res) {
+			
+			var bodyResponse = [];
+			res.on('data', (d) => {
+				bodyResponse.push(d);
+			});
+
+			res.on('end', () => {
+				var jsonResp = bodyResponse.join('');
+				var json = JSON.parse(jsonResp);
+				_memCachedModuleList = json;
+				success(json);
+			});
+			
+		});
+		
+	});
+	
+}
+
+function getModuleMap(){
+	return getModuleList()
+	.then(res => {
+		
+		// Module results:
+		var moduleInfo = {};
+		
+		res.results.forEach(moduleMeta => {
+			
+			if(moduleMeta.latestVersionCode){
+				moduleInfo[moduleMeta.name.toLowerCase()] = moduleMeta;
+			}
+			
+		});
+		
+		return moduleInfo;
+	});
+}
+
+function replaceModule(moduleMeta, config){
+	return installSingleModule(moduleMeta, config);
+}
+
+function getModuleIdMap(){
+	return getModuleList()
+	.then(res => {
+		
+		// Module results:
+		var moduleInfo = {};
+		
+		res.results.forEach(moduleMeta => {
+			
+			if(moduleMeta.latestVersionCode){
+				moduleInfo[moduleMeta.id + ''] = moduleMeta;
+			}
+			
+		});
+		
+		return moduleInfo;
+	});
+}
+
+function installModules(modules, config){
+	
+	// Lookup module names:
+	if(!modules || !modules.length){
+		throw new Error('No module names specified');
+	}
+	
+	return getModuleMap()
+	.then(moduleInfo => {
+		
+		var projectRoot = path.normalize(config.projectRoot);
+		
+		return Promise.all(
+			modules.map(name => {
+				
+				var repo = null;
+				var colon = name.indexOf(':');
+				if(colon != -1){
+					repo = name.substring(0, colon);
+					name = name.substring(colon+1);
+				}
+				
+				if(repo){
+					
+					if(!mainstreamRepos[repo.toLowerCase()]){
+						throw new Error("Unknown module repository reference: '" + repo + "'");
+					}
+					
+					// Host is a mainstream repository:
+					var repoMeta = mainstreamRepos[repo.toLowerCase()];
+					
+					var modulePath = name;
+					
+					if(modulePath[0] == '/'){
+						modulePath = modulePath.substring(1);
+					}
+					
+					if(modulePath[modulePath.length-1] == '/'){
+						modulePath = modulePath.substring(0, modulePath.length-1);
+					}
+					
+					// Split into pieces:
+					var pathParts = modulePath.split('/');
+					
+					// Repo name:
+					var localName = pathParts[pathParts.length-1];
+					
+					// Name lowercase:
+					var nameUrl = localName.toLowerCase();
+					
+					// Path lowercase:
+					var moduleUrl = modulePath.toLowerCase();
+					
+					var nameNoVersion = localName;
+					
+					var verStart = nameNoVersion.indexOf('@');
+					
+					if(verStart != -1){
+						nameNoVersion = localName.substring(0, verStart);
+					}
+					
+					console.log("Installing dependency " + name + "..");
+					
+					return cmdInstall(
+						repoMeta.cmd
+							.replace(/\{MODULE\}/g, modulePath)
+							.replace(/\{MODULE_URL\}/g, moduleUrl)
+							.replace(/\{NAME\}/g, localName)
+							.replace(/\{NAME_NO_VERSION\}/g, nameNoVersion)
+							.replace(/\{NAME_URL\}/g, nameUrl),
+						config
+					);
+				}
+				
+				var nameLC = name.toLowerCase();
+				var info = moduleInfo[nameLC];
+				
+				if(!info){
+					return Promise.reject("Module doesn't exist: " + name);
+				}
+				
+				var projectRelativePath = getModuleFilePath(info);
+				var moduleFilePath = projectRoot + '/';
+				var addMeta = false;
+				
+				if(projectRelativePath){
+					// Project template otherwise
+					moduleFilePath += projectRelativePath + '/';
+					addMeta = true;
+				}
+				
+				return installSingleModuleInternal(info, moduleFilePath, config, addMeta);
+			})
+		);
+		
+	});
+}
+
+function installSingleModule(info, config){
+	var projectRoot = path.normalize(config.projectRoot);
+	var moduleFilePath = projectRoot + '/' + getModuleFilePath(info) + '/';
+	return installSingleModuleInternal(info, moduleFilePath, config, true);
+}
+
+function deleteFolderRecursive(dirPath) {
+	if(!dirPath || dirPath == '/'){
+		return false;
+	}
+  if (fs.existsSync(dirPath)) {
+		fs.readdirSync(dirPath).forEach((file, index) => {
+		var curPath = path.join(dirPath, file);
+		if (fs.lstatSync(curPath).isDirectory()) { // recurse
+			deleteFolderRecursive(curPath);
+		} else { // delete file
+			fs.unlinkSync(curPath);
+		}
+    });
+    fs.rmdirSync(dirPath);
+	return true;
+  }
+  
+  return false;
+};
 
 function tidyModuleName(moduleName){
 	
@@ -247,126 +372,6 @@ function tidyModuleName(moduleName){
 	
 	return noDots;
 	
-}
-
-function uninstallModule(moduleName, config){
-	
-	return new Promise((success, reject) => {
-		
-		if(!moduleName || !moduleName.trim() || moduleName == 'project'){
-			success();
-			return;
-		}
-		
-		var repo = null;
-		var colon = moduleName.indexOf(':');
-		if(colon != -1){
-			repo = moduleName.substring(0, colon);
-			moduleName = moduleName.substring(colon+1);
-		}
-		
-		var fwdSlashes = tidyModuleName(moduleName);
-		
-		var moduleFilePath = fwdSlashes;
-		
-		if(moduleFilePath.toLowerCase().indexOf('ui/') == 0){
-			moduleFilePath = 'UI/Source/ThirdParty/' + moduleFilePath.substring(3);
-		}else if(moduleFilePath.toLowerCase().indexOf('admin/') == 0){
-			moduleFilePath = 'Admin/Source/ThirdParty/' + moduleFilePath.substring(6);
-		}else if(moduleFilePath.toLowerCase().indexOf('email/') == 0){
-			moduleFilePath = 'Email/Source/ThirdParty/' + moduleFilePath.substring(6);
-		}else if(moduleFilePath.toLowerCase().indexOf('api/') == 0){
-			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
-		}else if(moduleFilePath != ''){
-			// It's a package:
-			getRepositoryUrl({
-				https: true,
-				repository: repo,
-				config,
-				packagePath: fwdSlashes
-			})
-			.then(packagePath => getRemoteJson(packagePath))
-			.then(json => {
-				if(json && json.dependencies && json.dependencies.length){
-					
-					uninstallAllModules(json.dependencies, config).then(success);
-					
-				}else{
-					console.log("Warning: Empty or otherwise malformed package. Uninstalled nothing from it.");
-				}
-			});
-			
-			return;
-		}
-		
-		runCmd('git submodule deinit -f "' + moduleFilePath + '"', config)
-			.then(() => runCmd('git rev-parse --show-toplevel', config))
-			.then(gitRoot => {
-				// Next, we need to get the 'real' directory path of the submodule.
-				// This is because we need to remove a directory in .git/modules/.
-				// Note that the actual .git repository meta can be a few levels up (although it's usually alongside the UI and Api directories).
-				
-				var normalGitRoot = path.normalize(gitRoot).trim();
-				var normalProjectRoot = path.normalize(config.projectRoot).trim();
-				
-				if(!normalGitRoot){
-					return;
-				}
-				
-				var deltaDirectory = '';
-				
-				if(normalGitRoot != normalProjectRoot){
-					// This is the uncommon case - where the .git repo meta is a level up or more.
-					deltaDirectory = path.relative(normalGitRoot, normalProjectRoot) + '/';
-				}
-				
-				// Meta exists?
-				return new Promise((s, r) => {
-					var realGitMetaPath = normalGitRoot + '/.git/modules/' + deltaDirectory + moduleFilePath;
-					fs.stat(realGitMetaPath, function(err, stat){
-						
-						if(!stat){
-							s();
-							return;
-						}
-						
-						// syncronous dir delete:
-						deleteFolderRecursive(realGitMetaPath);
-						s();
-					});
-				});
-			})
-			.then(() => runCmd('git rm -f "' + moduleFilePath + '"', config))
-			.then(() => {
-				success();
-			})
-			.catch(e => {
-				console.log('Failed to remove ' + moduleName + ' (does it exist in your project?)');
-				success();
-			});
-		
-	});
-}
-
-function getRemoteJson(url){
-	// get json from given url
-	return new Promise((success, rej) => {
-		https.get(url, function(res) {
-			let body = "";
-			res.on("data", (chunk) => {
-				body += chunk;
-			});
-
-			res.on("end", () => {
-				try {
-					let json = JSON.parse(body);
-					return success(json);
-				} catch (error) {
-					console.error(error.message);
-				};
-			});
-		});
-	});
 }
 
 function runCmd(cmd, config){
@@ -398,12 +403,17 @@ function runCmd(cmd, config){
 /*
 * Attempts to install dependencies for the given module path, 
 */
-function installDependencies(moduleFilePath, config, onDone){
-	fs.readFile(config.projectRoot + '/' + moduleFilePath + '/package.json', {encoding: 'utf8'}, (err, content) => {
-		if(err){
-			// No package.json file - skip:
-			onDone();
-		}else{
+function installDependencies(moduleFilePath, config){
+	
+	return new Promise((success, reject) => {
+	
+		fs.readFile(moduleFilePath + 'package.json', {encoding: 'utf8'}, (err, content) => {
+			if(err){
+				// No package.json file - skip:
+				success();
+				return;
+			}
+			
 			// parse:
 			try{
 				var pkg = JSON.parse(content);
@@ -413,7 +423,7 @@ function installDependencies(moduleFilePath, config, onDone){
 				if(pkg && Array.isArray(pkg.dependencies)){
 					
 					pendingPromises.push(
-						installAllModules(pkg.dependencies, config, true, true)
+						installModules(pkg.dependencies, config)
 					);
 					
 				}
@@ -422,7 +432,7 @@ function installDependencies(moduleFilePath, config, onDone){
 					// Exec the install script by require()'ing it.
 					try{
 						console.log("Running the module's install script..");
-						var installScriptPath = config.projectRoot + '/' + moduleFilePath + '/' + pkg.scripts.install;
+						var installScriptPath = moduleFilePath + pkg.scripts.install;
 						var installScript = require(installScriptPath);
 						
 						if(typeof installScript === "function"){
@@ -446,18 +456,19 @@ function installDependencies(moduleFilePath, config, onDone){
 				}
 				
 				// Wait for the pending promises then continue:
-				Promise.all(pendingPromises).then(() => onDone());
+				Promise.all(pendingPromises).then(success).catch(reject);
 				
 			}catch(e){
-				console.log(moduleFilePath + ' has an invalid package.json - here\'s the error:', e);
+				reject(moduleFilePath + ' has an invalid package.json - here\'s the error:' + e);
 			}
-		}
+		});
 	});
+	
 }
 
-function cmdInstall(cmd, config, success){
+function cmdInstall(cmd, config){
 	
-	return runCmd(cmd, config).then(success).catch(e => {
+	return runCmd(cmd, config).catch(e => {
 		console.log("[!] Unable to install a dependency. Attempted to run the following command:");
 		console.log('');
 		console.log(cmd);
@@ -468,223 +479,75 @@ function cmdInstall(cmd, config, success){
 	
 }
 
-function installModule(moduleName, config, asSubModule, useHttps){
+function getModuleFilePath(moduleMeta){
+	
+	if(moduleMeta.name == 'Project'){
+		// Special case - project template module.
+		return '';
+	}
+	
+	// Note that we use .name rather than .path here as the path is where it is in the actual source repo.
+	var fwdSlashes = tidyModuleName(moduleMeta.name);
+	var moduleFilePath = fwdSlashes;
+	
+	if(moduleFilePath.toLowerCase().indexOf('ui/') == 0){
+		moduleFilePath = 'UI/Source/ThirdParty/' + moduleFilePath.substring(3);
+	}else if(moduleFilePath.toLowerCase().indexOf('admin/') == 0){
+		moduleFilePath = 'Admin/Source/ThirdParty/' + moduleFilePath.substring(6);
+	}else if(moduleFilePath.toLowerCase().indexOf('email/') == 0){
+		moduleFilePath = 'Email/Source/ThirdParty/' + moduleFilePath.substring(6);
+	}else if(moduleFilePath.toLowerCase().indexOf('api/') == 0){
+		moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
+	}
+	
+	return moduleFilePath;
+}
+
+/*
+
+function postJson(url, body){
+	
 	return new Promise((success, reject) => {
 		
-		var repo = null;
-		var colon = moduleName.indexOf(':');
-		if(colon != -1){
-			repo = moduleName.substring(0, colon);
-			moduleName = moduleName.substring(colon+1);
-		}
+		var postData = JSON.stringify(body);
 		
-		if(repo && mainstreamRepos[repo.toLowerCase()]){
-			
-			// Host is a mainstream repository:
-			var repoMeta = mainstreamRepos[repo.toLowerCase()];
-			
-			if(repoMeta.cmd){
-				console.log(moduleName);
-				var modulePath = moduleName;
-				
-				if(modulePath[0] == '/'){
-					modulePath = modulePath.substring(1);
-				}
-				
-				if(modulePath[modulePath.length-1] == '/'){
-					modulePath = modulePath.substring(0, modulePath.length-1);
-				}
-				
-				// Split into pieces:
-				var pathParts = modulePath.split('/');
-				
-				// Repo name:
-				var name = pathParts[pathParts.length-1];
-				
-				// Name lowercase:
-				var nameUrl = name.toLowerCase();
-				
-				// Path lowercase:
-				var moduleUrl = modulePath.toLowerCase();
-				
-				var nameNoVersion = name;
-				
-				var verStart = nameNoVersion.indexOf('@');
-				
-				if(verStart != -1){
-					nameNoVersion = name.substring(0, verStart);
-				}
-				
-				return cmdInstall(
-					repoMeta.cmd
-						.replace(/\{MODULE\}/g, modulePath)
-						.replace(/\{MODULE_URL\}/g, moduleUrl)
-						.replace(/\{NAME\}/g, name)
-						.replace(/\{NAME_NO_VERSION\}/g, nameNoVersion)
-						.replace(/\{NAME_URL\}/g, nameUrl),
-					config,
-					success
-				);
-			}
-			
-			return;
-		}
-		
-		var fwdSlashes = tidyModuleName(moduleName);
-		
-		var moduleFilePath = (moduleName == 'project') ? '' : fwdSlashes;
-		
-		if(moduleFilePath.toLowerCase().indexOf('ui/') == 0){
-			moduleFilePath = 'UI/Source/ThirdParty/' + moduleFilePath.substring(3);
-		}else if(moduleFilePath.toLowerCase().indexOf('admin/') == 0){
-			moduleFilePath = 'Admin/Source/ThirdParty/' + moduleFilePath.substring(6);
-		}else if(moduleFilePath.toLowerCase().indexOf('email/') == 0){
-			moduleFilePath = 'Email/Source/ThirdParty/' + moduleFilePath.substring(6);
-		}else if(moduleFilePath.toLowerCase().indexOf('api/') == 0){
-			moduleFilePath = 'Api/ThirdParty/' + moduleFilePath.substring(4);
-		}else if(moduleFilePath != ''){
-			// It's a package:
-			getRepositoryUrl({
-				https: true,
-				repository: repo,
-				config,
-				packagePath: fwdSlashes
-			})
-			.then(packagePath => getRemoteJson(packagePath))
-			.then(json => {
-				if(json && json.dependencies && json.dependencies.length){
-					
-					installAllModules(json.dependencies, config, asSubModule, useHttps).then(success);
-					
-				}else{
-					console.log("Warning: Empty or otherwise malformed package. Installed nothing.");
-				}
-			});
-			
-			return;
-		}
-		
-		if(asSubModule){
-			
-			// Must've already authed with the source repo for this to be successful.
-			
-			var attempt = 0;
-			
-			function tryGitPull(remotePath){
-			
-				exec(
-					'git submodule add -b master --force "' + remotePath + '" "' + moduleFilePath + '"', {
-						cwd: config.projectRoot
-					},
-					function(err, stdout, stderr){
-						if(err){
-							
-							/*
-							if(err.code && err.code == 128){
-								console.log("[FAILED] Module doesn't exist at the remote repository. Tried url: " + remotePath);
-								reject("Module doesn't exist");
-								return;
-							}
-							*/
-							
-							attempt++;
-							
-							if(attempt<5){
-								tryGitPull(remotePath);
-								return;
-							}
-							console.log(err);
-						}else{
-							if(stdout){
-								// console.log(stdout);
-							}
-							
-							if(attempt != 0){
-								
-								exec(
-									'git reset --hard', {
-										cwd: config.projectRoot + '/' + moduleFilePath
-									},
-									function(err, stdout, stderr){
-										success();
-									}
-								);
-								return;
-							}
-							
-							if(stderr){
-								console.log(stderr);
-							}
-						}
-						
-						// If package.json exists, install dependencies too.
-						installDependencies(moduleFilePath, config, () => {
-							success();
-						});
-					}
-				);
-			}
-			
-			getRepositoryUrl({
-				https: useHttps,
-				repository: repo,
-				config,
-				modulePath: fwdSlashes
-			})
-			.then(remotePath => tryGitPull(remotePath));
-			
-		}else{
-			
-			// Make the dir:
-			if(moduleFilePath != ''){
-				// Recursive mkdir (catch if it exists):
-				try{
-					mkDirByPathSync(config.projectRoot + '/' + moduleFilePath);
-				}catch(e){
-					console.log(e);
-					// console.log(moduleName + ' is already installed. You\'ll need to delete it if the goal was to overwrite it.');
-					return success();
-				}
-				moduleFilePath = config.projectRoot + '/' + moduleFilePath + '/';
-			}else{
-				moduleFilePath = config.projectRoot + '/';
-			}
-			
-			// Unzips whilst it downloads. There's no temporary file use here.
-			
-			// https://source.socialstack.cf/modules/project/-/archive/master/project-master.zip
-			
-			getRepositoryUrl({
-				https: true,
-				repository: repo,
-				config,
-				archivePath: fwdSlashes
-			}).then(fromUrl => {
-				
-				https.get(fromUrl, function(response) {
-					response.pipe(unzip.Parse()).on('entry', function (entry) {
-						
-						var pathParts = entry.path.split('/');
-						pathParts.shift();
-						var filePath = pathParts.join('/');
-						
-						if(entry.type == 'File'){
-							mkDirByPathSync(moduleFilePath + path.dirname(filePath));
-							entry.pipe(fs.createWriteStream(moduleFilePath + filePath));
-						}else{
-							mkDirByPathSync(moduleFilePath + filePath);
-							entry.autodrain()
-						}
-						
-					}).on('close', function() {
-						success();
-					});
-				});
-			});
-		}
-		
+		var options = {
+		  hostname: moduleRepository,
+		  port: 443,
+		  path: '/' + url,
+		  method: 'POST',
+		  headers: {
+			   'Content-Type': 'application/json',
+			   'Content-Length': postData.length
+			 }
+		};
+
+		var req = https.request(options, (res) => {
+		  var bodyResponse = [];
+		  res.on('data', (d) => {
+			  bodyResponse.push(d);
+		  });
+		  
+		  res.on('end', () => {
+			  
+			  var jsonResp = bodyResponse.join('');
+			  var json = JSON.parse(jsonResp);
+			  
+			  success(json);
+		  });
+		});
+
+		req.on('error', (e) => {
+		  console.error(e);
+		});
+
+		req.write(postData);
+		req.end();
 	});
+	
 }
+
+*/
 
 function mkDirByPathSync(targetDir, { isRelativeToScript = false } = {}) {
   const sep = path.sep;
@@ -716,7 +579,17 @@ function mkDirByPathSync(targetDir, { isRelativeToScript = false } = {}) {
 }
 
 module.exports = {
-	installModule,
-	uninstallModule,
+	installModules,
+	uninstallModules,
+	installSingleModule,
+	deleteFolderRecursive,
+	getModuleFilePath,
+	runCmd,
+	tidyModuleName,
+	replaceModule,
+	getOrCacheZip,
+	getModuleList,
+	getModuleMap,
+	getModuleIdMap,
 	mkDirByPathSync
 };

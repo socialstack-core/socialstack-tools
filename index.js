@@ -91,6 +91,8 @@ function mapArgs()
 		{name: 'help', alias: '/?'},
 		{name: 'watch', alias: 'w'},
 		{name: 'build', alias: 'b'},
+		{name: 'push', alias: 'p'},
+		{name: 'contribute'},
 		{name: 'buildui'},
 		{name: 'buildapi'},
 		{name: 'buildapp'},
@@ -387,6 +389,11 @@ function start(config){
 		// Deploys a project over SSH.
 		require('./upgrade/upgrade.js')(config);
 		
+	}else if(config.commandLine.command == 'contribute' || config.commandLine.command == 'push'){
+		
+		// Contributes thirdparty changes
+		require('./contribute/contribute.js')(config);
+		
 	}else if(config.commandLine.command == 'configuration'){
 		
 		console.log(localConfigPath());
@@ -523,10 +530,10 @@ function start(config){
 		console.log(ConsoleReset, "  outputs the help text for SocialStack tools as shown here");
 		console.log();
 
-		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack watch", " *");
-		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack w", " *");
-		console.log(ConsoleReset, "  starts a watcher which checks for changes in your UI/Source and Admin/Source directories.");
-		console.log("   When a change happens, your UI will be rebuilt. This process doesn't exit.");		
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack push", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack contribute", " *");
+		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack p", " *");
+		console.log(ConsoleReset, "  Scans your thirdparty module directories for changes you've made and then contributes them to their originating repository.");
 		console.log();
 
 		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack build", " *");
@@ -566,7 +573,7 @@ function start(config){
 
 		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack install", " *");
 		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack i", " *");
-		console.log(ConsoleReset, "  install the named module(s) from any repositories you have configured, as a submodule - for instance:");
+		console.log(ConsoleReset, "  install the named module(s) from any repositories you have configured - for instance:");
 		console.log();
 		console.log(commandColour, "    socialstack i Api/HelloWorld");
 		console.log(ConsoleReset);
@@ -574,8 +581,7 @@ function start(config){
 		console.log();
 		console.log(commandColour, "    socialstack i Tags");
 		console.log(ConsoleReset);
-		console.log("   Refer to https://source.socialstack.dev/modules for available modules.");
-		console.log("   Refer to https://source.socialstack.dev/packages for available packages.");
+		console.log("   Refer to https://cloud.socialstack.dev/modules for available modules and packages.");
 		console.log();
 
 		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack uninstall", " *");
@@ -599,7 +605,7 @@ function start(config){
 		console.log(escapeSequence(ConsoleBright, commandColour), "socialstack create");
 		console.log(escapeSequence(ConsoleBright, commandColour), "socialstack c");
 		console.log(ConsoleReset, "  creates a new blank SocialStack project in your working directory.");
-		console.log("   Optionally provide it a domain name like this:");
+		console.log("   Optionally provide it a name like this:");
 		console.log();
 		console.log(commandColour, "    socialstack create example.com");
 		console.log(ConsoleReset);
@@ -616,14 +622,14 @@ function start(config){
 		console.log(ConsoleReset, "  ---");
 		console.log();
 */
-
+/*
 		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack migrate", " *");
 		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack m", " *");
 		console.log(ConsoleFgRed, "  ** CURRENTLY UNSUPPORTED **");
 		console.log(ConsoleReset, "  In the future this will be used to automatically convert websites to or from");
 		console.log("   other frameworks via simple, shared commands");
 		console.log();
-
+*/
 /*
 		console.log(escapeSequence(ConsoleBright, commandColour, noteColour), "socialstack interactive", " *");
 		console.log(ConsoleReset, "  ---");
