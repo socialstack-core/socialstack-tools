@@ -1,6 +1,6 @@
 # SocialStack Tools
 
-This is a command line interface for creating, managing and compiling the UI's of SocialStack projects.
+This is a command line interface for creating, managing and compiling SocialStack projects. For more help and guidance, check the wiki at https://wiki.socialstack.dev/
 
 # Installation
 
@@ -24,17 +24,13 @@ socialstack configure -u "sstools" -p "ssto0ls.dev"
 
 A few actions that the socialstack tools perform require MySQL admin rights on a development machine. This is so it can, for example, automatically create new databases for you. Whilst optional, it's highly recommended to set this access up. The account details are stored in a file which can also be located by running `socialstack configuration`.
 
-# Basic usage
-
-SocialStack tools are used directly by a running API (unless disabled, which you can do by just omitting your UI/Source directory), so typically in development to use the file watcher you just need to start your API.
-
 ## Dependencies
 
 Currently socialstack projects require the following:
 
 * Node.js 8+
-* [.NET Core 5.0 SDK](https://dotnet.microsoft.com/download/dotnet-core/5.0). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
-* If you're using Visual Studio, 2019 (v16.8) or newer is required for .NET Core 5.0.
+* [.NET Core 6.0 SDK](https://dotnet.microsoft.com/download/dotnet-core/6.0). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
+* If you're using Visual Studio, 2022 or newer is required for .NET Core 6.0.
 * MySQL. Version 8 is recommended.
 * Git
 
@@ -52,7 +48,7 @@ This will also create a database for you too, if you've setup your database conf
 
 `socialstack i Api/HelloWorld`
 
-This will install the named module(s) from any repositories you have configured, as a submodule. You can list multiple here to install them all. You can also use package names:
+This will install the named module(s) from any repositories you have configured. You can list multiple here to install them all. You can also use package names:
 
 `socialstack i Tags`
 
@@ -61,12 +57,6 @@ This will install the named module(s) from any repositories you have configured,
 `socialstack uninstall Api/HelloWorld`
 
 Remove modules (or packages) with the uninstall command. Like the install command, you can list multiple modules.
-
-## Watching for UI changes
-
-`socialstack watch`
-
-This will start a watcher which checks for changes in your UI/Source and Admin/Source directories. When a change happens, your UI will be rebuilt. This process doesn't exit.
 
 ## Builds
 
@@ -96,25 +86,12 @@ This builds UI/Source and Admin/Source, then quits. If you'd like to make a prod
 
 `socialstack buildui -prod`
 
-## SSMF - SocialStack Migration Framework
-
-In the future this will be used to automatically convert websites to or from other frameworks via simple, shared commands.
-
 # Contributing
 
-To make changes to socialstack tools itself, it's a good idea to also grab the [React lite builder](https://source.socialstack.cf/infrastructure/react-lite-builder) project:
+To make changes to socialstack tools itself, it's a good idea to link the repository such that you can easily iterate on changes you make.
 
-* Clone both this repository and react-lite-builder
-* Run `npm install` in each. This'll download the modules they each depend on.
-* Run `npm link` inside the react-lite-builder directory. This makes it available as an npm link.
-* Run `npm link react-lite-builder` inside the tools directory. This uses the link you just made.
-
-Linking like this means you can change files in react-lite-builder and have those changes available directly to what you're working on in the tools directory.
-
-To test out your tools changes, open up a command prompt in a socialstack project, then run:
-
-`node C:/path/to/socialstack-tools-checkout/bin/socialstack.js ...`
-
-where ... is the command line args you want to try, as if you'd run `socialstack ...` instead.
+* Clone this repository
+* Run `npm install` in the repository. This'll download the modules it depends on.
+* Run `npm link` in the repository. This will make the code in the repository run directly when you try `socialstack` commands.
 
 If everything is good, it's the usual `npm version patch` and `npm version publish` from an authed npm account.
