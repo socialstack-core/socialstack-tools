@@ -70,7 +70,7 @@ function getOrCacheZip(moduleMeta){
 					}
 					else
 					{
-						reject("Invalid response from module service");
+						reject("Invalid response from module service (" + url + ")");
 					}
 				});
 				
