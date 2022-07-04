@@ -64,7 +64,11 @@ module.exports = (config) => {
 					
 					var chainPromise = replaceSubmodule(moduleInfo, subModuleInfo[0].name, config);
 					
-					subModuleInfo.forEach(modInfo => {
+					subModuleInfo.forEach((modInfo, index) => {
+						
+						if(index == 0){
+							return;
+						}
 						
 						var name = modInfo.name;
 						
