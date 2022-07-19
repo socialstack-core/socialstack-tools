@@ -42,10 +42,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://source.socialstack.cf/infrastructure/socialstack-tools.git"
+    "url": "git+https://source.socialstack.dev/infrastructure/socialstack-tools.git"
   },
   "bugs": {
-    "url": "https://source.socialstack.cf/infrastructure/socialstack-tools/issues"
+    "url": "https://source.socialstack.dev/infrastructure/socialstack-tools/issues"
   },
-  "homepage": "https://source.socialstack.cf/infrastructure/socialstack-tools"
+  "homepage": "https://source.socialstack.dev/infrastructure/socialstack-tools"
 }
