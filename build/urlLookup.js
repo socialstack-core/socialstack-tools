@@ -221,10 +221,16 @@ function onRoutePage(url, webRequest){
 		if(hasPo){
 			pg.loading = webRequest(hasPo).then(resp => {
 				pg.po = resp.json;
-				return pg;
+				return {
+					...pg,
+					tokens: pg.tokenValues
+				};
 			});
 		}
 	}
 	
-	return pg;
+	return {
+		...pg,
+		tokens: pg.tokenValues
+	};
 }
