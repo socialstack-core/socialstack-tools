@@ -171,8 +171,7 @@ var commandsThatWorkWithoutBeingInAProject = {
 	'host': true,
 	'configure': true,
 	'id': true,
-	'repository': true,
-	'buildapp': true
+	'repository': true
 };
 
 module.exports = (config) => {
@@ -187,7 +186,7 @@ module.exports = (config) => {
 	}else{
 		// Find the project root next.
 		findProjectRoot(config, (result) => {
-			if(!result){
+			if(!result && config.commandLine.command != 'buildapp'){ // buildapp works both ways.
 				console.error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI or an Api directory to be a project.');
 				return;
 			}
