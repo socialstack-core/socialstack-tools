@@ -120,7 +120,9 @@ function installSingleModuleInternal(moduleMeta, moduleFilePath, config, addMeta
 		return new Promise((success, reject) => {
 		
 			// If the module path exists, delete it.
-			deleteFolderRecursive(moduleFilePath);
+			if (addMeta) {
+				deleteFolderRecursive(moduleFilePath);
+			}
 			
 			zipStream.pipe(unzip.Parse()).on('entry', function (entry) {
 				
@@ -330,8 +332,9 @@ function installModules(modules, config){
 
 function installSingleModule(info, config){
 	var projectRoot = path.normalize(config.projectRoot);
-	var moduleFilePath = projectRoot + '/' + getModuleFilePath(info) + '/';
-	return installSingleModuleInternal(info, moduleFilePath, config, true);
+	var projectRelativePath = getModuleFilePath(info);
+	var moduleFilePath = projectRelativePath ? projectRoot + '/' + projectRelativePath + '/' : projectRoot + '/';
+	return installSingleModuleInternal(info, moduleFilePath, config, projectRelativePath);
 }
 
 function deleteFolderRecursive(dirPath) {
