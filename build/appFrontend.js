@@ -234,3 +234,74 @@ function onRoutePage(url, webRequest){
 		tokens: pg.tokenValues
 	};
 }
+
+// Locale switch if >1 locales.
+// If this files locale is not the one wanted by the device, switch.
+if(availableLocales && availableLocales.length > 1){
+	
+	function languageAcceptedByLocale(language, locale){
+		if(language == locale.code){
+			return true;
+		}
+		
+		// check aliases too
+		if(locale.aliases){
+			var aliases = locale.aliases.trim().toLowerCase().split(',');
+			
+			for(var i=0;i<aliases.length;i++){
+				if(aliases[i] == language){
+					return true;
+				}
+			}
+			
+		}
+		return false;
+	}
+	
+	function switchToDefaultLocale(availableLocales){
+		var defaultLocale = availableLocales.find(available => available.id == 1);
+		
+		if(defaultLocale){
+			window.location = './index.' + defaultLocale.code + '.html';
+		}
+	}
+	
+	document.addEventListener("deviceready", () => {
+		
+		// cordova globalization plugin required for this switch to be active.
+		if(navigator.globalization && navigator.globalization.getPreferredLanguage){
+			navigator.globalization.getPreferredLanguage((language) => {
+				
+				// language is e.g. "en" or "EN" or "en-US".
+				if(!language || ((typeof language) != 'string')){
+					return;
+				}
+				
+				language = language.trim().toLowerCase();
+				
+				var thisFileLocale = availableLocales.find(available => available.id == fileLocaleId);
+				
+				// Compare language with thisFileLocale.code and thisFileLocale.aliases
+				if(languageAcceptedByLocale(language, thisFileLocale)){
+					// If they match, stop.
+					return;
+				}
+				
+				// The device locale is not the same as the one handled by this file. Is there a more appropriate locale?
+				var betterLocale = availableLocales.find(available => languageAcceptedByLocale(language, available));
+				
+				if(betterLocale){
+					// Yes, go to it instead:
+					window.location = './index.' + betterLocale.code + '.html';
+					return;
+				}else{
+					// do nothing? or change to default? to decide!
+					// if change to default, call switchToDefaultLocale(availableLocales);
+				}
+				
+			}, console.error);
+		}
+		
+	}, false);
+	
+}

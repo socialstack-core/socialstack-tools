@@ -207,9 +207,9 @@ function buildApp(config){
 		
 		promisesJs.push(saveFile(buildConfig.directory + '/pack/locales.json', localeJson));
 		
-		return Promise.all(promisesJs, promisesCss);
+		return Promise.all(promisesJs, promisesCss).then(() => locales);
 	})
-	.then(() => {
+	.then(locales => {
 		
 		console.log("Preparing static assets (3/" + steps + ") {temporarily skipping}");
 		
@@ -230,21 +230,26 @@ function buildApp(config){
 		*/
 		
 		// Todo: create static assets folder. only update if actually necessary though, and delete files that don't exist anymore.
-		
+		return locales;
 	})
-	.then(() => {
+	.then(locales => {
 		
 		console.log("Constructing HTML (4/" + steps + ")");
 		
-		var appSpecificJs = 'var contentSource="' + config.apiUrl + '";' + fs.readFileSync(__dirname + "/urlLookup.js", {encoding: 'utf8'});
+		var appSpecificJs = 'var availableLocales=' + (locales ? JSON.stringify(locales) : 'null') + ';';
+		appSpecificJs += 'var contentSource="' + config.apiUrl + '";' + fs.readFileSync(__dirname + "/appFrontend.js", {encoding: 'utf8'});
 		
-		// Todo: construct HTML pg with static pages in there.
-		return post('pack/static-assets/mobile-html', {localeId: 1, apiHost: config.apiUrl, customJs: appSpecificJs}, true).then(html => {
+		var promisesHtml = locales.map(locale => {
 			
-			return saveFile(buildConfig.directory + '/index.en.html', html);
+			return post('pack/static-assets/mobile-html', {localeId: locale.id, apiHost: config.apiUrl, customJs: '{{APP_JS_SUBSTITUTE}}'}, true).then(html => {
+			
+				return saveFile(buildConfig.directory + '/index.' + locale.code + '.html', html.replace('{{APP_JS_SUBSTITUTE}}', 'var fileLocaleId=' + locale.id + ';' + appSpecificJs));
+				
+			});
 			
 		});
 		
+		return Promises.all(promisesHtml);
 	});
 	
 	if(platform == 'mobile'){
