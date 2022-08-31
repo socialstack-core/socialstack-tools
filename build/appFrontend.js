@@ -258,10 +258,10 @@ if(availableLocales && availableLocales.length > 1){
 		return false;
 	}
 	
-	function switchToDefaultLocale(availableLocales){
+	function switchToDefaultLocale(availableLocales, thisFileLocale){
 		var defaultLocale = availableLocales.find(available => available.id == 1);
-		
-		if(defaultLocale){
+
+		if (defaultLocale && defaultLocale.id != thisFileLocale.id) {
 			window.location = './index.' + defaultLocale.code + '.html';
 		}
 	}
@@ -273,11 +273,11 @@ if(availableLocales && availableLocales.length > 1){
 			navigator.globalization.getPreferredLanguage((language) => {
 				
 				// language is e.g. "en" or "EN" or "en-US".
-				if(!language || ((typeof language) != 'string')){
+				if(!language || ((typeof language.value) != 'string')){
 					return;
 				}
 				
-				language = language.trim().toLowerCase();
+				language = language.value.trim().toLowerCase();
 				
 				var thisFileLocale = availableLocales.find(available => available.id == fileLocaleId);
 				
@@ -289,14 +289,15 @@ if(availableLocales && availableLocales.length > 1){
 				
 				// The device locale is not the same as the one handled by this file. Is there a more appropriate locale?
 				var betterLocale = availableLocales.find(available => languageAcceptedByLocale(language, available));
-				
-				if(betterLocale){
+
+				if (betterLocale) {
 					// Yes, go to it instead:
 					window.location = './index.' + betterLocale.code + '.html';
 					return;
 				}else{
 					// do nothing? or change to default? to decide!
-					// if change to default, call switchToDefaultLocale(availableLocales);
+					// if change to default, call 
+					switchToDefaultLocale(availableLocales, thisFileLocale);
 				}
 				
 			}, console.error);

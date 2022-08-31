@@ -249,7 +249,7 @@ function buildApp(config){
 			
 		});
 		
-		return Promises.all(promisesHtml);
+		return Promise.all(promisesHtml);
 	});
 	
 	if(platform == 'mobile'){
