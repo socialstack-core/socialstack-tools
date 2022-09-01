@@ -94,4 +94,4 @@ To make changes to socialstack tools itself, it's a good idea to link the reposi
 * Run `npm install` in the repository. This'll download the modules it depends on.
 * Run `npm link` in the repository. This will make the code in the repository run directly when you try `socialstack` commands.
 
-If everything is good, it's the usual `npm version patch` and `npm version publish` from an authed npm account.
+If everything is good, it's the usual `npm version patch` and `npm publish` from an authed npm account.
