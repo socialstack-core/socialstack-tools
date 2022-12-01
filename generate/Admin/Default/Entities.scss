@@ -1,7 +1,16 @@
-/*
-	Optional stylesheet
-*/
-
-.fully-qualified-entity{
+.fully-qualified-entity {
+	// reference an image in the same component folder
+	//background-image: url("./filename.svg");
 	
+	// Style should be mobile first with media queries for larger sizes.
 }
+
+/*
+Size overrides. See bootstrap breakpoints for more information:
+https://getbootstrap.com/docs/5.0/layout/breakpoints/#min-width
+
+@include media-breakpoint-up(md) {
+	.fully-qualified-entity {
+	}
+}
+*/
