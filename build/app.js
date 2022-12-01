@@ -197,7 +197,9 @@ function buildApp(config){
 	
 	var prom = get('v1/locale/list', true)
 	.then(localeJson => {
-		
+
+		console.log("Build Outpout Dir : " + buildConfig.directory);
+
 		var locales = JSON.parse(localeJson).results;
 		
 		console.log(locales.length + " locale(s) found. Obtaining JS/ CSS files, one per locale (2/" + steps + ")");
