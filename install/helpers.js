@@ -124,6 +124,8 @@ function installSingleModuleInternal(moduleMeta, moduleFilePath, config, addMeta
 				deleteFolderRecursive(moduleFilePath);
 			}
 			
+			mkDirByPathSync(moduleFilePath);
+			
 			zipStream.pipe(unzip.Parse()).on('entry', function (entry) {
 				
 				
