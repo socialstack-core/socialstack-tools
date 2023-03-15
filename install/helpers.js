@@ -179,21 +179,14 @@ function isModuleDifferent(localModulePath, moduleId, versionCode) {
 				if(entry.type == 'File'){
 					pend++;
 					
-					if(anyRejected){
-						entry.autodrain().then(() => {
-							pend--;
-							
-							if(closed && !pend){
-								success(true);
-							}
-						});
-					}else{
-						var localPath = path.join(localModulePath, entry.path);
-						var localRead = fs.createReadStream(localPath);
-						var entryBuffer = streamToBuffer(entry);
-						var localFileBuffer = streamToBuffer(localRead);
+					var localPath = path.join(localModulePath, entry.path);
+					var localRead = fs.createReadStream(localPath);
+					var entryBuffer = streamToBuffer(entry);
+					var localFileBuffer = streamToBuffer(localRead);
+					
+					Promise.all([entryBuffer, localFileBuffer.catch(e => null)]).then(bufs => {
 						
-						Promise.all([entryBuffer, localFileBuffer.catch(e => null)]).then(bufs => {
+						if(!anyRejected){
 							
 							// Compare the bytes of buf with the file on disk. 
 							// Special case when \r, \n or \r\n is encountered; it is treated as a single thing.
@@ -202,14 +195,14 @@ function isModuleDifferent(localModulePath, moduleId, versionCode) {
 							if(!areTheSame){
 								anyRejected = true;
 							}
+						}
 							
-							pend--;
-							
-							if(closed && !pend){
-								success(anyRejected);
-							}
-						});
-					}
+						pend--;
+						
+						if(closed && !pend){
+							success(anyRejected);
+						}
+					});
 				}
 				
 			}).on('close', function() {
