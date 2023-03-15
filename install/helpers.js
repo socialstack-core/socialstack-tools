@@ -170,17 +170,23 @@ function isModuleDifferent(localModulePath, moduleId, versionCode) {
 	}).then(zipStream => {
 		
 		var anyRejected = false;
-		var pend = false;
+		var pend = 0;
 		var closed = false;
 		
 		return new Promise((success, reject) => {
 			
 			zipStream.pipe(unzip.Parse()).on('entry', function (entry) {
-				pend = true;
 				if(entry.type == 'File'){
+					pend++;
+					
 					if(anyRejected){
-						pend = false;
-						entry.autodrain();
+						entry.autodrain().then(() => {
+							pend--;
+							
+							if(closed && !pend){
+								success(true);
+							}
+						});
 					}else{
 						var localPath = path.join(localModulePath, entry.path);
 						var localRead = fs.createReadStream(localPath);
@@ -197,9 +203,9 @@ function isModuleDifferent(localModulePath, moduleId, versionCode) {
 								anyRejected = true;
 							}
 							
-							pend = false;
+							pend--;
 							
-							if(closed){
+							if(closed && !pend){
 								success(anyRejected);
 							}
 						});
@@ -219,15 +225,18 @@ function isModuleDifferent(localModulePath, moduleId, versionCode) {
 	
 }
 
-function searchForModules(dirPath, results) {
+function searchForModules(dirPath, results, depth) {
 	if(!dirPath || dirPath == '/'){
 		return false;
 	}
   if (fs.existsSync(dirPath)) {
 		fs.readdirSync(dirPath).forEach((file, index) => {
+			if(!depth && (file == 'bin' || file == '.git')){
+				return;
+			}
 		var curPath = path.join(dirPath, file);
 		if (fs.lstatSync(curPath).isDirectory()) { // recurse
-			searchForModules(curPath, results);
+			searchForModules(curPath, results, depth ? 1 : depth+1);
 		} else {
 			if(file == 'module.installer.json'){
 				
