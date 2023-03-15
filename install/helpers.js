@@ -7,7 +7,7 @@ var configManager = require('../configManager');
 var exec = require('child_process').exec;
 var getAppDataPath = require('appdata-path');
 var adp = getAppDataPath('socialstack');
-
+var rimraf = require('rimraf');
 var moduleRepository = 'cloud.socialstack.dev';
 
 var mainstreamRepos = {};
@@ -19,6 +19,264 @@ mainstreamRepos['npm'] = {
 mainstreamRepos['nuget'] = {
 	cmd: 'dotnet add package "{NAME_NO_VERSION}"'
 };
+
+function bufferNewlineDiff(a,b){
+	if(!a || !b){
+		if(!a && !b){
+			return true;
+		}
+		
+		return false;
+	}
+	
+	// Special handling for newlines. 
+	// The buffers can be different but only in terms of \r, \n, \r\n.
+	
+	if(a.length < b.length){
+		// a will always be the longest. Flip them over.
+		var tmp = a;
+		a = b;
+		b = tmp;
+	}
+	
+	var aLength = a.length;
+	var bLength = b.length;
+	
+	var bOffset = 0;
+	
+	for(var i=0;i<aLength;i++){
+		var aByte = a[i];
+		
+		if(aByte == 13){
+			if(i != aLength-1){
+				if(a[i+1] == 10){
+					// Skip it.
+					i++;
+				}
+			}
+			aByte = 10;
+		}
+		
+		if(bOffset >= bLength){
+			// The "shorter" buffer has been exhausted.
+			return false;
+		}
+		
+		var bByte = b[bOffset];
+		
+		if(bByte == 13){
+			if(bOffset != bLength-1){
+				if(b[bOffset+1] == 10){
+					// Skip it.
+					bOffset++;
+				}
+			}
+			bByte = 10;
+		}
+		
+		bOffset++;
+		
+		if(aByte != bByte){
+			// They're different.
+			return false;
+		}
+	}
+	
+	// It was successful if every byte has been read from the shorter buffer b.
+	return bOffset == bLength;
+}
+
+// Checks if the module is different from the installed version files.
+// If it is, it will then attempt to correct the version number just in case it actually matches a newer version of the module.
+// If that exhaustive check fails as well then it is noted as being different.
+function isModuleDifferentAndCorrect(localAndRemote) {
+	var {localModule, remoteModule} = localAndRemote;
+	var localModulePath = localModule.path;
+	
+	return isModuleDifferent(localModulePath, remoteModule.id, localModule.meta.versionCode)
+	.then(isDifferent => {
+		
+		if(!isDifferent){
+			// Not different. Stop here.
+			return false;
+		}
+		
+		if(localModule.meta.versionCode >= remoteModule.latestVersionCode)
+		{
+			// Definitely different. There's no newer versions.
+			return true;
+		}
+		
+		// console.log(remoteModule.name + " is possibly edited. Checking if it matches any remote version..");
+		
+		// Does it match some newer version of the module? We'll first need to know what the newer versions are, so ask sscloud for that.
+		return getNewerVersions(remoteModule.id, localModule.meta.versionCode).then(versionResponse => {
+			
+			if(!versionResponse || !versionResponse.results || !versionResponse.results.length){
+				// No versions identified. the files can be considered different.
+				return true;
+			}
+			
+			return Promise.all(versionResponse.results.map(versionCode => {
+				// Test all of them simultaneously.
+				return isModuleDifferent(localModulePath, remoteModule.id, versionCode);
+			})).then(differences => {
+				
+				// If any is not different, we have a hit! Correct the metadata and return false, not different.
+				for(var i=0;i<differences.length;i++){
+					if(!differences[i]){
+						// Not different! The files are actually this version. Correct the metadata now.
+						var actualVersion = versionResponse.results[i];
+						
+						console.log("Correcting version code in " + remoteModule.name);
+						
+						var meta = remoteModule;
+						
+						if(actualVersion != remoteModule.latestVersionCode){
+							// Hash is unknown here.
+							meta = {...remoteModule, latestVersionCode: actualVersion, latestHash: ''};
+						}
+						
+						writeMeta(localModulePath, meta);
+						
+						return false;
+					}
+				}
+				
+				// Yep, the files are definitely different.
+				return true;
+			});
+			
+		});
+		
+	});
+}
+
+function writeMeta(localModulePath, remoteModule){
+	var meta = '{"repository": ' + remoteModule.repositoryId + ', "moduleId": ' + remoteModule.id + 
+	', "versionCode": ' + remoteModule.latestVersionCode + ', "commit": "' + remoteModule.latestHash + '"}';
+	
+	fs.writeFileSync(
+		path.join(localModulePath, 'module.installer.json'),
+		meta
+	);
+}
+
+function isModuleDifferent(localModulePath, moduleId, versionCode) {
+	
+	return getOrCacheZip({
+		id: moduleId,
+		latestVersionCode: versionCode
+	}).then(zipStream => {
+		
+		var anyRejected = false;
+		var pend = false;
+		var closed = false;
+		
+		return new Promise((success, reject) => {
+			
+			zipStream.pipe(unzip.Parse()).on('entry', function (entry) {
+				pend = true;
+				if(entry.type == 'File'){
+					if(anyRejected){
+						pend = false;
+						entry.autodrain();
+					}else{
+						var localPath = path.join(localModulePath, entry.path);
+						var localRead = fs.createReadStream(localPath);
+						var entryBuffer = streamToBuffer(entry);
+						var localFileBuffer = streamToBuffer(localRead);
+						
+						Promise.all([entryBuffer, localFileBuffer.catch(e => null)]).then(bufs => {
+							
+							// Compare the bytes of buf with the file on disk. 
+							// Special case when \r, \n or \r\n is encountered; it is treated as a single thing.
+							var areTheSame = bufferNewlineDiff(bufs[0], bufs[1]);
+							
+							if(!areTheSame){
+								anyRejected = true;
+							}
+							
+							pend = false;
+							
+							if(closed){
+								success(anyRejected);
+							}
+						});
+					}
+				}
+				
+			}).on('close', function() {
+				if(pend){
+					closed = true;
+					return;
+				}
+				success(anyRejected);
+			});
+			
+		});
+	});
+	
+}
+
+function searchForModules(dirPath, results) {
+	if(!dirPath || dirPath == '/'){
+		return false;
+	}
+  if (fs.existsSync(dirPath)) {
+		fs.readdirSync(dirPath).forEach((file, index) => {
+		var curPath = path.join(dirPath, file);
+		if (fs.lstatSync(curPath).isDirectory()) { // recurse
+			searchForModules(curPath, results);
+		} else {
+			if(file == 'module.installer.json'){
+				
+				var meta = fs.readFileSync(curPath, {encoding: 'utf8'});
+				
+				try{
+					meta = JSON.parse(meta);
+					results.push({path: dirPath, file, meta});
+				}catch(e){
+					console.log("Invalid json in a module's meta file at " + curPath);
+				}
+			}
+		}
+    });
+	
+	return true;
+  }
+  
+  return false;
+}
+
+function prepareForUpgrade(localAndRemote){
+	var {localModule, remoteModule} = localAndRemote;
+	
+	return isModuleDifferentAndCorrect(localAndRemote)
+		.then((isDifferent) => {
+			if(isDifferent){
+				// It's definitely different and is no known version.
+				return {localModule, remoteModule, hasLocalEdits: true};
+			}else{
+				// Can potentially upgrade this module.
+				return {localModule, remoteModule, upgradeable: true};
+			}
+			
+		});
+}
+
+function streamToString (stream) {
+  return streamToBuffer(stream).then(buff => buf.toString('utf8'));
+}
+
+function streamToBuffer (stream) {
+  const chunks = [];
+  return new Promise((resolve, reject) => {
+    stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    stream.on('error', (err) => reject(err));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+  })
+}
 
 // Returns zip file stream
 function getOrCacheZip(moduleMeta){
@@ -49,11 +307,19 @@ function getOrCacheZip(moduleMeta){
 					
 					if(response.statusCode == 200 && response.headers['content-type'] == 'application/zip'){
 						
-						var cacheWriteStream = fs.createWriteStream(moduleCachePath + zipPath);
+						var cacheWriteStream = fs.createWriteStream(moduleCachePath + zipPath + ".tmp");
 						
 						response.pipe(cacheWriteStream);
 						
 						cacheWriteStream.on('finish', () => {
+							
+							// Delete if it exists:
+							try{
+								fs.unlinkSync(moduleCachePath + zipPath);
+							}catch{}
+							
+							// Move the tmp file.
+							fs.renameSync(moduleCachePath + zipPath + ".tmp", moduleCachePath + zipPath);
 							
 							// try opening again:
 							readStream = fs.createReadStream(moduleCachePath + zipPath);
@@ -109,7 +375,7 @@ function uninstallModules(modules, config){
 }
 
 // Uses metadata from module info to obtain the correct module zip
-function installSingleModuleInternal(moduleMeta, moduleFilePath, config, addMeta){
+function installSingleModuleInternal(moduleMeta, moduleFilePath, config, addMeta, dependencySkipMap){
 	console.log('Installing ' + moduleMeta.name);
 	
 	// Does the zip exist in the local cache?
@@ -120,26 +386,32 @@ function installSingleModuleInternal(moduleMeta, moduleFilePath, config, addMeta
 		return new Promise((success, reject) => {
 		
 			// If the module path exists, delete it.
+			var delPromise;
+			
 			if (addMeta) {
-				deleteFolderRecursive(moduleFilePath);
+				delPromise = rimraf(moduleFilePath);
+			}else{
+				delPromise = Promise.resolve(true);
 			}
 			
-			mkDirByPathSync(moduleFilePath);
-			
-			zipStream.pipe(unzip.Parse()).on('entry', function (entry) {
+			delPromise.then(() => {
 				
+				mkDirByPathSync(moduleFilePath);
 				
-				if(entry.type == 'File'){
+				zipStream.pipe(unzip.Parse()).on('entry', function (entry) {
 					
-					mkDirByPathSync(moduleFilePath + path.dirname(entry.path));
-					entry.pipe(fs.createWriteStream(moduleFilePath + entry.path));
-				}else{
-					mkDirByPathSync(moduleFilePath + entry.path);
-					entry.autodrain()
-				}
-				
-			}).on('close', function() {
-				success();
+					if(entry.type == 'File'){
+						
+						mkDirByPathSync(moduleFilePath + path.dirname(entry.path));
+						entry.pipe(fs.createWriteStream(moduleFilePath + entry.path));
+					}else{
+						mkDirByPathSync(moduleFilePath + entry.path);
+						entry.autodrain()
+					}
+					
+				}).on('close', function() {
+					success();
+				});
 			});
 			
 		});
@@ -148,18 +420,37 @@ function installSingleModuleInternal(moduleMeta, moduleFilePath, config, addMeta
 	.then(() => {
 		// Add the meta file.
 		if(addMeta){
-			
-			fs.writeFileSync(
-				moduleFilePath + 'module.installer.json',
-				'{"repository": ' + moduleMeta.repositoryId + ', "moduleId": ' + moduleMeta.id + ', "versionCode": ' + moduleMeta.latestVersionCode + '}'
-			);
+			writeMeta(moduleFilePath, moduleMeta);
 			
 		}
 	}).then(() => {
 		
-		return installDependencies(moduleFilePath, config);
+		return installDependencies(moduleFilePath, config, dependencySkipMap);
 		
 	});
+}
+
+function getNewerVersions(moduleId, version){
+	
+	return new Promise((success, reject) => {
+		
+		https.get('https://' + moduleRepository + '/v1/module/' + moduleId + '/newer-versions?versionCode=' + version, function(res) {
+			
+			var bodyResponse = [];
+			res.on('data', (d) => {
+				bodyResponse.push(d);
+			});
+
+			res.on('end', () => {
+				var jsonResp = bodyResponse.join('');
+				var json = JSON.parse(jsonResp);
+				success(json);
+			});
+			
+		});
+		
+	});
+	
 }
 
 var _memCachedModuleList = null;
@@ -211,8 +502,8 @@ function getModuleMap(){
 	});
 }
 
-function replaceModule(moduleMeta, config){
-	return installSingleModule(moduleMeta, config);
+function replaceModule(moduleMeta, config, dependencySkipMap){
+	return installSingleModule(moduleMeta, config, dependencySkipMap);
 }
 
 function getModuleIdMap(){
@@ -234,7 +525,9 @@ function getModuleIdMap(){
 	});
 }
 
-function installModules(modules, config){
+// Install the given list of modules. If any names appear in the skipmap, they will be skipped.
+// The skip map is usually used for dependency trees.
+function installModules(modules, config, skipMap){
 	
 	// Lookup module names:
 	if(!modules || !modules.length){
@@ -248,6 +541,10 @@ function installModules(modules, config){
 		
 		return Promise.all(
 			modules.map(name => {
+				
+				if(skipMap && skipMap[name.toLowerCase()]){
+					return Promise.resolve(true);
+				}
 				
 				var repo = null;
 				var colon = name.indexOf(':');
@@ -325,18 +622,18 @@ function installModules(modules, config){
 					addMeta = true;
 				}
 				
-				return installSingleModuleInternal(info, moduleFilePath, config, addMeta);
+				return installSingleModuleInternal(info, moduleFilePath, config, addMeta, skipMap);
 			})
 		);
 		
 	});
 }
 
-function installSingleModule(info, config){
+function installSingleModule(info, config, dependencySkipMap){
 	var projectRoot = path.normalize(config.projectRoot);
 	var projectRelativePath = getModuleFilePath(info);
 	var moduleFilePath = projectRelativePath ? projectRoot + '/' + projectRelativePath + '/' : projectRoot + '/';
-	return installSingleModuleInternal(info, moduleFilePath, config, projectRelativePath);
+	return installSingleModuleInternal(info, moduleFilePath, config, projectRelativePath, dependencySkipMap);
 }
 
 function deleteFolderRecursive(dirPath) {
@@ -408,7 +705,7 @@ function runCmd(cmd, config){
 /*
 * Attempts to install dependencies for the given module path, 
 */
-function installDependencies(moduleFilePath, config){
+function installDependencies(moduleFilePath, config, dependencySkipMap){
 	
 	return new Promise((success, reject) => {
 	
@@ -428,7 +725,7 @@ function installDependencies(moduleFilePath, config){
 				if(pkg && Array.isArray(pkg.dependencies)){
 					
 					pendingPromises.push(
-						installModules(pkg.dependencies, config)
+						installModules(pkg.dependencies, config, dependencySkipMap)
 					);
 					
 				}
@@ -590,11 +887,17 @@ module.exports = {
 	deleteFolderRecursive,
 	getModuleFilePath,
 	runCmd,
+	prepareForUpgrade,
 	tidyModuleName,
 	replaceModule,
 	getOrCacheZip,
 	getModuleList,
 	getModuleMap,
+	getNewerVersions,
 	getModuleIdMap,
-	mkDirByPathSync
+	mkDirByPathSync,
+	searchForModules,
+	isModuleDifferent,
+	writeMeta,
+	isModuleDifferentAndCorrect,
 };

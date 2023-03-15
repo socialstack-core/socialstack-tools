@@ -1,7 +1,15 @@
 var exec = require('child_process').exec;
 var fs = require('fs');
 var path = require('path');
-var { getModuleMap, getModuleIdMap, getModuleFilePath, replaceModule, installSingleModule, getOrCacheZip, tidyModuleName, deleteFolderRecursive, runCmd } = require('../install/helpers.js');
+var diff = require('diff');
+var readline = require('readline');
+
+var { 
+	getModuleMap, getModuleIdMap, getModuleFilePath, 
+	replaceModule, installSingleModule, getOrCacheZip, 
+	tidyModuleName, deleteFolderRecursive, runCmd,
+	prepareForUpgrade, searchForModules
+} = require('../install/helpers.js');
 
 function escapeSequence(...args) {
 	var escapeSequence = "";
@@ -11,6 +19,18 @@ function escapeSequence(...args) {
 	}
 	
 	return escapeSequence;	
+}
+
+function askFor(prompt){
+	return new Promise((success, reject) => {
+		var rl = readline.createInterface(process.stdin, process.stdout);
+		rl.setPrompt(prompt + ': ');
+		rl.prompt();
+		rl.on('line', function(line) {
+			rl.close();
+			success(line);
+		});	
+	});
 }
 
 module.exports = (config) => {
@@ -88,6 +108,8 @@ module.exports = (config) => {
 					searchForModules(config.projectRoot, mods);
 					
 					var toUpgrade = [];
+				
+					var dependencySkipMap = {};
 					
 					mods.forEach(localModule => {
 						
@@ -102,11 +124,14 @@ module.exports = (config) => {
 							return;
 						}
 						
+						// Do not install this if it is a dependency of some other module.
+						dependencySkipMap[remoteModule.name.toLowerCase()] = true;
+						
 						if(remoteModule){
 							if(localModule.meta.versionCode < remoteModule.latestVersionCode){
 								
 								if(!toUpgrade.find(i => i.id == remoteModule.id)){
-									toUpgrade.push(remoteModule);
+									toUpgrade.push({remoteModule, localModule});
 								}
 							}
 						}
@@ -115,56 +140,98 @@ module.exports = (config) => {
 					
 					if(toUpgrade.length != 0){
 						
-						console.log("Upgrading " + toUpgrade.length + " modules.");
+						console.log("Starting upgrade of " + toUpgrade.length + " modules.");
 						
-						return Promise.all(
-							toUpgrade.map(meta => {
-								console.log(meta.name + "..");
-								return replaceModule(meta, config);
+						var preparations = Promise.all(
+							toUpgrade.map(localAndRemote => {
+								var { remoteModule, localModule } = localAndRemote;
+								
+								// Will skip a module if it has local changes.
+								return prepareForUpgrade(localAndRemote);
 							})
 						);
 						
+						return preparations.then(preparedModules => {
+							
+							// If any modules have local edits, ask for confirmation to do a partial upgrade.
+							// Partial upgrades (omitting some modules from the update) can cause consistency issues if dependent modules are older than they should be.
+							var localEdits = 0;
+							
+							for(var i=0;i<preparedModules.length;i++){
+								var pm = preparedModules[i];
+								
+								if(pm.hasLocalEdits){
+									localEdits++;
+								}
+							}
+							
+							var go = () => {
+								return Promise.all(preparedModules.map(pm => {
+									
+									// Upgrade it:
+									if(pm.upgradeable && !pm.hasLocalEdits){
+										return replaceModule(pm.remoteModule, config, dependencySkipMap);
+									}else{
+										return Promise.resolve(true);
+									}
+									
+								})).then(() => {
+									console.log("Done.");
+								});
+							};
+							
+							if(localEdits){
+								
+								console.log('');
+								
+								console.log(
+									localEdits +" module(s) with newer versions have been edited in this project and therefore won't be upgraded.\r\n" + 
+									"You can continue to upgrade the rest of the modules but this can cause consistency issues if some modules are older than others. What would you like to do?"
+								);
+								
+								// Future todo: "Note that if you'd like to force modules to update anyway, use the 'install UI/Example --force' command for each one. "
+								
+								console.log('');
+								
+								console.log("[N]othing. Stop there and don't do anything.");
+								console.log("[A]ccept and upgrade everything except for the edited modules.");
+								console.log("[L]ist the modules which have been identified as edited with a newer version available, then do nothing else and exit.");
+								
+								return askFor('enter N/A/L').then(userResponse => {
+									var mode = userResponse.toLowerCase().trim();
+									
+									if(mode == 'a'){
+										return go();
+									}else if(mode == 'l'){
+										
+										console.log('');
+								
+										for(var i=0;i<preparedModules.length;i++){
+											var pm = preparedModules[i];
+											
+											if(pm.hasLocalEdits){
+												console.log(pm.remoteModule.name);
+											}
+										}
+										
+									}
+									
+								});
+								
+							}else{
+								return go();
+							}
+							
+						});
+						
 					}
 					
-				})
-				.then(() => {
-					console.log("Everything is up to date.");
 				});
 				
 			}
 			
 		});
 	});
-};
-
-function searchForModules(dirPath, results) {
-	if(!dirPath || dirPath == '/'){
-		return false;
-	}
-  if (fs.existsSync(dirPath)) {
-		fs.readdirSync(dirPath).forEach((file, index) => {
-		var curPath = path.join(dirPath, file);
-		if (fs.lstatSync(curPath).isDirectory()) { // recurse
-			searchForModules(curPath, results);
-		} else {
-			if(file == 'module.installer.json'){
-				
-				var meta = fs.readFileSync(curPath, {encoding: 'utf8'});
-				
-				try{
-					meta = JSON.parse(meta);
-					results.push({path: dirPath, file, meta});
-				}catch(e){
-					console.log("Invalid json in a module's meta file at " + curPath);
-				}
-			}
-		}
-    });
-	
-	return true;
-  }
-  
-  return false;
 };
 
 function replaceSubmodule(moduleInfo, name, config){
