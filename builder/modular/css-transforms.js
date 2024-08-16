@@ -8,7 +8,7 @@ function transform(code, globalContent, path, minify){
 	var result = sass.compileString(
 		'@use "loc:global" as *;\r\n' + code, {
 		style: minify ? 'compressed' : undefined,
-		url: path,
+		url: path ? 'file://' + path : undefined,
 		charset: false,
 		logger: {
 			warn(message, options) {
@@ -24,7 +24,7 @@ function transform(code, globalContent, path, minify){
 		importers: [{
 			canonicalize(url) {
 				if (url != 'loc:global') return null;
-				return new URL('file://' + url);
+				return new URL(url);
 			},
 			load(canonicalUrl) {
 				return {
