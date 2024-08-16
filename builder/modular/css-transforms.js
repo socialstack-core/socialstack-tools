@@ -24,7 +24,7 @@ function transform(code, globalContent, path, minify){
 		importers: [{
 			canonicalize(url) {
 				if (url != 'loc:global') return null;
-				return new URL(url);
+				return new URL('file://' + url);
 			},
 			load(canonicalUrl) {
 				return {
