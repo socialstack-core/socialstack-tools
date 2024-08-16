@@ -1,17 +1,45 @@
 var sass = require('sass');
 
 
-function transform(code, minify){
+function transform(code, globalContent, path, minify){
 	
-	var css = sass.renderSync({
-		  data: code,
-		  outputStyle: minify ? 'compressed' : undefined
-		}).css.toString();
+	var log = '';
 	
-	// drop the BOM
-	if (css.length && css.charCodeAt(0) === 0xFEFF) {
-		css=css.slice(1);
-	}
+	var result = sass.compileString(
+		'@use "loc:global" as *;\r\n' + code, {
+		style: minify ? 'compressed' : undefined,
+		url: path,
+		charset: false,
+		logger: {
+			warn(message, options) {
+				if (options.span) {
+					var span = options.span;
+					log += `${span.url}:${span.start.line}:${span.start.column}: ` +
+					`${message}\n`;
+				} else {
+					log += `::: ${message}\n`;
+				}
+			}
+		},
+		importers: [{
+			canonicalize(url) {
+				if (url != 'loc:global') return null;
+				return new URL(url);
+			},
+			load(canonicalUrl) {
+				return {
+					contents: globalContent,
+					syntax: 'scss'
+				};
+			}
+		}]
+	});
+	
+	if (log) {
+		console.log("SCSS warning: ", log);
+    }
+	
+	var css = result.css.toString();
 	
 	return css;
 }

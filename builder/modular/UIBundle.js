@@ -16,13 +16,15 @@ class UIBundle
 	/// <summary>
 	/// Creates a new bundle for the given filesystem path.
 	/// </summary>
-	constructor(rootPath, projectRoot, globalFileMap, minified)
+	constructor(rootPath, projectRoot, globalFileMap, minified, cache)
 	{
 		this.fileMap = {}; // fs path (relative) -> a particular SourceFile instance.
+		this.staticFileMap = {}; // fs path (relative) -> a particular SourceFile instance.
 		this.rootName = rootPath;
 		this.rootPath = path.resolve(projectRoot, rootPath);
 		this.sourcePath = path.resolve(projectRoot, rootPath, "Source");
 		this.globalFileMap = globalFileMap;
+		this.cache = cache; // UIBuildCache (never null)
 		this.containsStarterModule = false;
 		this.minified = minified;
 		
@@ -33,8 +35,12 @@ class UIBundle
 	/// Adds the file at the given source-relative path to the map.
 	/// </summary>
 	/// <param name="filePath"></param>
-	addToMap(filePath, loadPromises)
+	addToMap(fileAndStats)
 	{
+		var filePath = fileAndStats.path;
+		var modifiedUnixTs = fileAndStats.stats.mtimeMs;
+		var fileSize = fileAndStats.stats.size;
+		
 		var lastSlash = filePath.lastIndexOf(path.sep);
 		var fileName = filePath.substring(lastSlash + 1);
 		var relLength = lastSlash - this.sourcePath.length - 1;
@@ -56,7 +62,12 @@ class UIBundle
 		
 		var fileType = fileName.substring(typeDot + 1).toLowerCase();
 		var fileNameNoType = fileName.substring(0, typeDot);
-
+		
+		if(fileType == 'git'){
+			// Git directory
+			return null;
+		}
+		
 		// Check if the file name matters to us:
 		var tidyFileType = filePath.indexOf(path.sep + "static" + path.sep) == -1 ? 
 			this.determineFileType(fileType, fileName) :
@@ -64,12 +75,12 @@ class UIBundle
 
 		if (tidyFileType == SourceFileType.None)
 		{
-			// Nope - static content:
-			if(fileType != 'git'){
-				loadPromises.push(
-					copyStaticFile(filePath, this.packDir + '/static/' + relativePath.toLowerCase() + '/' + fileName.toLowerCase(), true)
-				);
-			}
+			// Static content:
+			var staticFile = new SourceFile();
+			staticFile.isStaticFile = true;
+			staticFile.path = filePath;
+			staticFile.targetPath = this.packDir + '/static/' + relativePath.toLowerCase() + '/' + fileName.toLowerCase();
+			this.staticFileMap[filePath] = staticFile;
 			
 			return null;
 		}
@@ -144,6 +155,7 @@ class UIBundle
 		}
 		
 		var file = new SourceFile();
+		file.isStaticFile = false;
 		file.path = filePath;
 		file.fileName = fileName;
 		file.isGlobal = isGlobal;
@@ -152,6 +164,8 @@ class UIBundle
 		file.rawFileType = fileType;
 		file.thirdParty = thirdParty;
 		file.modulePath = modulePath;
+		file.fileSize = fileSize;
+		file.modifiedUnixTs = modifiedUnixTs;
 		file.fullModulePath = this.rootName + '/' + relativePath.replace(/\\/gi, '/');
 		file.relativePath = relativePath;
 		
@@ -162,13 +176,23 @@ class UIBundle
 		
 		this.fileMap[filePath] = file;
 		
-		loadPromises.push(
-			this.loadTextFile(filePath).then(content => {
-				file.content = content;
-			})
-		);
-		
 		return file;
+	}
+	
+	copyStaticFiles()
+	{
+		var proms = [];
+		
+		for(var k in this.staticFileMap){
+			var staticFile = this.staticFileMap[k];
+			
+			proms.push(
+				copyStaticFile(staticFile.path, staticFile.targetPath, true)
+			);
+		}
+		
+		console.log('Copying ' + proms.length + ' static files (if newer)');
+		return Promise.all(proms);
 	}
 	
 	/// <summary>
@@ -178,27 +202,18 @@ class UIBundle
 	{
 		if (!fs.existsSync(this.sourcePath))
 		{
-			return;
+			return Promise.resolve(true);
 		}
 		
 		// Iterate through the directory tree of SourcePath and populate the initial map now.
-		return allFilesInDirectory(this.sourcePath).then(fileList => {
-			var loadPromises = [];
+		return allFilesInDirectory(this.sourcePath, true).then(fileStatList => {
 			
-			// Load all src now.
-			for(var i=0;i<fileList.length;i++){
-				this.addToMap(fileList[i], loadPromises);	
+			// Build the map of all src files now.
+			for(var i=0;i<fileStatList.length;i++){
+				var fileAndStats = fileStatList[i];
+				this.addToMap(fileAndStats);	
 			}
 			
-			loadPromises.push(new Promise((s, r) => {
-				
-				mkdir(this.packDir, function(err){
-					err ? r() : s();
-				});
-				
-			}));
-			
-			return Promise.all(loadPromises);
 		});
 	}
 	
@@ -226,144 +241,48 @@ class UIBundle
 		return SourceFileType.None;
 	}
 	
-	constructScssHeader()
-	{
-		var header = '';
-		
-		var gFiles = this.globalFileMap.sortedGlobalFiles;
-		
-		for(var i=0;i<gFiles.length;i++)
-		{
-			header += gFiles[i].content + '\n';
-		}
-
-		header += '\n';
-		
-		// Strip wasted bytes (comments and newlines) to improve scss compiler performance - 
-		// unfortunately it can't cache the ast so it parses the header every time it compiles a scss change:
-		var mode = 0;
-		var sb = '';
-
-		for (var i = 0; i < header.length; i++)
-		{
-			var ch = header[i];
-			var more = i < header.length - 1;
-
-			if (mode == 1)
-			{
-				if (ch == '*' && more && header[i + 1] == '/')
-				{
-					mode = 0;
-					i++;
-				}
-			}
-			else if (mode == 2)
-			{
-				if (ch == '\r' || ch == '\n')
-				{
-					mode = 0;
-				}
-			}
-			else if (mode == 3)
-			{
-				// 'string'
-				if (ch == '\\' && more && header[i + 1] == '\'')
-				{
-					// Escaped end quote
-					sb += ch;
-					sb += '\'';
-					i++;
-				}
-				else if (ch == '\'')
-				{
-					// exited string
-					mode = 0;
-					sb += ch;
-				}
-				else
-				{
-					sb += ch;
-				}
-			}
-			else if (mode == 4)
-			{
-				// "string"
-				if (ch == '\\' && more && header[i + 1] == '"')
-				{
-					// Escaped end quote
-					sb += ch;
-					sb += '"';
-					i++;
-				}
-				else if (ch == '"')
-				{
-					// exited string
-					mode = 0;
-					sb += ch;
-				}
-				else
-				{
-					sb += ch;
-				}
-			}
-			else if (ch == '\'')
-			{
-				mode = 3;
-				sb += ch;
-			}
-			else if (ch == '\"')
-			{
-				mode = 4;
-				sb += ch;
-			}
-			else if (ch == '/' && more && header[i + 1] == '*')
-			{
-				mode = 1;
-				i++;
-			}
-			else if (ch == '/' && more && header[i + 1] == '/')
-			{
-				mode = 2;
-				i++;
-			}
-			else
-			{
-				sb += ch;
-			}
-		}
-		
-		this.scssHeader = sb;
-	}
-	
 	/// <summary>
 	/// Builds the main.js, main.css and the meta.json file, as well as the static content pack directory.
 	/// </summary>
 	buildEverything()
 	{
-		return new Promise((s,r) => {
+		// Handle the initial compile of each file.
+		var buildProms = [];
+		
+		for(var key in this.fileMap){
+			var file = this.fileMap[key];
 			
-			this.constructScssHeader();
+			var cachedFile = this.cache.getFile(this, key); // null if not present in the bundle set
 			
-			// Handle the initial compile of each file.
-			for(var key in this.fileMap){
-				var file = this.fileMap[key];
-				
-				if (file.fileType == SourceFileType.Javascript)
-				{
-					this.buildJsFile(file);
+			if (file.fileType == SourceFileType.Javascript)
+			{
+				buildProms.push(
+					this.buildJsFile(file, cachedFile)
+				);
+			}
+			else if (file.fileType == SourceFileType.Scss && !file.isGlobal)
+			{
+				if(this.globalFileMap.hasChanges){
+					cachedFile = null;
 				}
-				else if (file.fileType == SourceFileType.Scss && !file.isGlobal)
-				{
-					this.buildScssFile(file);
-				}
 				
+				buildProms.push(
+					this.buildScssFile(file, cachedFile)
+				);
 			}
 			
-			// Construct the js/ css file:
+		}
+		
+		return Promise.all(buildProms).then(() => {
+			
+			// Construct the js/ css files:
 			this.constructJs();
 			this.constructCss();
 			
-			s();
+		}).then(() => {
+			
+			// Copy static files to target:
+			return this.copyStaticFiles();
 		});
 		
 	}
@@ -592,15 +511,33 @@ class UIBundle
 
 	
 	/// <summary>
-	/// Builds the given SCSS file.
+	/// Builds the given SCSS file, optionally using cached data if present.
 	/// </summary>
 	/// <param name="file"></param>
-	buildScssFile(file)
+	buildScssFile(file, cachedFile)
+	{
+		if(cachedFile && cachedFile.content){
+			file.transpiledContent = cachedFile.content;
+			return Promise.resolve(true);
+		}
+		
+		// Load the file contents now:
+		return file.loadTextContent().then(() => {
+			this.transformScssFile(file);
+		});
+	}
+	
+	/// <summary>
+	/// Transforms the given SCSS file.
+	/// </summary>
+	/// <param name="file"></param>
+	transformScssFile(file)
 	{
 		var rawContent = file.content;
 		
 		// Transform the SCSS now:
-		var transpiledCss = transformScss(this.scssHeader + rawContent, this.minified);
+		var header = this.globalFileMap.getScssHeader();
+		var transpiledCss = transformScss(rawContent, header, file.path, this.minified);
 		
 		// Convert URLs:
 		transpiledCss = this.remapUrlsInCssAndRemoveComments(transpiledCss, file.fullModulePath);
@@ -611,11 +548,28 @@ class UIBundle
 	}
 	
 	/// <summary>
-	/// Builds the given JS file.
+	/// Builds the given JS file, optionally using cached data if present.
 	/// </summary>
 	/// <param name="file"></param>
-	buildJsFile(file)
-	{		
+	buildJsFile(file, cachedFile)
+	{
+		if(cachedFile && cachedFile.content){
+			file.transpiledContent = cachedFile.content;
+			file.templates = cachedFile.templates;
+			return Promise.resolve(true);
+		}
+		
+		// Load the file contents now:
+		return file.loadTextContent().then(() => {
+			this.transformJsFile(file);
+		});
+	}
+	
+	/// <summary>
+	/// Transforms the given JS file.
+	/// </summary>
+	/// <param name="file"></param>
+	transformJsFile(file){
 		// Transform it now (developers only here - we only care about ES8, i.e. minimal changes to source/ react only):
 		var es8JavascriptResult = transformES8(
 			file.content,
@@ -628,10 +582,12 @@ class UIBundle
 		var es8Javascript = es8JavascriptResult.src;
 		var literals = es8JavascriptResult.templateLiterals;
 		
+		/*
 		// Add any NPM packages to the global bundle:
 		for(var k in es8JavascriptResult.npmPackages){
 			this.globalFileMap.npmPackages[k] = 1;
 		}
+		*/
 		
 		if (literals != null)
 		{

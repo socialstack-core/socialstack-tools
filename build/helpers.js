@@ -164,132 +164,13 @@ function watchOrBuild(config, isWatch){
 		return Promise.resolve(true);
 	}
 	
-	// Temporary workaround whilst the old build chain is depr but still used, and for where both should use the same set of cmd args.
-	// If project contains new build system, use modular mode.
-	
-	if(fs.existsSync(config.projectRoot + '/Api/ThirdParty/CanvasRenderer/compiler.generated.js')){
-		config.bundled = false;
-	}
-	
-	if(!config.bundled){
-		
-		// Ask for a modular build for 3 bundles:
-		return liteBuilder.modular.build({
-			bundles: ["UI", "Admin", "Email"],
-			projectRoot: config.projectRoot,
-			minified: config.minified
-		});
-		
-	}
-	
-	console.log("Using depreciated full bundle mode. Consider using -modular for increased page load performance on modern browsers.");
-	
-	// Load the site config:
-	// If it includes "autoprefixer", then autoprefixer will be turned on for this project.
-	var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
-	var appsettings = appsettingsManager.get();
-	
-	// Add "autoprefixer" to your appsettings.json to enable autoprefixer. It's just true, or a browserslist.
-	if(appsettings.autoprefixer){
-		console.log('[INFO] CSS autoprefixer is on');
-		var list = appsettings.browsers || appsettings.autoprefixer;
-		
-		if(!Array.isArray(list)){
-			list = ['defaults'];
-		}
-		
-		config.__postCss = postcss([ autoprefixer({overrideBrowserslist: list, browsers: list}) ]);
-	}
-	
-	var buildwatch = liteBuilder.buildwatch;
-	
-	var doIndex = config.minified && !config.noIndexUpdate;
-	
-	return buildwatch[isWatch ? 'watch' : 'build']({
-		sourceDir,
-		moduleName,
-		minified: config.minified,
-		compress: config.compress,
-		relativePaths: config.relativePaths,
-		baseUrl: config.baseUrl,
-		outputStaticPath: outputDir + 'modules/',
-		outputCssPath: outputDir + 'styles.css',
-		outputJsPath: outputDir + 'main.generated.js',
-		onProcessCss: cssFile => {
-			return processCss(cssFile, config);
-		},
-		onFileChange: (info) => {
-			// Inject into index.html (and mobile.html if it exists):
-			if(config.minified && !config.noIndexUpdate){
-				updateIndex('/pack/', info, publicDir, config);
-			}
-		}
-	})
-	.then(uiMap => {
-		
-		// Email modules:
-		var sourceDir = config.projectRoot + '/Email/Source';
-		var publicDir = config.projectRoot + '/Email/public';
-		var outputDir = publicDir + '/pack/';
-		var moduleName = 'Email';
-		
-		return buildwatch[isWatch ? 'watch' : 'build']({
-			// include: [uiMap],
-			sourceDir,
-			moduleName,
-			minified: config.minified,
-			compress: config.compress,
-			relativePaths: config.relativePaths,
-			baseUrl: config.baseUrl,
-			outputStaticPath: outputDir + 'modules/',
-			outputCssPath: outputDir + 'styles.css',
-			outputJsPath: outputDir + 'main.generated.js',
-			onProcessCss: cssFile => {
-				return processCss(cssFile, config);
-			},
-			onFileChange: (info) => {
-			}
-		}).then(emailMap => {
-			
-			return {
-				uiMap,
-				emailMap
-			};
-			
-		});
-		
-	})
-	.then(maps => {
-		
-		// Admin panel (depends on UI and Email modules):
-		var sourceDir = config.projectRoot + '/Admin/Source';
-		var publicDir = config.projectRoot + '/Admin/public/en-admin';
-		var outputDir = publicDir + '/pack/';
-		var moduleName = 'Admin';
-		
-		return buildwatch[isWatch ? 'watch' : 'build']({
-			include: [maps.uiMap, maps.emailMap],
-			sourceDir,
-			moduleName,
-			minified: config.minified,
-			compress: config.compress,
-			relativePaths: config.relativePaths,
-			baseUrl: config.baseUrl,
-			outputStaticPath: outputDir + 'modules/',
-			outputCssPath: outputDir + 'styles.css',
-			outputJsPath: outputDir + 'main.generated.js',
-			onProcessCss: cssFile => {
-				return processCss(cssFile, config);
-			},
-			onFileChange: (info) => {
-				// Inject into index.html (and mobile.html if it exists):
-				if(config.minified && !config.noIndexUpdate){
-					updateIndex('/en-admin/pack/', info, publicDir, config);
-				}
-			}
-		});
+	// Ask for a modular build for 3 bundles:
+	return liteBuilder.modular.build({
+		cacheDir: config.projectRoot + '/obj',
+		bundles: ["UI", "Admin", "Email"],
+		projectRoot: config.projectRoot,
+		minified: config.minified
 	});
-	
 }
 
 function buildAll(opts, config){
@@ -342,7 +223,7 @@ function buildAPI(config){
 	return new Promise((success, reject) => {
 		
 		//  dotnet publish Api.csproj -o obj/tm
-		const child = spawn('dotnet', ['publish', 'Api.csproj', '-o', 'bin/Api/build', '-c', 'Release'], {
+		const child = spawn('dotnet', ['publish', 'Api.csproj', '-o', 'bin/Api/build', '-c', 'Release', '/bl:sstools-build.binlog'], {
 			cwd: config.projectRoot
 		});
 		

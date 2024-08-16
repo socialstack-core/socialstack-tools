@@ -5,7 +5,7 @@ var path = require( 'path' );
 /// All files in a particular directory. The paths returned are absolute. Returns a promise which resolves as an array.
 /// </summary>
 
-module.exports = function allFilesInDirectory(dirPath)
+module.exports = function allFilesInDirectory(dirPath, includeStats)
 {
 	var result = [];
 	
@@ -13,7 +13,7 @@ module.exports = function allFilesInDirectory(dirPath)
 		
 		getFiles(dirPath, result, () => {
 			success(result);
-		}, reject);
+		}, reject, includeStats);
 		
 	});
 }
@@ -21,7 +21,7 @@ module.exports = function allFilesInDirectory(dirPath)
 /// <summary>
 /// Recursive helper function for getting files in a given dir, and putting them into the result array.
 /// </summary>
-function getFiles(dirPath, result, success, reject){
+function getFiles(dirPath, result, success, reject, includeStats){
 	fs.readdir(dirPath, (err, list) => {
 		if(err){
 			reject();
@@ -40,10 +40,10 @@ function getFiles(dirPath, result, success, reject){
 				
 				if(stats.isDirectory()){
 					// Find files in it:
-					getFiles(fullPath, result, entrySuccess, entryReject);
+					getFiles(fullPath, result, entrySuccess, entryReject, includeStats);
 				}else{
 					// Add to result:
-					result.push(fullPath);
+					result.push(includeStats ? {path: fullPath, stats} : fullPath);
 					entrySuccess();
 				}
 			});

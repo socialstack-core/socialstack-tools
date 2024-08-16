@@ -1,8 +1,43 @@
+var fs = require('fs');
+
+
 class SourceFile
 {
 	constructor(){
 		this.priority = 100;
 	}
+	
+	/// <summary>
+	/// Loads this files textual content into "this.content".
+	/// </summary>
+	loadTextContent(){
+		return this.loadTextFile(this.path).then(content => {
+			this.content = content;
+		});
+	}
+	
+	/// <summary>
+	/// Loads a text file at the given path, in utf8. It can also have a BOM.
+	/// </summary>
+	loadTextFile(path) {
+		return new Promise((s, r) => {
+			
+			fs.readFile(path, {encoding: 'utf8'}, function(err, fileContent){
+				if(err){
+					return r(err);
+				}
+				
+				// drop the BOM
+				if (fileContent.length && fileContent.charCodeAt(0) === 0xFEFF) {
+					fileContent=fileContent.slice(1);
+				}
+				
+				s(fileContent);
+			});
+			
+		});
+	}
+	
 	
 	/*
 	/// <summary>

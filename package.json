@@ -33,7 +33,7 @@
     "recursive-watch": "^1.1.4",
     "require-nocache": "^1.0.0",
     "rimraf": "^4.4.0",
-    "sass": "^1.43.3",
+    "sass": "^1.77.8",
     "ssh2": "^1.15.0",
     "sw-precache": "^5.2.1",
     "tar": "^6.1.0",
