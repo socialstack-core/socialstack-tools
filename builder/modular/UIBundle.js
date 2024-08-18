@@ -254,6 +254,13 @@ class UIBundle
 			
 			var cachedFile = this.cache.getFile(this, key); // null if not present in the bundle set
 			
+			if(cachedFile){
+				// Is it invalid?
+				if(this.cache.fileChanged(file, cachedFile)){
+					cachedFile = null;
+				}
+			}
+			
 			if (file.fileType == SourceFileType.Javascript)
 			{
 				buildProms.push(
