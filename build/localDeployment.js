@@ -95,7 +95,7 @@ function restartService(serviceName){
 				}
 			}
 			
-			s(cfg);
+			s();
 		});
 	});
 }
