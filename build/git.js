@@ -1,8 +1,8 @@
 var exec = require('child_process').exec;
 
 function gitSync(branch, repoPath){
-	return execGitCommand('git reset --hard ' + branch, repoPath)
-	.then(() => execGitCommand('git pull', repoPath));
+	return execGitCommand('git pull', repoPath)
+	.then(() => execGitCommand('git reset --hard ' + branch, repoPath));
 }
 
 function execGitCommand(cmd, repoPath){
@@ -11,15 +11,18 @@ function execGitCommand(cmd, repoPath){
 			cwd: repoPath
 		}, function(err, stdout, stderr){
 			
-			if(err){
+			if(err || stderr){
 				console.log(err);
-			}else{
-				if(stdout){
-					console.log(stdout);
-				}
+				
 				if(stderr){
 					console.log(stderr);
 				}
+				r();
+				return;
+			}
+			
+			if(stdout){
+				console.log(stdout);
 			}
 			
 			s();
