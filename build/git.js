@@ -11,18 +11,23 @@ function execGitCommand(cmd, repoPath){
 			cwd: repoPath
 		}, function(err, stdout, stderr){
 			
-			if(err || stderr){
+			if(err){
 				console.log(err);
 				
 				if(stderr){
 					console.log(stderr);
 				}
-				r();
+				
+				r('Git command failed');
 				return;
 			}
 			
 			if(stdout){
 				console.log(stdout);
+			}
+			
+			if(stderr){
+				console.log(stderr);
 			}
 			
 			s();
