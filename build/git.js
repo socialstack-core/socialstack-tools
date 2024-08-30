@@ -22,7 +22,7 @@ function execGitCommand(cmd, repoPath){
 				}
 			}
 			
-			s(cfg);
+			s();
 		});
 	});
 	
