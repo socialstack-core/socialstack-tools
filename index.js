@@ -351,7 +351,8 @@ function start(config){
 				return localDeployment({
 					target: config.commandLine.localDeploy[0],
 					projectRoot: config.projectRoot,
-					appSettingsExtension: config.commandLine.appSettingsExtension ? config.commandLine.appSettingsExtension[0] : null
+					appSettingsExtension: config.commandLine.appSettingsExtension ? config.commandLine.appSettingsExtension[0] : null,
+					restartService: config.commandLine.restartService ? config.commandLine.restartService[0] : null,
 				});
 				
 			}

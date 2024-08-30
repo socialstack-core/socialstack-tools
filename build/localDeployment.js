@@ -46,6 +46,8 @@ async function copyUIBundle(target, projectRoot, bundle){
 async function localDeployment(config){
 	const { target } = config;
 	
+	console.log('Deploying locally to ' + target);
+	
 	// Ensure the main target directories exist:
 	await createDirectories(target, [ 'Api', 'UI/public', 'Admin/public', 'Email/public', 'deploy' ]);
 	
@@ -68,14 +70,20 @@ async function localDeployment(config){
 	await copyUIBundle(target, config.projectRoot, 'UI');
 	await copyUIBundle(target, config.projectRoot, 'Admin');
 	await copyUIBundle(target, config.projectRoot, 'Email');
+	
+	// Restart the service if one is defined:
+	if(config.restartService){
+		
+	console.log('Restarting service called "' + config.restartService + '"');
+	
+		await restartService(config.restartService);
+	}
 }
 
-function execGitCommand(cmd){
+function restartService(serviceName){
 	return new Promise((s, r)=>{
-		exec(cmd, {
-			cwd: repoPath
-		}, function(err, stdout, stderr){
-			
+		exec('service ' + serviceName + ' restart',
+		function(err, stdout, stderr){
 			if(err){
 				console.log(err);
 			}else{
@@ -90,7 +98,6 @@ function execGitCommand(cmd){
 			s(cfg);
 		});
 	});
-	
 }
 
 module.exports = {localDeployment};
