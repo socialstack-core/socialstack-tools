@@ -5,7 +5,7 @@ function gitSync(branch, repoPath){
 	.then(() => execGitCommand('git pull', repoPath));
 }
 
-function execGitCommand(cmd){
+function execGitCommand(cmd, repoPath){
 	return new Promise((s, r)=>{
 		exec(cmd, {
 			cwd: repoPath
