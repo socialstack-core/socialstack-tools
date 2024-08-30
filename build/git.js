@@ -1,7 +1,7 @@
 var exec = require('child_process').exec;
 
 function gitSync(branch, repoPath){
-	return execGitCommand('git pull', repoPath)
+	return execGitCommand('git fetch origin', repoPath)
 	.then(() => execGitCommand('git reset --hard origin/' + branch, repoPath));
 }
 
