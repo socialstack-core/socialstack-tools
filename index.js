@@ -323,6 +323,7 @@ function start(config){
 		var { buildAll } = require('./build/helpers.js');
 		var { gitSync } = require('./build/git.js');
 		var { localDeployment } = require('./build/localDeployment.js');
+		var { runTests } = require('./build/tests.js');
 		
 		var preBuild = [];
 		
@@ -354,6 +355,18 @@ function start(config){
 				});
 				
 			}
+		})
+		.then(() => {
+			
+			// Are we configured to perform tests?
+			if(config.commandLine.test){
+				// Yes. Invoke dotnet test now.
+				return runTests({
+					projectRoot: config.projectRoot,
+					csProject: 'Tests/Tests.csproj'
+				});
+			}
+			
 		})
 		.catch(e => {
 			console.error(e);
