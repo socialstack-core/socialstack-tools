@@ -321,14 +321,42 @@ function start(config){
 		
 		// Only include when about to build to avoid blocking up e.g. generate commands with the huge amount of JS this ultimately includes.
 		var { buildAll } = require('./build/helpers.js');
+		var { gitSync } = require('./build/git.js');
+		var { localDeployment } = require('./build/localDeployment.js');
 		
-		buildAll({
-			prod: config.minified,
-			compress: config.compress,
-			noUi: config.commandLine.noUI,
-			noApi: config.commandLine.noApi,
-			noApp: config.commandLine.noApp
-		}, config).catch(e => {
+		var preBuild = [];
+		
+		if(config.commandLine.branch){
+			// Perform some git syncing first:
+			preBuild.push(gitSync(config.commandLine.branch[0], config.calledFromPath));
+		}
+		
+		Promise.all(preBuild)
+		.then(() => {
+			return buildAll({
+				prod: config.minified,
+				compress: config.compress,
+				noUi: config.commandLine.noUI,
+				noApi: config.commandLine.noApi,
+				noApp: config.commandLine.noApp
+			}, config);
+		})
+		.then(() => {
+			// A successful build occurred.
+			// Are we configured to perform a local deploy?
+			if(config.commandLine.localDeploy){
+				// Yes. This flag specifies the base directory being deployed to.
+				
+				return localDeployment({
+					target: config.commandLine.localDeploy[0],
+					projectRoot: config.projectRoot,
+					appSettingsExtension: config.commandLine.appSettingsExtension ? config.commandLine.appSettingsExtension[0] : null
+				});
+				
+			}
+		})
+		.catch(e => {
+			console.error(e);
 			console.log("Build failed");
 			process.exit(1);
 		});
