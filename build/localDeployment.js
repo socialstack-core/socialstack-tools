@@ -84,15 +84,17 @@ function restartService(serviceName){
 	return new Promise((s, r)=>{
 		exec('service ' + serviceName + ' restart',
 		function(err, stdout, stderr){
+			if(stdout){
+				console.log(stdout);
+			}
+			if(stderr){
+				console.log(stderr);
+			}
+			
 			if(err){
 				console.log(err);
-			}else{
-				if(stdout){
-					console.log(stdout);
-				}
-				if(stderr){
-					console.log(stderr);
-				}
+				r('Unable to restart service called "' + serviceName + '"');
+				return;
 			}
 			
 			s();
