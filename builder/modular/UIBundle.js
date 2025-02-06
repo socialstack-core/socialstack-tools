@@ -195,25 +195,37 @@ class UIBundle
 		return Promise.all(proms);
 	}
 	
+	/// Makes the target pack directory if it doesn't already exist.
+	ensureTarget(){
+		return new Promise((s, r) => {
+			console.log("Making", this.packDir);
+			mkdir(this.packDir, err => {
+				err ? r() : s();
+			});
+		});
+	}
+	
 	/// <summary>
 	/// Loads files ready for build.
 	/// </summary>
 	start()
 	{
-		if (!fs.existsSync(this.sourcePath))
-		{
-			return Promise.resolve(true);
-		}
-		
-		// Iterate through the directory tree of SourcePath and populate the initial map now.
-		return allFilesInDirectory(this.sourcePath, true).then(fileStatList => {
-			
-			// Build the map of all src files now.
-			for(var i=0;i<fileStatList.length;i++){
-				var fileAndStats = fileStatList[i];
-				this.addToMap(fileAndStats);	
+		return this.ensureTarget().then(() => {
+			if (!fs.existsSync(this.sourcePath))
+			{
+				return Promise.resolve(true);
 			}
 			
+			// Iterate through the directory tree of SourcePath and populate the initial map now.
+			return allFilesInDirectory(this.sourcePath, true).then(fileStatList => {
+				
+				// Build the map of all src files now.
+				for(var i=0;i<fileStatList.length;i++){
+					var fileAndStats = fileStatList[i];
+					this.addToMap(fileAndStats);	
+				}
+				
+			});
 		});
 	}
 	
