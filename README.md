@@ -28,7 +28,7 @@ A few actions that the socialstack tools perform require MySQL admin rights on a
 
 Currently socialstack projects require the following:
 
-* [.NET Core 8.0 SDK](https://dotnet.microsoft.com/download/dotnet-core/6.0). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
+* [.NET Core 8.0 SDK](https://dotnet.microsoft.com/download/dotnet-core/8.0). If you're not sure if you already have this installed, you can run `dotnet --list-sdks` to find out.
 * If you're using Visual Studio, note that 2022 or newer is required for .NET Core 8.0.
 * MySQL. Version 8 is recommended.
 * Git
