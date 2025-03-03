@@ -134,7 +134,13 @@ function installDatabase(config){
 	var localConfig = getLocalConfig();
 	
 	if(localConfig == null || localConfig.databases == null || localConfig.databases.local == null){
-		return Promise.reject("Unable to create the database as socialstack tools hasn't been configured with a database instance. You'll need to follow the configuration part of the socialstack tools install guide for this command to work. https://source.socialstack.dev/documentation/guide/blob/master/DeveloperGuide/Readme.md#socialstack-tools");
+		return Promise.reject(
+			"Unable to create the database automatically as socialstack tools hasn't been configured with a database to connect to. "+
+			"You can either:\r\n\r\n"+
+			"* Follow the instructions on how to set up the database connection at https://www.npmjs.com/package/socialstack#Configuration"+
+			"\r\n\r\n* Run `socialstack generate sql` and copy/paste the result in to your local MySQL instance. "+
+			"This generate command reads the project's appsettings.json and turning the connection string in to executable SQL for you."
+		);
 	}
 	
 	return createDatabase(localConfig.databases.local, {
