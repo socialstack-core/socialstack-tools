@@ -1,8 +1,10 @@
 var babelCore = require("@babel/core");
 var presetEnv = require('@babel/preset-env');
 var presetReact = require('@babel/preset-react');
-var presetTs = require('@babel/preset-typescript');
+var parseTypescript = require('@babel/plugin-syntax-typescript');
+var transformTypescript = require('@babel/plugin-transform-typescript');
 var mangleNames = require('./babel-mangler/index.js');
+// var mangleNames = require('babel-plugin-minify-mangle-names');
 
 /*
 * Imports for file types to not be treated as a static file.
@@ -61,7 +63,7 @@ function mapPathString(sourcePath, state) {
 		if(state.relativeRequires){
 			state.relativeRequires.push(sourcePath);
 		}
-	} else if(!sourcePath.startsWith("s:") && !sourcePath.startsWith("UI/") && !sourcePath.startsWith("Email/") && !sourcePath.startsWith("Admin/")) {
+	} else if(!sourcePath.startsWith("s:") && !sourcePath.startsWith("UI/") && !sourcePath.startsWith("Email/") && !sourcePath.startsWith("Admin/") && !sourcePath.startsWith("Api/")) {
 		// npm - prepend:
 		state.npmPackages[sourcePath]=1;
 		return "Npm/" + sourcePath; 
@@ -199,6 +201,18 @@ function toExpression(declaration, state){
 	
 	// Ok anyway - is an expr:
 	return declaration;
+}
+
+function findIdentifierDefinition(path, state){
+	var {declaration} = path.node;
+	
+	if(!declaration){
+		return;
+	}
+	
+	var identifierName = declaration.name;
+	var def = state._variableMap[identifierName];
+	return def;
 }
 
 function transformExport(nodePath, state) {
@@ -486,7 +500,6 @@ function createPlugin(minified){
 				programPath.traverse({
 					'ImportDeclaration': transformImport,
 					'ExportDeclaration': transformExport,
-					// 'MemberExpression': stripPropTypesAndIcon,
 					'TemplateLiteral': trackTemplateLiteral,
 				}, state);
 				
@@ -563,24 +576,450 @@ function createPlugin(minified){
 	});
 }
 
-var configuredMangleNames = [mangleNames, {exclude: {'_h': true}, keepClassName: true}];
+function addPropertiesAsTypeFields(exportTypeInfo, entries){
+	for(var i=0;i<entries.length;i++){
+		var entry = entries[i]; // TSPropertySignature
+		
+		if(entry.type != 'TSPropertySignature'){
+			continue;
+		}
+		
+		var name = entry.key && entry.key.name;
+		
+		exportTypeInfo.fields.push({
+			optional: !!entry.optional,
+			name,
+			fieldType: getCleanTSType(entry.typeAnnotation) 
+		});
+	}
+}
+
+function handleDefaultExport(path, state){
+	var {declaration} = path.node;
+
+	if(!declaration){
+		return;
+	}
+	
+	// The typescript type of the export or its first arg.
+	// It's either const X:varType = .. e.g. export (props:varType) => { .. }
+	var varType = null;
+	
+	if(declaration.type == 'Identifier'){
+		// Identifier gets expanded to being whatever it points at - be it an arrow or regular function.
+		// If neither, we don't care about it.
+		var identifierDef = findIdentifierDefinition(path, state);
+		
+		if(!identifierDef){
+			return;
+		}
+		
+		if(identifierDef.node.type == 'VariableDeclarator'){ // Otherwise 
+			
+			if(identifierDef.type){
+				// This is likely to be React.FC<propType>
+				varType = {
+					name: 'variable',
+					detail: getCleanTSType(identifierDef.type)
+				};
+			}
+			
+			declaration = identifierDef.node.init;
+		}
+	}
+	
+	if(declaration.type == 'ArrowFunctionExpression' || declaration.type == 'FunctionExpression'){
+		// console.log('arrow func exporting', declaration);
+		
+		var params = declaration.params || [];
+		
+		var funcType = {
+			name: 'function',
+			instanceName: '', // Anonymous func.
+			returnType: getCleanTSType(declaration.returnType),
+			parameters: params.map(p => {
+				return {
+					name: p.name, 
+					detail: getCleanTSType(p.typeAnnotation)
+				};
+			})
+		};
+		
+		if(varType){
+			// It's a variable which sets a function. Pretty common.
+			// We don't want to destroy the var type already 
+			// set though so we store this func info in the value instead.
+			varType.value = funcType;
+		}else{
+			varType = funcType;
+		}
+	}else if(declaration.type == 'TSTypeAliasDeclaration'){
+		var typeA = handleTypeAlias(declaration, state);
+		
+		varType = {
+			name: 'identifier',
+			instanceName: typeA.instanceName
+		};
+		
+	}else if(declaration.type == 'TSInterfaceDeclaration'){
+		var intf = handleInterfaceDec(declaration, state);
+		
+		varType = {
+			name: 'identifier',
+			instanceName: intf.instanceName
+		};
+	}
+	
+	// else e.g. classes which we will ignore.
+	
+	// We might have a type for the default export of this module.
+	// As this is usually the props of a react component we'll need to
+	// resolve it a bit further.
+	var typeData = state.opts.customTypeData;
+	
+	var exportTypeInfo = {
+		name: 'export',
+		instanceName: 'default',
+		detail: varType
+	};
+	
+	typeData.push(exportTypeInfo);
+}
+
+function handleTypeAlias(node, state){
+	if (!node || !node.id){
+		return;
+	}
+	
+	var typeData = state.opts.customTypeData;
+	var exportTypeInfo = getTSReferenceType(node.typeAnnotation);
+	exportTypeInfo.instanceName = node && node.id && node.id.name;
+	typeData.push(exportTypeInfo);
+	return exportTypeInfo;
+}
+
+function handleInterfaceDec(path, state){
+	if (!path.node || !path.node.id){
+		return;
+	}
+	
+	var typeData = state.opts.customTypeData;
+	
+	var exportTypeInfo = {
+		name: 'interface',
+		instanceName: path.node && path.node.id.name,
+		isExport: false,
+		fields: []
+	};
+	
+	var interfaceBody = path.node.body;
+	addPropertiesAsTypeFields(exportTypeInfo, interfaceBody.body);
+	typeData.push(exportTypeInfo);
+	return exportTypeInfo;
+}
+
+function createTsExportPlugin(){
+	return {
+		name: 'ts-type-reader',
+		visitor : {
+			Program: {
+				enter: (path, state) => {
+					state._variableMap = {};
+				}
+			},
+			TSTypeAliasDeclaration (path, state) {
+				handleTypeAlias(path, state);
+			},
+			TSInterfaceDeclaration (path, state) {
+				handleInterfaceDec(path, state);
+			},
+			ExportDeclaration (path, state) {
+				var {declaration} = path.node;
+				
+				if(!declaration){
+					return;
+				}
+				
+				if(path.node.type == 'ExportDefaultDeclaration'){
+					handleDefaultExport(path, state);
+				}else if(declaration.type == 'TSTypeAliasDeclaration'){
+					handleTypeAlias(declaration, state);
+				}else if(declaration.type == 'TSInterfaceDeclaration'){
+					handleInterfaceDec(declaration, state);
+				}
+			},
+			VariableDeclarator(path, state) {
+				if (path.node && path.node.id){
+					state._variableMap[path.node.id.name] = {
+						node: path.node,
+						type: path.node.id.typeAnnotation // typescript strips this otherwise
+					};
+				}
+			},
+			FunctionDeclaration(path, state) {
+				if (path.node && path.node.id){
+					state._variableMap[path.node.id.name] = {
+						node: path.node
+					};
+				}
+			},
+			ClassDeclaration(path, state) {
+				if (path.node && path.node.id){
+					state._variableMap[path.node.id.name] = {
+						node: path.node
+					};
+				}
+			}
+		}
+	};
+}
+
+/**
+* Returns a JSON serialisable type from a TS annotation type.
+*/
+function getCleanTSType(varType){
+	if(!varType){
+		return null;
+	}
+	
+	if(varType.type != 'TSTypeAnnotation' || !varType.typeAnnotation){
+		return null;
+	}
+	
+	var ta = varType.typeAnnotation; // a TSTypeReference || TSQualifiedName || TS*Keyword
+	var result = getTSReferenceType(ta);
+	return result;
+}
+
+function getTSReferenceType(ta){
+	var typeResult = getTSReferenceTypeUnchecked(ta);
+	
+	if(ta && !typeResult){
+		console.log('A typescript type annotation was ignored', ta.type);
+	}
+	
+	return typeResult;
+}
+
+function getTSReferenceTypeUnchecked(ta){
+	if(ta.type == 'TSStringKeyword'){
+		// the word 'string'
+		return {
+			name:'string',
+			builtIn: true
+		};
+	}
+	
+	if(ta.type == 'TSBooleanKeyword'){
+		// the word 'bool'
+		return {
+			name:'bool',
+			builtIn: true
+		};
+	}
+	
+	if(ta.type == 'TSVoidKeyword'){
+		// the word 'void'
+		return {
+			name:'void',
+			builtIn: true
+		};
+	}
+	
+	if(ta.type == 'TSNumberKeyword'){
+		// the word 'number'
+		return {
+			name: 'number',
+			builtIn: true
+		};
+	}
+	
+	if(ta.type == 'TSUndefinedKeyword'){
+		// the word 'undefined'
+		return {
+			name: 'undefined',
+			builtIn: true
+		};
+	}
+	
+	if(ta.type == 'TSNullKeyword'){
+		// the word 'null'
+		return {
+			name: 'null',
+			builtIn: true
+		};
+	}
+	
+	if(ta.type == 'TSAnyKeyword'){
+		// the word 'any'
+		return {
+			name: 'object',
+			builtIn: true
+		};
+	}
+	
+	if(ta.type == 'TSTypeOperator'){
+		// keyof
+		
+		if(ta.operator == 'keyof'){
+			// Acts like a string instead.
+			return {
+				name: 'string',
+				builtIn: true
+			};
+		}else{
+			console.log('Ignored type operator: ' + ta.operator);
+			return null;
+		}
+	}
+	
+	if(ta.type == 'TSFunctionType'){
+		// (a:type) => type
+		return {
+			name: 'function',
+			builtIn: true,
+			returnType: getCleanTSType(ta),
+			parameters: ta.parameters.map(pa => getCleanTSType(pa.typeAnnotation))
+		};
+	}
+	
+	if(ta.type == 'TSUnionType'){
+		// number | string
+		var union = {
+			name: 'union',
+			builtIn: true,
+			types: ta.types.map(tn => getTSReferenceType(tn))
+		};
+		
+		return union;
+	}
+	
+	if(ta.type == 'TSArrayType'){
+		// type[]
+		return {
+			name: 'array',
+			builtIn: true,
+			elementType: getTSReferenceType(ta.elementType)
+		};
+	}
+	
+	if(ta.type == 'TSLiteralType'){
+		if(ta.literal.type == 'StringLiteral'){
+			return {
+				name: 'literal:string',
+				builtIn: true,
+				value: ta.literal.value
+			};
+		}else if(ta.literal.type == 'NumericLiteral' || ta.literal.type == 'NumberLiteral'){
+			return {
+				name: 'literal:number',
+				builtIn: true,
+				value: ta.literal.value
+			};
+		}else if(ta.literal.type == 'BooleanLiteral'){
+			return {
+				name: 'literal:bool',
+				builtIn: true,
+				value: ta.literal.value
+			};
+		}
+	}
+	
+	if(ta.type == 'TSIntersectionType'){
+		// type x = string & number;
+		
+		// The last one is the main export type, and anything else is added as an extends.
+		
+		var types = ta.types;
+		
+		if(!types || !types.length){
+			return null;
+		}
+		
+		var last = types[types.length - 1];
+		
+		var mainType = getTSReferenceType(last);
+		
+		mainType.extends = [];
+		
+		for(var i=0;i<types.length-1;i++){
+			mainType.extends.push(getTSReferenceType(types[i]));
+		}
+		
+		return mainType;
+	}
+	
+	if(ta.type == 'TSTypeLiteral'){
+		var eti = {
+			name: 'interface',
+			fields: []
+		};
+		
+		// Add the members on the type
+		addPropertiesAsTypeFields(eti, ta.members);
+		return eti;
+	}
+	
+	if(!ta.typeName){
+		return null;
+	}
+	
+	var name = getNamespacedTSName(ta.typeName);
+	
+	var result = {name: 'identifier', instanceName: name};
+	
+	// ta.typeParameters for generic ones
+	if(ta.typeParameters){ // TSTypeParameterInstantiation
+		result.genericParameters = ta.typeParameters.params.map(tp => {
+			// tp is usually a TSTypeReference but it can include 'extends ..' as well.
+			if(tp.type == 'TSQualifiedName'){
+				return {
+					name: 'identifier', 
+					instanceName: getNamespacedTSName(tp)
+				};
+			}
+			
+			return getTSReferenceType(tp);
+		});
+	}
+	return result;
+}
+
+function getNamespacedTSName(typeNameNode){ // TSQualifiedName || Identifier
+	if(typeNameNode.type == 'Identifier'){
+		return typeNameNode.name;
+	}
+	
+	// TSQualifiedName
+	var name = typeNameNode.left && typeNameNode.left.name;
+	
+	if(typeNameNode.right && typeNameNode.right.name){
+		name += '.' + typeNameNode.right.name;
+	}
+	
+	return name;
+}
+
+var configuredMangleNames = [mangleNames, {exclude: {'_h': true}}];
 var minifiedPlugin = createPlugin(true);
 var nonMinifiedPlugin = createPlugin(false);
+var tsPropsPlugin = createTsExportPlugin();
 
 var presetsES8 = [
-	[presetEnv, {targets:{chrome: 59}, modules: false}],
-	[presetTs, {isTSX: true, allExtensions: true}],
+	[presetEnv, {targets:{chrome: 90}, modules: false}],
 	[presetReact, {useSpread: true, pragma: '_h'}]
 ];
 
-var presetsES5 = [
-	[presetEnv, {targets:{ie: 10}, modules: false}],
-	[presetTs, {isTSX: true, allExtensions: true}],
-	[presetReact, {useSpread: true, pragma: '_h'}]
-];
+function transformES8Json(code, moduleName, fullModulePath, opts){
+	var result = transformES8(code, moduleName, fullModulePath, opts);
+	return JSON.stringify(result);
+}
 
 function transformES8(code, moduleName, fullModulePath, opts){
 	var templateLiterals = []; // Each entry is added as {original: 'original ${source}'}
+	var customTypeData = []; // Each interface or typescript type encountered gets put in here, and a special set called 'export' is added as well.
+	// {name: 'x', isExport: false, fields: [{name: 'x', type: 'stringName'}]}
+	
 	var npmPackages = {};
 	var relativeRequires = opts.outputRelativeRequires ? [] : null;
 	
@@ -607,8 +1046,19 @@ function transformES8(code, moduleName, fullModulePath, opts){
 			caller: {
 				name: 'es8'
 			},
-			plugins: minified ? [[minifiedPlugin, pluginConfig], configuredMangleNames] : [[nonMinifiedPlugin, pluginConfig]],
-			comments: false,
+			plugins: minified ? [
+				[parseTypescript, {isTSX: true}],
+				[tsPropsPlugin, {customTypeData}],
+				[transformTypescript, {isTSX: true, optimizeConstEnums: true}],
+				[minifiedPlugin, pluginConfig],
+				configuredMangleNames
+			] : [
+				[parseTypescript, {isTSX: true}],
+				[tsPropsPlugin, {customTypeData}],
+				[transformTypescript, {isTSX: true, optimizeConstEnums: true}],
+				[nonMinifiedPlugin, pluginConfig]
+			],
+			comments: !minified,
 			minified: minified
 		}
 	).code;
@@ -621,64 +1071,7 @@ function transformES8(code, moduleName, fullModulePath, opts){
 	var result = {
 		src,
 		templateLiterals,
-		npmPackages
-	};
-	
-	if(relativeRequires){
-		result.relativeRequires = relativeRequires;
-	}
-	
-	return result;
-}
-
-function transformES5(code, moduleName, fullModulePath, opts){
-	var templateLiterals = []; // Each entry is added as {original: 'original ${source}'}
-	var npmPackages = {};
-	var relativeRequires = opts.outputRelativeRequires ? [] : null;
-	
-	// Each time a template literal is encountered, its original source text is added to the array.
-	// If there were any, the output code is parsed again to store the exact location that it ultimately ended up in (just by order, as it would always be the same).
-	// This is also important for minified mode, as it needs to know what it was minified to.
-	
-	var pluginConfig = {
-		moduleName,
-		fullModulePath,
-		templateLiterals,
-		npmPackages,
-		relativeRequires,
-		commonJs: opts ? opts.commonJs : false
-	};
-	
-	var minified = opts ? opts.minified : false;
-	
-	var src = babelCore.transformSync(
-		code,
-		{
-			filename: moduleName,
-			presets: presetsES5,
-			caller: {
-				name: 'es5',
-				moduleName,
-				fullModulePath,
-				custom: {
-					templateLitrSet : templateLiterals
-				}
-				
-			},
-			plugins: minified ? [[minifiedPlugin, pluginConfig], configuredMangleNames] : [[nonMinifiedPlugin, pluginConfig]],
-			comments: false,
-			minified: minified
-		}
-	).code;
-	
-	if(templateLiterals.length){
-		// Parse src, looking for them in the output to retain their exact location (and final output text).
-		templateLiterals = locateTemplateLiterals(src, templateLiterals);
-	}
-	
-	var result = {
-		src,
-		templateLiterals,
+		customTypeData,
 		npmPackages
 	};
 	
@@ -876,4 +1269,4 @@ function locateTemplateLiterals(str, literals){
 	return literals.filter(lit => lit.original != null && lit.target != null);
 }
 
-module.exports = {transformES8, transformES5};
+module.exports = {transformES8, transformES8Json};

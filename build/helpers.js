@@ -166,7 +166,7 @@ function watchOrBuild(config, isWatch){
 	
 	// Ask for a modular build for 3 bundles:
 	return liteBuilder.modular.build({
-		cacheDir: config.projectRoot + '/obj',
+		cacheDir: config.noCache ? undefined : config.projectRoot + '/obj',
 		bundles: ["UI", "Admin", "Email"],
 		projectRoot: config.projectRoot,
 		minified: config.minified

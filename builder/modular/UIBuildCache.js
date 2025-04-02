@@ -6,7 +6,7 @@ class UIBuildCache {
 	constructor(cacheDir) {
 		this.cacheDir = cacheDir;
 		this.fileName = 'ui-cache.bin';
-		this.path = cacheDir + '/' + this.fileName; // path to a .bin file.
+		this.path = cacheDir ? (cacheDir + '/' + this.fileName) : null; // path to a .bin file.
 		this.reset();
 	}
 	

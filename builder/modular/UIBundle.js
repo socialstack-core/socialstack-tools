@@ -198,7 +198,6 @@ class UIBundle
 	/// Makes the target pack directory if it doesn't already exist.
 	ensureTarget(){
 		return new Promise((s, r) => {
-			console.log("Making", this.packDir);
 			mkdir(this.packDir, err => {
 				err ? r() : s();
 			});
@@ -315,7 +314,8 @@ class UIBundle
 		var segments = [];
 		var jsMeta = {
 			buildTime: Date.now(),
-			templates: []
+			templates: [],
+			codeModules: {}
 		};
 		
 		var builtJs = '';
@@ -328,6 +328,9 @@ class UIBundle
 			{
 				var startOffset = builtJs.length;
 				builtJs += file.transpiledContent;
+				jsMeta.codeModules[key] = {
+					types: file.customTypeData
+				};
 				
 				if (file.templates != null && file.templates.length > 0)
 				{
@@ -600,6 +603,7 @@ class UIBundle
 		// Get the src:
 		var es8Javascript = es8JavascriptResult.src;
 		var literals = es8JavascriptResult.templateLiterals;
+		file.customTypeData = es8JavascriptResult.customTypeData;
 		
 		/*
 		// Add any NPM packages to the global bundle:
