@@ -96,6 +96,10 @@ module.exports = (config) => {
 		// merge in any directory names:
 		var mergedName = '';
 		
+		if(moduleSet != 'Api'){
+			mergedName += moduleSet.toLowerCase();
+		}
+		
 		names.subDirectories.forEach(subDir => {
 			if(mergedName != ''){
 				mergedName += '-';
