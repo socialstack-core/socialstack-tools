@@ -889,7 +889,7 @@ function buildOutput(map, filesToBuild){
 		for(var key in map.modules){
 			var fileContent = map.modules[key].content;
 			
-			jsFile += '\r\n__mm[\'' + key + '\'] = {call:(function(){';
+			jsFile += '\r\n__mm[\'' + key.toLowerCase() + '\'] = {call:(function(){';
 			jsFile += 'var module={};var exports = {};module.exports=exports;';
 			jsFile += fileContent;
 			

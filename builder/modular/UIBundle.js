@@ -32,150 +32,49 @@ class UIBundle
 	}
 	
 	/// <summary>
+	/// Directly adds all of the files in a given container into this bundle.
+	/// </summary>
+	/// <param name="container"></param>
+	addContainer(container) {
+		for(var fileIndex in container.files) {
+			var file = container.files[fileIndex];
+			console.log("Add file: ", file.path);
+			this.addSrcFile(file);
+		}
+	}
+
+	/// <summary>
 	/// Adds the file at the given source-relative path to the map.
 	/// </summary>
 	/// <param name="filePath"></param>
 	addToMap(fileAndStats)
 	{
-		var filePath = fileAndStats.path;
-		var modifiedUnixTs = fileAndStats.stats.mtimeMs;
-		var fileSize = fileAndStats.stats.size;
-		
-		var lastSlash = filePath.lastIndexOf(path.sep);
-		var fileName = filePath.substring(lastSlash + 1);
-		var relLength = lastSlash - this.sourcePath.length - 1;
-		
-		if (!fileName)
-		{
-			// Directory
-			return null;
-		}
-
-		var relativePath = filePath.substring(this.sourcePath.length + 1, lastSlash);
-		var typeDot = fileName.lastIndexOf('.');
-		
-		if(typeDot == -1)
-		{
-			// Directory
+		var file = new SourceFile(fileAndStats.path, this.rootName, this.sourcePath, this.packDir, fileAndStats.stats);
+		return this.addSrcFile(file);
+	}
+	
+	addSrcFile(file) {
+		if(file.invalid){
 			return null;
 		}
 		
-		var fileType = fileName.substring(typeDot + 1).toLowerCase();
-		var fileNameNoType = fileName.substring(0, typeDot);
-		
-		if(fileType == 'git'){
-			// Git directory
-			return null;
-		}
-		
-		// Check if the file name matters to us:
-		var tidyFileType = filePath.indexOf(path.sep + "static" + path.sep) == -1 ? 
-			this.determineFileType(fileType, fileName) :
-			SourceFileType.None;
-
-		if (tidyFileType == SourceFileType.None)
-		{
-			// Static content:
-			var staticFile = new SourceFile();
-			staticFile.isStaticFile = true;
-			staticFile.path = filePath;
-			staticFile.targetPath = this.packDir + '/static/' + relativePath.toLowerCase() + '/' + fileName.toLowerCase();
-			this.staticFileMap[filePath] = staticFile;
+		if(file.isStaticFile){
+			this.staticFileMap[file.path] = file;
 			
-			return null;
+			// Static map only:
+			return file;
 		}
 		
-		// Yes - load it.
-		
-		var isGlobal = false;
-		var priority = 100;
-
-		if (tidyFileType == SourceFileType.Scss)
-		{
-			// Is it a global SCSS file?
-			isGlobal = fileName.indexOf(".global.")!=-1 || fileName.startsWith("global.");
-
-			// 2nd last part of the file can be a number - the priority order of the scss.
-			var parts = fileName.split('.');
-
-			if (parts.length > 2)
-			{
-				var prio2 = parseInt(parts[parts.length - 2]);
-				
-				if(!isNaN(prio2))
-				{
-					priority = prio2;
-				}
-			}
-		}
-		
-		// Is it a thirdparty module?
-		var thirdParty = false;
-		var modulePath = this.rootName + '/' + relativePath.replace(/\\/gi, '/');
-		
-		if (modulePath.indexOf("/ThirdParty/") != -1)
-		{
-			thirdParty = true;
-			// Remove /ThirdParty/ and build module path that it represents:
-			modulePath = modulePath.replace("/ThirdParty/", "/");
-		}
-		
-		if (modulePath.indexOf(".Bundle/") != -1)
-		{
-			// Remove *.Bundle/ and build module path that it represents:
-			var pieces = modulePath.split('/');
-			var newPath = "";
-			for (var i = 0; i < pieces.length; i++)
-			{
-				if (pieces[i].endsWith(".Bundle"))
-				{
-					continue;
-				}
-
-				if (newPath != "")
-				{
-					newPath += "/";
-				}
-
-				newPath += pieces[i];
-			}
-
-			modulePath = newPath;
-		}
-
-		// Use shortform module name if the last directory of the modulePath matches the filename.
-		if (!modulePath.endsWith("/" + fileNameNoType))
-		{
-			modulePath += "/" + fileName;
-		}
-		
-		if (modulePath == "UI/Start")
+		if (file.isStarterModule())
 		{
 			this.containsStarterModule = true;
 		}
 		
-		var file = new SourceFile();
-		file.isStaticFile = false;
-		file.path = filePath;
-		file.fileName = fileName;
-		file.isGlobal = isGlobal;
-		file.priority = priority;
-		file.fileType = tidyFileType;
-		file.rawFileType = fileType;
-		file.thirdParty = thirdParty;
-		file.modulePath = modulePath;
-		file.fileSize = fileSize;
-		file.modifiedUnixTs = modifiedUnixTs;
-		file.fullModulePath = this.rootName + '/' + relativePath.replace(/\\/gi, '/');
-		file.relativePath = relativePath;
-		
-		if (isGlobal)
-		{
-			this.globalFileMap.fileMap[filePath] = file;
+		if (file.isGlobal){
+			this.globalFileMap.fileMap[file.path] = file;
 		}
 		
-		this.fileMap[filePath] = file;
-		
+		this.fileMap[file.path] = file;
 		return file;
 	}
 	
@@ -226,30 +125,6 @@ class UIBundle
 				
 			});
 		});
-	}
-	
-	/// <summary>
-	/// Determines the given file name + type as a particular useful source file type. "None" if it didn't.
-	/// </summary>
-	/// <param name="fileType"></param>
-	/// <param name="fileName"></param>
-	/// <returns></returns>
-	determineFileType(fileType, fileName)
-	{
-		if (fileType == "js" || fileType == "jsx" || ((fileType == "ts" || fileType == "tsx") && !fileName.endsWith(".d.ts") && !fileName.endsWith(".d.tsx")))
-		{
-			return SourceFileType.Javascript;
-		}
-		else if (fileType == "css" || fileType == "scss")
-		{
-			return SourceFileType.Scss;
-		}
-		else if (fileName == "module.json")
-		{
-			return SourceFileType.ModuleMeta;
-		}
-
-		return SourceFileType.None;
 	}
 	
 	/// <summary>

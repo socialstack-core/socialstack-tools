@@ -1,6 +1,8 @@
 var GlobalSourceFileMap = require( './GlobalSourceFileMap.js');
 var UIBundle  = require( './UIBundle.js');
+var path  = require('path');
 var UIBuildCache  = require( './UIBuildCache.js');
+var SourceFileContainer  = require( './SourceFileContainer.js');
 var NpmBundle  = require( './NpmBundle.js');
 
 
@@ -20,6 +22,19 @@ module.exports = function build(config)
 	// Create a group of builders for each bundle of files (all in parallel):
 	config.bundles.forEach(bundleName => {
 		var bundle = new UIBundle(bundleName, config.projectRoot, globalMap, config.minified, cache);
+		
+		if(bundleName == "UI"){
+			// Add TypeScript/Api directory as well.
+			var container = new SourceFileContainer(path.resolve(config.projectRoot, "TypeScript", "Api"), "Api", bundle.packDir);
+			
+			startPromises.push(
+				container.start()
+				.then(() => {
+					bundle.addContainer(container);
+				})
+			);
+		}
+		
 		sourceBuilders.push(bundle);
 		startPromises.push(bundle.start());
 	});

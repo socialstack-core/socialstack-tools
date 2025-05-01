@@ -541,7 +541,7 @@ function createPlugin(minified){
 					// __mm['Module/Path']
 					state.types.memberExpression(
 						state.types.identifier("__mm"),
-						state.types.stringLiteral(modName),
+						state.types.stringLiteral(modName.toLowerCase()),
 						true
 					),
 					
