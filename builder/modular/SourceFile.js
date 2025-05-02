@@ -28,7 +28,6 @@ class SourceFile
 		}
 		
 		var relativePath = relLength > 0 ? filePath.substring(sourcePath.length, lastSlash) : "";
-		console.log(filePath, relativePath);
 		var typeDot = fileName.lastIndexOf('.');
 		
 		if(typeDot == -1)
