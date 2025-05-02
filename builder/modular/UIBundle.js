@@ -38,7 +38,6 @@ class UIBundle
 	addContainer(container) {
 		for(var fileIndex in container.files) {
 			var file = container.files[fileIndex];
-			console.log("Add file: ", file.path);
 			this.addSrcFile(file);
 		}
 	}
