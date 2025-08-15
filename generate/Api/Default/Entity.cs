@@ -12,20 +12,19 @@ namespace Api.Entities
 	/// </summary>
 	public partial class Entity : VersionedContent<uint>
 	{
-		// Example fields. None are required:
+		// Example fields. None are required. 
+		// Wrap the type with Localized<> if you'd like the value to vary by locale:
 		/*
         /// <summary>
         /// The name of the entity
         /// </summary>
         [DatabaseField(Length = 200)]
-		[Localized]
 		public string Name;
 		
 		/// <summary>
 		/// The content of this entity.
 		/// </summary>
-		[Localized]
-		public string BodyJson;
+		public JsonString BodyJson;
 
 		/// <summary>
 		/// The feature image ref
