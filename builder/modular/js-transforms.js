@@ -850,8 +850,8 @@ function getTSReferenceTypeUnchecked(ta){
 		};
 	}
 	
-	if(ta.type == 'TSAnyKeyword'){
-		// the word 'any'
+	if(ta.type == 'TSAnyKeyword' || ta.type == 'TSUnknownKeyword'){
+		// the word 'any' or 'unknown'
 		return {
 			name: 'object',
 			builtIn: true
