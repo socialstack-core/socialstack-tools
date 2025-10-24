@@ -802,6 +802,10 @@ function getTSReferenceType(ta){
 }
 
 function getTSReferenceTypeUnchecked(ta){
+	if(ta.type == 'TSParenthesizedType'){
+		return getTSReferenceTypeUnchecked(ta.typeAnnotation);
+	}
+	
 	if(ta.type == 'TSStringKeyword'){
 		// the word 'string'
 		return {
