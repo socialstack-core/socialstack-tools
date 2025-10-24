@@ -202,7 +202,7 @@ class UIBundle
 			{
 				var startOffset = builtJs.length;
 				builtJs += file.transpiledContent;
-				jsMeta.codeModules[key] = {
+				jsMeta.codeModules[file.modulePath] = {
 					types: file.customTypeData
 				};
 				
@@ -452,6 +452,7 @@ class UIBundle
 		if(cachedFile && cachedFile.content){
 			file.transpiledContent = cachedFile.content;
 			file.templates = cachedFile.templates;
+			file.customTypeData = cachedFile.customTypeData;
 			return Promise.resolve(true);
 		}
 		

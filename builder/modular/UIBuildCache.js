@@ -77,7 +77,8 @@ class UIBuildCache {
 					fileSize: entry.fileSize,
 					path: entry.path,
 					content: entry.transpiledContent,
-					templates: entry.templates
+					templates: entry.templates,
+					customTypeData: entry.customTypeData
 				};
 			}
 			
