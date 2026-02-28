@@ -26,6 +26,12 @@ module.exports = (config) => {
 				return success(newConfiguration, configName, newConfiguration[configName]);
 			}
 			
+			if(Array.isArray(config.commandLine[configName]) && config.commandLine[configName].length){
+				// Command line is specifying it
+				newConfiguration[configName] = config.commandLine[configName][0];
+				return success(newConfiguration, configName, newConfiguration[configName]);
+			}
+			
 			console.log(text);
 			
 			var rl = readline.createInterface(process.stdin, process.stdout);

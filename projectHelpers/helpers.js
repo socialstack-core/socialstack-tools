@@ -31,6 +31,17 @@ function isProjectRoot(dirPath, callback){
 * Calls the given done callback as done(config) if it was successful.
 */
 function findProjectRoot(config, done){
+	if(config.commandLine.root){
+		var rootSpec = config.commandLine.root[0];
+		config.projectRoot = rootSpec;
+		done(config);
+		return;
+	}else if(config.commandLine.rootcwd){
+		config.projectRoot = config.calledFromPath;
+		done(config);
+		return;
+	}
+	
 	var currentPath = config.calledFromPath;
 	
 	function onCheckedRoot(success){
