@@ -5,8 +5,7 @@ import zlib from 'zlib';
 import autoprefixer from 'autoprefixer';
 import postcss from 'postcss';
 import { spawn } from 'child_process';
-import mod_8ytg6 from '../configManager';
-const { jsConfigManager  } = mod_8ytg6;
+import { jsConfigManager } from '../configManager';
 import liteBuilder from '../builder';
 function updateIndex(publicUrl: string, fileInfo: any, publicDir: string, config: SocialStackConfig) {
 	updateHtmlFile(publicUrl, fileInfo, publicDir, config, 'index.html', false);

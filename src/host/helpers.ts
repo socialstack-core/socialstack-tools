@@ -2,8 +2,7 @@
 import path from 'path';
 import fs from 'fs';
 import ssh from 'ssh2';
-import mod_j9pon from '../configManager';
-const { jsConfigManager   } = mod_j9pon;
+import { jsConfigManager } from '../configManager';
 import mod_fi2lb from '../install/helpers.js';
 const { mkDirByPathSync   } = mod_fi2lb;
 import dynamicModule1 from 'fs';

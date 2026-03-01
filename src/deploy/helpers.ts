@@ -2,8 +2,7 @@
 import path from 'path';
 import fs from 'fs';
 import tmp from 'tmp';
-import mod_einpp from '../configManager';
-const { jsConfigManager   } = mod_einpp;
+import { jsConfigManager } from '../configManager';
 
 function uploadFile(src, dst, sftp){
 	

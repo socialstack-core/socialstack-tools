@@ -733,33 +733,6 @@ function installDependencies(moduleFilePath, config, dependencySkipMap){
 					
 				}
 				
-				if(pkg.scripts && pkg.scripts.install){
-					// Exec the install script by require()'ing it.
-					try{
-						console.log("Running the module's install script..");
-						var installScriptPath = moduleFilePath + pkg.scripts.install;
-						var installScript = require(installScriptPath);
-						
-						if(typeof installScript === "function"){
-							// Invoke it. It can optionally return a promise.
-							var promise = installScript(config, {
-								install: module.exports,
-								configManager,
-								unzip
-							}, moduleFilePath);
-							
-							if(promise){
-								pendingPromises.push(promise);
-							}
-						}
-						
-					}catch(e){
-						console.log('Skipping a failed install script.');
-						console.log('This is likely not an issue with Socialstack tools and instead came from ' + installScriptPath + " which was referenced from the package.json");
-						console.log(e);
-					}
-				}
-				
 				// Wait for the pending promises then continue:
 				Promise.all(pendingPromises).then(success).catch(reject);
 				

@@ -1,5 +1,4 @@
 import { SocialStackConfig } from '../types';
-import configManager from '../configManager';
 import mod_w5dyg from './helpers.js';
 const { installModules } = mod_w5dyg;
 

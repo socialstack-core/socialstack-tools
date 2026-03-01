@@ -5,8 +5,7 @@ import path from 'path';
 import { pipeline  } from 'stream';
 import { promisify  } from 'util';
 const streamPipeline = promisify(pipeline);
-import mod_fg53s from '../configManager';
-const { jsConfigManager   } = mod_fg53s;
+import { jsConfigManager } from '../configManager';
 
 function getAppSettings(config: SocialStackConfig) {
 

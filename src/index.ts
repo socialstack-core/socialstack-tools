@@ -1,6 +1,5 @@
 import { SocialStackConfig } from './types';
-import mod_config from './configManager/index.js';
-const { setLocalConfig, localConfigPath } = mod_config;
+import { setLocalConfig, localConfigPath } from './configManager/index.js';
 import mod_project from './projectHelpers/helpers.js';
 const { findProjectRoot, isProjectRoot } = mod_project;
 import { Command } from 'commander';
@@ -17,22 +16,14 @@ import mod_dep from './build/localDeployment.js';
 const { localDeployment } = mod_dep;
 import mod_tests from './build/tests.js';
 const { runTests } = mod_tests;
-import getContentTypeId from './getContentTypeId.js';
 
 import mod_generate from './generate/index.js';
-import mod_sync from './sync/sync.js';
 import mod_host from './host/index.js';
 import mod_deploy from './deploy/deploy.js';
-import mod_upgrade from './upgrade/upgrade.js';
-import mod_contribute from './contribute/contribute.js';
 import mod_init from './init/index.js';
 import mod_create from './create/index.js';
-import mod_add from './add/index.js';
 import mod_install from './install/index.js';
 import mod_uninstall from './uninstall/index.js';
-
-import mod_repository from './repository/index.js';
-import mod_interactive from './interactive/index.js';
 
 export default (config: SocialStackConfig) => {
     const program = new Command();
@@ -158,17 +149,6 @@ export default (config: SocialStackConfig) => {
         }));
 
     program
-        .command('id [contentTypes...]')
-        .description('Provide the content type names you\'d like the ID for')
-        .action((contentTypes: string[]) => {
-            if (!contentTypes || !contentTypes.length) {
-                console.log("Provide the content type names you'd like the ID for. For example, 'socialstack id User'");
-                return;
-            }
-            contentTypes.forEach(type => console.log(type + ': ' + getContentTypeId(type)));
-        });
-
-    program
         .command('version')
         .alias('v')
         .description('outputs the currently installed version of SocialStack tools')
@@ -179,11 +159,6 @@ export default (config: SocialStackConfig) => {
         .alias('g')
         .description('creates a new module.')
         .action(withProject(() => mod_generate(config)));
-
-    program
-        .command('sync')
-        .description('Sync module')
-        .action(withProject(() => mod_sync(config)));
 
     program
         .command('where')
@@ -199,18 +174,6 @@ export default (config: SocialStackConfig) => {
         .command('deploy')
         .description('Deploys a project over SSH')
         .action(withProject(() => mod_deploy(config)));
-
-    program
-        .command('upgrade')
-        .description('Upgrades a project / modules')
-        .action(withProject(() => mod_upgrade(config)));
-
-    program
-        .command('contribute')
-        .alias('push')
-        .alias('p')
-        .description('Scans your thirdparty module directories for changes you\'ve made and contributes them')
-        .action(withProject(() => mod_contribute(config)));
 
     program
         .command('configuration')
@@ -256,18 +219,6 @@ export default (config: SocialStackConfig) => {
         });
 
     program
-        .command('add')
-        .alias('share')
-        .alias('a')
-        .alias('s')
-        .description('Pushes *this directory* up to the source repository for global publishing.')
-        .option('-d <desc>', 'A description of the module')
-        .action(withProject((options: any) => {
-            if (options.d) config.commandLine = { command: 'add', d: [options.d] };
-            mod_add(config);
-        }));
-
-    program
         .command('install [modules...]')
         .alias('i')
         .description('install the named module(s) from any repositories you have configured')
@@ -283,45 +234,6 @@ export default (config: SocialStackConfig) => {
         .action(withProject((modules: string[]) => {
             config.commandLine = { command: 'uninstall', '-': modules };
             mod_uninstall(config);
-        }));
-
-    program
-        .command('repository')
-        .description('Repository commands')
-        .action(() => mod_repository(config));
-
-    program
-        .command('interactive')
-        .description('Interactive mode. We\'ll send and receive data over stdio.')
-        .option('-p <p>', 'Obsolete usage of socialstack tools')
-        .option('--parent <parent>', 'Old usage of socialstack tools detected')
-        .option('--lockfile <file>', 'Lockfile location')
-        .action(withProject((options: any) => {
-            if (options.p) {
-                console.error('Obsolete usage of socialstack tools. Upgrade the Api/StackTools module in this project to continue using this version of socialstack tools.');
-                return;
-            }
-            if (options.parent) {
-                console.error('[NOTE] Old usage of socialstack tools detected. Upgrade the Api/StackTools module in this project to prevent stray node.js processes being created on forced quits. Proceeding anyway.');
-            }
-            if (options.lockfile) {
-                config.lockfile = options.lockfile;
-            }
-
-            config.onRequest = function (message: any) {
-                var action = message.request.action;
-                if (action == "watch") {
-                    config.minified = message.request.prod || message.request.minified;
-                    config.compress = message.request.prod || message.request.compress;
-                    config.bundled = true;
-                    watchOrBuild(config, true);
-                    message.response({ success: true });
-                } else {
-                    message.response({ unknown: action });
-                }
-            };
-
-            mod_interactive(config);
         }));
 
     program.on('command:*', function () {

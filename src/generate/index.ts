@@ -3,8 +3,7 @@ import { SocialStackConfig } from '../types';
 import pluralize from 'pluralize';
 import readline from 'readline';
 import fs from 'fs';
-import mod_qrz03 from '../configManager';
-const { jsConfigManager   } = mod_qrz03;
+import { jsConfigManager } from '../configManager';
 import mod_1uokm from '../create/helpers.js';
 const { generateInstallCommand   } = mod_1uokm;
 

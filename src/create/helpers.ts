@@ -1,7 +1,6 @@
 // @ts-nocheck
-import configManager from '../configManager';
+import { jsConfigManager, settingsPath, getLocalConfig } from '../configManager';
 import { MongoClient as MongoClient } from 'mongodb';
-const { jsConfigManager, settingsPath, getLocalConfig } = configManager;
 
 function tidyUrl(config) {
 
