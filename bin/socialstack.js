@@ -9,7 +9,7 @@ var calledFromPath = process.cwd();
 // Change to the socialstack tools directory:
 process.chdir(path.dirname(__filename) + '/../');
 
-require('../index.js')({
+require('../dist/index.js')({
 	loadCommandLine: true,
 	calledFromPath
 });

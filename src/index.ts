@@ -1,0 +1,345 @@
+import { SocialStackConfig } from './types';
+import mod_config from './configManager/index.js';
+const { setLocalConfig, localConfigPath } = mod_config;
+import mod_project from './projectHelpers/helpers.js';
+const { findProjectRoot, isProjectRoot } = mod_project;
+import { Command } from 'commander';
+import pkg from '../package.json';
+
+// Commands
+import mod_helpers from './build/helpers.js';
+const { buildUI, buildAPI, buildAll, watchOrBuild } = mod_helpers;
+import mod_app from './build/app.js';
+const { buildApp } = mod_app;
+import mod_git from './build/git.js';
+const { gitSync } = mod_git;
+import mod_dep from './build/localDeployment.js';
+const { localDeployment } = mod_dep;
+import mod_tests from './build/tests.js';
+const { runTests } = mod_tests;
+import getContentTypeId from './getContentTypeId.js';
+
+import mod_generate from './generate/index.js';
+import mod_sync from './sync/sync.js';
+import mod_host from './host/index.js';
+import mod_deploy from './deploy/deploy.js';
+import mod_upgrade from './upgrade/upgrade.js';
+import mod_contribute from './contribute/contribute.js';
+import mod_init from './init/index.js';
+import mod_create from './create/index.js';
+import mod_add from './add/index.js';
+import mod_install from './install/index.js';
+import mod_uninstall from './uninstall/index.js';
+
+import mod_repository from './repository/index.js';
+import mod_interactive from './interactive/index.js';
+
+export default (config: SocialStackConfig) => {
+    const program = new Command();
+
+    program
+        .name('socialstack')
+        .description(pkg.description)
+        .version(pkg.version, '-v, --version, version', 'outputs the currently installed version of SocialStack tools');
+
+    // Helper to ensure we are in a project folder before running
+    const withProject = (fn: any) => {
+        return (...args: any[]) => {
+            findProjectRoot(config, (result: any) => {
+                if (!result && program.args[0] !== 'buildapp') {
+                    console.error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI or an Api directory to be a project.');
+                    return;
+                }
+                fn(...args);
+            });
+        };
+    };
+
+    program
+        .command('buildui')
+        .description('builds UI/Source and Admin/Source, then quits.')
+        .option('--prod', 'Minify and pre-gzip the UI builds for you')
+        .option('--force', 'Force internal build chain')
+        .option('--noCache', 'Disabled build cache')
+        .action(withProject((options: any) => {
+            if (options.force) config.force = true;
+            if (options.prod) config.minified = true;
+            if (options.noCache) config.noCache = true;
+
+            buildUI(config, false).then(() => {
+                console.log("Build success");
+            }).catch((e: any) => {
+                console.log("Build failed\n", e);
+                process.exit(1);
+            });
+        }));
+
+    program
+        .command('buildapp')
+        .description('builds a Cordova native app.')
+        .requiredOption('--apiUrl <url>', 'The API location the built app will use')
+        .requiredOption('--instanceUrl <url>', 'The instance used to generate all localised JS files')
+        .action(withProject((options: any) => {
+            config.apiUrl = options.apiUrl;
+            config.instanceUrl = options.instanceUrl;
+
+            buildApp(config).then(() => {
+                console.log("Build success");
+            }).catch((e: any) => {
+                console.log("Build failed\n", e);
+                process.exit(1);
+            });
+        }));
+
+    program
+        .command('buildapi')
+        .description('a convenience build command (defaults to outputting into Api/Build).')
+        .action(withProject((options: any) => {
+            buildAPI(config).catch((e: any) => {
+                console.log("Build failed");
+                process.exit(1);
+            });
+        }));
+
+    program
+        .command('build')
+        .alias('b')
+        .description('builds the UI, API and optionally native apps with Cordova.')
+        .option('--prod', 'minify and pre-gzip the UI builds for you')
+        .option('--force', 'Force internal build chain')
+        .option('--noUI', 'Skip UI')
+        .option('--noApi', 'Skip API')
+        .option('--noApp', 'Skip App')
+        .option('--branch <branch>', 'Git branch to sync before build')
+        .option('--localDeploy <dir>', 'Local deploy target directory')
+        .option('--appSettingsExtension <ext>', 'App settings extension to use for local deploy')
+        .option('--restartService <service>', 'Service name to restart after local deploy')
+        .option('--test', 'Run dotnet tests')
+        .action(withProject((options: any) => {
+            if (options.prod) {
+                config.minified = true;
+                config.compress = true;
+            }
+            if (options.force) config.force = true;
+
+            let preBuild = [];
+            if (options.branch) {
+                preBuild.push(gitSync(options.branch, config.calledFromPath));
+            }
+
+            Promise.all(preBuild)
+                .then(() => buildAll({
+                    prod: config.minified,
+                    compress: config.compress,
+                    noUi: options.noUI,
+                    noApi: options.noApi,
+                    noApp: options.noApp
+                }, config))
+                .then(() => {
+                    if (options.localDeploy) {
+                        return localDeployment({
+                            target: options.localDeploy,
+                            projectRoot: config.projectRoot,
+                            appSettingsExtension: options.appSettingsExtension,
+                            restartService: options.restartService,
+                        });
+                    }
+                })
+                .then(() => {
+                    if (options.test) {
+                        return runTests({ projectRoot: config.projectRoot, csProject: 'Tests/Tests.csproj' });
+                    }
+                })
+                .catch((e: any) => {
+                    console.error(e);
+                    console.log("Build failed");
+                    process.exit(1);
+                });
+        }));
+
+    program
+        .command('id [contentTypes...]')
+        .description('Provide the content type names you\'d like the ID for')
+        .action((contentTypes: string[]) => {
+            if (!contentTypes || !contentTypes.length) {
+                console.log("Provide the content type names you'd like the ID for. For example, 'socialstack id User'");
+                return;
+            }
+            contentTypes.forEach(type => console.log(type + ': ' + getContentTypeId(type)));
+        });
+
+    program
+        .command('version')
+        .alias('v')
+        .description('outputs the currently installed version of SocialStack tools')
+        .action(() => console.log(pkg.version));
+
+    program
+        .command('generate')
+        .alias('g')
+        .description('creates a new module.')
+        .action(withProject(() => mod_generate(config)));
+
+    program
+        .command('sync')
+        .description('Sync module')
+        .action(withProject(() => mod_sync(config)));
+
+    program
+        .command('where')
+        .description('outputs the project directory')
+        .action(withProject(() => console.log(config.projectRoot)));
+
+    program
+        .command('host')
+        .description('Host config to define target servers for simple deploys')
+        .action(() => mod_host(config));
+
+    program
+        .command('deploy')
+        .description('Deploys a project over SSH')
+        .action(withProject(() => mod_deploy(config)));
+
+    program
+        .command('upgrade')
+        .description('Upgrades a project / modules')
+        .action(withProject(() => mod_upgrade(config)));
+
+    program
+        .command('contribute')
+        .alias('push')
+        .alias('p')
+        .description('Scans your thirdparty module directories for changes you\'ve made and contributes them')
+        .action(withProject(() => mod_contribute(config)));
+
+    program
+        .command('configuration')
+        .description('returns the location of the configuration file for socialstack tools')
+        .action(() => console.log(localConfigPath()));
+
+    program
+        .command('configure')
+        .description('Configure socialstack tools database settings')
+        .option('-u <user>', 'Username', 'root')
+        .option('-p <password>', 'Password')
+        .option('-s <server>', 'Server', 'localhost')
+        .action((options: any) => {
+            setLocalConfig({
+                databases: {
+                    local: {
+                        username: options.u,
+                        password: options.p,
+                        server: options.s
+                    }
+                }
+            }).then(() => console.log('Socialstack tools configured'));
+        });
+
+    program
+        .command('init')
+        .description('creates a database for the current project')
+        .action(withProject(() => mod_init(config)));
+
+    program
+        .command('create')
+        .alias('c')
+        .description('creates a new blank SocialStack project in your working directory')
+        .option('--dbMode <mode>', 'DB Mode')
+        .action((options: any) => {
+            findProjectRoot(config, (result: any) => {
+                if (result && options.dbMode !== 'continue') {
+                    console.log('There\'s already a socialstack project in your working directory - doing nothing.');
+                } else {
+                    mod_create(config);
+                }
+            });
+        });
+
+    program
+        .command('add')
+        .alias('share')
+        .alias('a')
+        .alias('s')
+        .description('Pushes *this directory* up to the source repository for global publishing.')
+        .option('-d <desc>', 'A description of the module')
+        .action(withProject((options: any) => {
+            if (options.d) config.commandLine = { command: 'add', d: [options.d] };
+            mod_add(config);
+        }));
+
+    program
+        .command('install [modules...]')
+        .alias('i')
+        .description('install the named module(s) from any repositories you have configured')
+        .action(withProject((modules: string[]) => {
+            config.commandLine = { command: 'install', '-': modules };
+            mod_install(config);
+        }));
+
+    program
+        .command('uninstall [modules...]')
+        .alias('u')
+        .description('remove the named module(s)')
+        .action(withProject((modules: string[]) => {
+            config.commandLine = { command: 'uninstall', '-': modules };
+            mod_uninstall(config);
+        }));
+
+    program
+        .command('repository')
+        .description('Repository commands')
+        .action(() => mod_repository(config));
+
+    program
+        .command('interactive')
+        .description('Interactive mode. We\'ll send and receive data over stdio.')
+        .option('-p <p>', 'Obsolete usage of socialstack tools')
+        .option('--parent <parent>', 'Old usage of socialstack tools detected')
+        .option('--lockfile <file>', 'Lockfile location')
+        .action(withProject((options: any) => {
+            if (options.p) {
+                console.error('Obsolete usage of socialstack tools. Upgrade the Api/StackTools module in this project to continue using this version of socialstack tools.');
+                return;
+            }
+            if (options.parent) {
+                console.error('[NOTE] Old usage of socialstack tools detected. Upgrade the Api/StackTools module in this project to prevent stray node.js processes being created on forced quits. Proceeding anyway.');
+            }
+            if (options.lockfile) {
+                config.lockfile = options.lockfile;
+            }
+
+            config.onRequest = function (message: any) {
+                var action = message.request.action;
+                if (action == "watch") {
+                    config.minified = message.request.prod || message.request.minified;
+                    config.compress = message.request.prod || message.request.compress;
+                    config.bundled = true;
+                    watchOrBuild(config, true);
+                    message.response({ success: true });
+                } else {
+                    message.response({ unknown: action });
+                }
+            };
+
+            mod_interactive(config);
+        }));
+
+    program.on('command:*', function () {
+        console.error('Invalid command: %s\nSee --help for a list of available commands.', program.args.join(' '));
+        process.exit(1);
+    });
+
+    if (config.commandLine && config.commandLine.loadCommandLine && process.argv.length <= 2) {
+        config.commandLine = { command: 'watch', '-': [] };
+        findProjectRoot(config, (result: any) => {
+            if (!result) {
+                console.error('Your current working path is not a socialstack project: ' + config.calledFromPath + '. It must contain at least a UI or an Api directory to be a project.');
+                return;
+            }
+        });
+    }
+
+    if (!config.commandLine) config.commandLine = { command: 'watch', '-': [] };
+
+    program.parse(process.argv);
+};
