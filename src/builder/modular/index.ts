@@ -1,6 +1,6 @@
 // @ts-nocheck
-import builder from './build.js';
 
-export default {
-	build: config => builder(config)
-};
+import builder from './build.ts';
+
+export { build: config => builder(config)
+ };

@@ -4,6 +4,7 @@
 * Checks if the given directory is a socialstack project root.
 * Calls the given callback as callback(isRoot) where isRoot is true/false.
 */
+
 import fs from 'fs';
 import path from 'path';
 
@@ -11,18 +12,18 @@ function isProjectRoot(dirPath, callback){
 	// The root can be identified by looking for the dir with 'UI' and 'Api' child directories.
 	var pending = 2;
 	var matched = false;
-	
+
 	function dirReturn(err, stats){
 		pending--;
 		if(!err && stats.isDirectory()){
 			matched = true;
 		}
-		
+
 		if(pending == 0){
 			callback(matched);
 		}
 	}
-	
+
 	fs.stat(dirPath + '/UI', dirReturn);
 	fs.stat(dirPath + '/Api', dirReturn);
 }
@@ -42,16 +43,16 @@ function findProjectRoot(config, done){
 		done(config);
 		return;
 	}
-	
+
 	var currentPath = config.calledFromPath;
-	
+
 	function onCheckedRoot(success){
 		if(success){
 			config.projectRoot = currentPath;
 			done(config);
 		}else{
 			var nextPath = path.dirname(currentPath);
-			
+
 			if(currentPath == nextPath){
 				// Nope!
 				done(null);
@@ -62,11 +63,10 @@ function findProjectRoot(config, done){
 			}
 		}
 	}
-	
+
 	isProjectRoot(currentPath, onCheckedRoot);
 }
 
-export default {
-	findProjectRoot,
+export { findProjectRoot,
 	isProjectRoot
-};
+ };

@@ -1,6 +1,6 @@
-interface TestConfig { projectRoot: string; csProject: string; }
 import { spawn  } from 'child_process';
 
+interface TestConfig { projectRoot: string; csProject: string; }
 
 async function runTests(config: TestConfig) {
 	await testAPI(config);
@@ -42,4 +42,4 @@ function testAPI(config: TestConfig) {
 	});
 }
 
-export default { runTests };
+export { runTests  };

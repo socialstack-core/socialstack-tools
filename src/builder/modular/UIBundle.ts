@@ -1,15 +1,15 @@
 // @ts-nocheck
+
 import path from 'path';
 import fs from 'fs';
-var SourceFileType = require('./SourceFileType.js');
-var SourceFile = require('./SourceFile.js');
-var TemplateLiteral = require('./TemplateLiteral.js');
-var allFilesInDirectory = require('./allFilesInDirectory.js');
-import { transformES8 } from './js-transforms.js';
-import { transform as transformScss } from './css-transforms.js';
-import mkdir from '../mkdir-recursive.js';
-import copyStaticFile from './copyStaticFiles.js';
-
+import SourceFileType from './SourceFileType.ts';
+import SourceFile from './SourceFile.ts';
+import TemplateLiteral from './TemplateLiteral.ts';
+import allFilesInDirectory from './allFilesInDirectory.ts';
+import { transformES8 } from './js-transforms.ts';
+import { transform as transformScss } from './css-transforms.ts';
+import mkdir from '../mkdir-recursive.ts';
+import copyStaticFile from './copyStaticFiles.ts';
 
 class UIBundle {
 
@@ -253,7 +253,6 @@ class UIBundle {
 		this.outputFile('main.prebuilt.css', css);
 	}
 
-
 	/// <summary>
 	/// Peek char at index. If it is out of range, a nul byte is returned.
 	/// </summary>
@@ -322,7 +321,6 @@ class UIBundle {
 			}
 		}
 
-
 		return sb;
 	}
 
@@ -367,7 +365,6 @@ class UIBundle {
 		// Unchanged otherwise as it's absolute.
 		return sourcePath;
 	}
-
 
 	/// <summary>
 	/// Builds the given SCSS file, optionally using cached data if present.
@@ -493,7 +490,6 @@ class UIBundle {
 		file.transpiledContent = es8Javascript;
 		file.failure = null;
 	}
-
 
 	/// <summary>
 	/// Loads a text file at the given path, in utf8. It can also have a BOM.

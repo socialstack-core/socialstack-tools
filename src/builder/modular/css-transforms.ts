@@ -1,11 +1,11 @@
 // @ts-nocheck
+
 import sass from 'sass';
 
-
 function transform(code, globalContent, path, minify){
-	
+
 	var log = '';
-	
+
 	var result = sass.compileString(
 		'@use "loc:global" as *;\r\n' + code, {
 		style: minify ? 'compressed' : undefined,
@@ -35,14 +35,14 @@ function transform(code, globalContent, path, minify){
 			}
 		}]
 	});
-	
+
 	if (log) {
 		console.log("SCSS warning: ", log);
 		}
-	
+
 	var css = result.css.toString();
-	
+
 	return css;
 }
 
-export default { transform };
+export { transform  };

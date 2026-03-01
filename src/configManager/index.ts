@@ -1,7 +1,9 @@
 // @ts-nocheck
+
 import fs from 'fs';
 import path from 'path';
 import getAppDataPath from 'appdata-path';
+
 var adp = getAppDataPath('socialstack');
 var settingsPath = adp + path.sep + 'settings.json';
 

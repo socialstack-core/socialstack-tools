@@ -11,7 +11,7 @@ class GlobalSourceFileMap
 		this.npmPackages = {};
 		this.sortedGlobalFiles = [];
 	}
-	
+
 	/// <summary>
 	/// Reconstructs sorted global files based on the map.
 	/// </summary>
@@ -23,7 +23,7 @@ class GlobalSourceFileMap
 				(a,b) => (a.priority > b.priority) ? 1 : ((b.priority > a.priority) ? -1 : (a.path.localeCompare(b.path, undefined, { numeric: true })))
 			);
 	}
-	
+
 	/// <summary>
 	/// Compares the file list with the global file list in the cache.
 	/// They must be _exactly_ the same otherwise the set will be marked changed.
@@ -32,29 +32,29 @@ class GlobalSourceFileMap
 	{
 		this.hasChanges = this.didChange();
 	}
-	
+
 	didChange()
 	{
 		var cache = this.cache;
-		
+
 		if(!cache.data.globalFileMap || cache.data.globalFileMap.length != this.sortedGlobalFiles.length){
 			return true;
 		}
-		
+
 		for(var i=0;i<this.sortedGlobalFiles.length;i++){
 			var gMap = cache.data.globalFileMap[i];
 			var localFile = this.sortedGlobalFiles[i];
-			
+
 			if(cache.fileChanged(gMap, localFile)){
 				return true;
 			}
 		}
-		
+
 		// Ok!
 		this.scssHeader = cache.data.globalScssHeader;
 		return false;
 	}
-	
+
 	/// <summary>
 	/// Constructs or returns constructed SCSS header.
 	/// </summary>
@@ -63,18 +63,18 @@ class GlobalSourceFileMap
 		if(this.scssHeader){
 			return this.scssHeader;
 		}
-		
+
 		var header = '';
-		
+
 		var gFiles = this.sortedGlobalFiles;
-		
+
 		for(var i=0;i<gFiles.length;i++)
 		{
 			header += gFiles[i].content + '\n';
 		}
 
 		header += '\n';
-		
+
 		// Strip wasted bytes (comments and newlines) to improve scss compiler performance - 
 		// unfortunately it can't cache the ast so it parses the header every time it compiles a scss change:
 		var mode = 0;
@@ -167,32 +167,31 @@ class GlobalSourceFileMap
 				sb += ch;
 			}
 		}
-		
+
 		this.scssHeader = sb;
 		return sb;
 	}
-	
+
 	loadContents(){
 		var gFiles = this.sortedGlobalFiles;
-		
+
 		var proms = [];
-		
+
 		for(var i=0;i<gFiles.length;i++)
 		{
 			var file = gFiles[i];
 			proms.push(file.loadTextContent());
 		}
-		
+
 		// Clear header:
 		this.scssHeader = null;
-		
+
 		return Promise.all(proms).then(() => {
 			// Build the header:
 			this.getScssHeader();
 		});
 	}
-	
-}
 
+}
 
 export default GlobalSourceFileMap;

@@ -1,3 +1,5 @@
+
+
 import { exec as exec } from 'child_process';
 
 function gitSync(branch: string, repoPath: string){
@@ -10,34 +12,34 @@ function execGitCommand(cmd: string, repoPath: string){
 		exec(cmd, {
 			cwd: repoPath
 		}, function(err, stdout, stderr){
-			
+
 			if(err){
 				console.log(err);
-				
+
 				if(stdout){
 					console.log(stdout);
 				}
-				
+
 				if(stderr){
 					console.log(stderr);
 				}
-				
+
 				r('Git command failed');
 				return;
 			}
-			
+
 			if(stdout){
 				console.log(stdout);
 			}
-			
+
 			if(stderr){
 				console.log(stderr);
 			}
-			
+
 			s();
 		});
 	});
-	
+
 }
 
-export default {gitSync};
+export { gitSync };

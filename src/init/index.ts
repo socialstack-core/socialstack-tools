@@ -1,6 +1,7 @@
+
+
 import { SocialStackConfig } from '../types';
-import createHelpers from '../create/helpers.js';
-const { installDatabase } = createHelpers;
+import { installDatabase } from '../create/helpers.ts';
 
 export default (config: SocialStackConfig) => {
 

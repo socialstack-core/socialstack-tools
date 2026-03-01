@@ -1,11 +1,14 @@
+
+
 import { SocialStackConfig } from '../types';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { pipeline  } from 'stream';
 import { promisify  } from 'util';
-const streamPipeline = promisify(pipeline);
 import { jsConfigManager } from '../configManager';
+
+const streamPipeline = promisify(pipeline);
 
 function getAppSettings(config: SocialStackConfig) {
 
@@ -219,15 +222,15 @@ function buildApp(config: SocialStackConfig) {
 			/*
 			return get('pack/static-assets/list.json').then(assetList => {
 				assetList = JSON.parse(assetList);
-				
+
 				var promises = assetList.map((asset) => {
 					// First fwd slash (After "s:ui/"):
 					var appPath = asset.ref.substring(asset.ref.indexOf('/'));
-					
+
 					// Note that these copied assets always use lowercase names.
 					return compareAsset(asset, 'App/www/pack/static' + appPath);
 				});
-				
+
 				return Promise.all(promises);
 			});
 			*/
@@ -260,13 +263,11 @@ function buildApp(config: SocialStackConfig) {
 
 			console.log("Invoking cordova (5/" + steps + ") {temporarily skipping}");
 
-
 		});
 	}
 
 	return prom;
 }
 
-export default {
-	buildApp
-};
+export { buildApp
+ };

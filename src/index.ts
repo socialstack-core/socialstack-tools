@@ -1,29 +1,24 @@
+
+
 import { SocialStackConfig } from './types';
-import { setLocalConfig, localConfigPath } from './configManager/index.js';
-import mod_project from './projectHelpers/helpers.js';
-const { findProjectRoot, isProjectRoot } = mod_project;
+import { setLocalConfig, localConfigPath } from './configManager/index.ts';
+import { findProjectRoot, isProjectRoot } from './projectHelpers/helpers.ts';
 import { Command } from 'commander';
 import pkg from '../package.json';
+import { buildUI, buildAPI, buildAll, watchOrBuild } from './build/helpers.ts';
+import { buildApp } from './build/app.ts';
+import { gitSync } from './build/git.ts';
+import { localDeployment } from './build/localDeployment.ts';
+import { runTests } from './build/tests.ts';
+import mod_generate from './generate/index.ts';
+import mod_host from './host/index.ts';
+import mod_deploy from './deploy/deploy.ts';
+import mod_init from './init/index.ts';
+import mod_create from './create/index.ts';
+import mod_install from './install/index.ts';
+import mod_uninstall from './uninstall/index.ts';
 
 // Commands
-import mod_helpers from './build/helpers.js';
-const { buildUI, buildAPI, buildAll, watchOrBuild } = mod_helpers;
-import mod_app from './build/app.js';
-const { buildApp } = mod_app;
-import mod_git from './build/git.js';
-const { gitSync } = mod_git;
-import mod_dep from './build/localDeployment.js';
-const { localDeployment } = mod_dep;
-import mod_tests from './build/tests.js';
-const { runTests } = mod_tests;
-
-import mod_generate from './generate/index.js';
-import mod_host from './host/index.js';
-import mod_deploy from './deploy/deploy.js';
-import mod_init from './init/index.js';
-import mod_create from './create/index.js';
-import mod_install from './install/index.js';
-import mod_uninstall from './uninstall/index.js';
 
 export default (config: SocialStackConfig) => {
     const program = new Command();

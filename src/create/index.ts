@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 import { SocialStackConfig } from '../types';
 import fs from 'fs';
 import https from 'https';
@@ -6,10 +7,8 @@ import path from 'path';
 import unzip from 'unzipper';
 import process from 'process';
 import { jsConfigManager, getLocalConfig, settingsPath } from '../configManager';
-import mod_hxydf from '../install/helpers.js';
-const { installModules } = mod_hxydf;
-import mod_25as0 from './helpers.js';
-const { createDatabase, tidyUrl } = mod_25as0;
+import { installModules } from '../install/helpers.ts';
+import { createDatabase, tidyUrl } from './helpers.ts';
 import { exec as exec } from 'child_process';
 import readline from 'readline';
 
@@ -202,8 +201,5 @@ export default (config: SocialStackConfig) => {
 	).then(
 		() => console.log('Complete. You can now run the project with "dotnet run" or start it with your favourite IDE.')
 	)
-
-
-
 
 };

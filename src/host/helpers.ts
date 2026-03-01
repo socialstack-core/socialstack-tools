@@ -1,10 +1,10 @@
 // @ts-nocheck
+
 import path from 'path';
 import fs from 'fs';
 import ssh from 'ssh2';
 import { jsConfigManager } from '../configManager';
-import mod_fi2lb from '../install/helpers.js';
-const { mkDirByPathSync   } = mod_fi2lb;
+import { mkDirByPathSync } from '../install/helpers.ts';
 import dynamicModule1 from 'fs';
 
 /*
@@ -273,12 +273,10 @@ function getHostsConfigDir(){
 
 var _hostConfigDir = null;
 
-
-export default {
-	walk,
+export { walk,
 	getHostsConfigDir,
 	addHost,
 	listHosts,
 	connect,
 	getAppSettings
-};
+ };

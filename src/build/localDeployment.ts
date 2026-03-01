@@ -1,18 +1,19 @@
-export interface LocalDeployOpts {
-	target: string;
-	projectRoot: string;
-	appSettingsExtension?: string;
-	restartService?: string;
-}
-export interface LocalDeployOpts {
-	target: string;
-	projectRoot: string;
-	appSettingsExtension?: string;
-	restartService?: string;
-}
 import { exec as exec } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
+
+export interface LocalDeployOpts {
+	target: string;
+	projectRoot: string;
+	appSettingsExtension?: string;
+	restartService?: string;
+}
+export interface LocalDeployOpts {
+	target: string;
+	projectRoot: string;
+	appSettingsExtension?: string;
+	restartService?: string;
+}
 
 async function createDirectories(target, directories) {
 	for (const dir of directories) {
@@ -111,4 +112,4 @@ function restartService(serviceName: string) {
 	});
 }
 
-export default { localDeployment };
+export { localDeployment  };

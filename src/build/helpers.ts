@@ -1,3 +1,5 @@
+
+
 import { SocialStackConfig } from '../types';
 import fs from 'fs';
 import path from 'path';
@@ -7,6 +9,7 @@ import postcss from 'postcss';
 import { spawn } from 'child_process';
 import { jsConfigManager } from '../configManager';
 import liteBuilder from '../builder';
+
 function updateIndex(publicUrl: string, fileInfo: any, publicDir: string, config: SocialStackConfig) {
 	updateHtmlFile(publicUrl, fileInfo, publicDir, config, 'index.html', false);
 	updateHtmlFile(publicUrl, fileInfo, publicDir, config, 'mobile.html', true);
@@ -245,4 +248,4 @@ function buildAPI(config: SocialStackConfig) {
 	});
 }
 
-export default { buildAPI, buildUI, buildAll, watchOrBuild };
+export { buildAPI, buildUI, buildAll, watchOrBuild  };

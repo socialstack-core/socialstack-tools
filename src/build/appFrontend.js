@@ -1,17 +1,17 @@
 function lookupCache(allPages){
-	
+
 	function lookupNode(){
 		this.children = {};
-		
+
 		this.tryGetChild = function(name){
 			return this.children[name];
 		}
 	}
-	
+
 	this.rootPage = new lookupNode();
 	this.notFoundPage = null;
 	this.pageUrlList = [];
-	
+
 	this.getPage = function(url) {
 		url = url.split('?')[0].trim();
 		if (url.length != 0 && url[0] == '/')
@@ -23,24 +23,24 @@ function lookupCache(allPages){
 		{
 			url = url.substring(0, url.length - 1);
 		}
-		
+
 		var curNode = this.rootPage;
 
 		if (curNode == null)
 		{
 			return null;
 		}
-		
+
 		var wildcardTokens = null;
 
 		if (url.length != 0)
 		{
 			var parts = url.split('/');
-			
+
 			for (var i = 0; i < parts.length; i++)
 			{
 				var nextNode = curNode.tryGetChild(parts[i]);
-				
+
 				if (!nextNode)
 				{
 					nextNode = curNode.wildcard;
@@ -62,10 +62,10 @@ function lookupCache(allPages){
 					// 404
 					return null;
 				}
-				
+
 				curNode = nextNode;
 			}
-			
+
 		}
 
 		return {
@@ -75,7 +75,7 @@ function lookupCache(allPages){
 			tokenNames: curNode.tokenNames
 		};
 	};
-	
+
 	// Loop over pages and establish which scope it belongs to:
 	for (var p = 0; p < allPages.length; p++)
 	{
@@ -92,7 +92,7 @@ function lookupCache(allPages){
 		{
 			continue;
 		}
-		
+
 		var tokenSet = [];
 
 		if (url == "/404")
@@ -143,7 +143,7 @@ function lookupCache(allPages){
 						{
 							var contentType = token.substring(0, dotIndex);
 							var fieldName = token.substring(dotIndex + 1);
-							
+
 							tokenSet.push(
 							{
 								rawToken: token,
@@ -159,22 +159,22 @@ function lookupCache(allPages){
 								rawToken: token
 							});
 						}
-						
+
 					}
 				}
-				
+
 				if (token != null)
 				{
 					// Anything. Treat these tokens as *:
 					part = "*";
 				}
-				
+
 				var next = pg.tryGetChild(part);
-				
+
 				if (!next)
 				{
 					pg.children[part] = next = new lookupNode();
-					
+
 					if (token != null)
 					{
 						// It's the wildcard one:
@@ -190,7 +190,7 @@ function lookupCache(allPages){
 				continue;
 			}
 		}
-		
+
 		pg.page = page;
 		pg.urlTokens = tokenSet;
 		pg.tokenNames = tokenSet.map(token => token.rawToken);
@@ -204,20 +204,20 @@ function onRoutePage(url, webRequest){
 	if(!pg){
 		return {page:pageCache.notFoundPage};
 	}
-	
+
 	// Does it have a primary object?
 	if(pg.tokens){
 		var hasPo = false;
-		
+
 		for(var i=0;i<pg.tokens.length;i++){
 			var token = pg.tokens[i];
-			
+
 			if(token.typeName){
 				hasPo = token.typeName + '/' + pg.tokenValues[i];
 				break;
 			}
 		}
-		
+
 		if(hasPo){
 			pg.loading = webRequest(hasPo).then(resp => {
 				pg.po = resp.json;
@@ -228,7 +228,7 @@ function onRoutePage(url, webRequest){
 			});
 		}
 	}
-	
+
 	return {
 		...pg,
 		tokens: pg.tokenValues
@@ -238,26 +238,26 @@ function onRoutePage(url, webRequest){
 // Locale switch if >1 locales.
 // If this files locale is not the one wanted by the device, switch.
 if(availableLocales && availableLocales.length > 1){
-	
+
 	function languageAcceptedByLocale(language, locale){
 		if(language == locale.code){
 			return true;
 		}
-		
+
 		// check aliases too
 		if(locale.aliases){
 			var aliases = locale.aliases.trim().toLowerCase().split(',');
-			
+
 			for(var i=0;i<aliases.length;i++){
 				if(aliases[i] == language){
 					return true;
 				}
 			}
-			
+
 		}
 		return false;
 	}
-	
+
 	function switchToDefaultLocale(availableLocales, thisFileLocale){
 		var defaultLocale = availableLocales.find(available => available.id == 1);
 
@@ -265,28 +265,28 @@ if(availableLocales && availableLocales.length > 1){
 			window.location = './index.' + defaultLocale.code + '.html';
 		}
 	}
-	
+
 	document.addEventListener("deviceready", () => {
-		
+
 		// cordova globalization plugin required for this switch to be active.
 		if(navigator.globalization && navigator.globalization.getPreferredLanguage){
 			navigator.globalization.getPreferredLanguage((language) => {
-				
+
 				// language is e.g. "en" or "EN" or "en-US".
 				if(!language || ((typeof language.value) != 'string')){
 					return;
 				}
-				
+
 				language = language.value.trim().toLowerCase();
-				
+
 				var thisFileLocale = availableLocales.find(available => available.id == fileLocaleId);
-				
+
 				// Compare language with thisFileLocale.code and thisFileLocale.aliases
 				if(languageAcceptedByLocale(language, thisFileLocale)){
 					// If they match, stop.
 					return;
 				}
-				
+
 				// The device locale is not the same as the one handled by this file. Is there a more appropriate locale?
 				var betterLocale = availableLocales.find(available => languageAcceptedByLocale(language, available));
 
@@ -299,10 +299,10 @@ if(availableLocales && availableLocales.length > 1){
 					// if change to default, call 
 					switchToDefaultLocale(availableLocales, thisFileLocale);
 				}
-				
+
 			}, console.error);
 		}
-		
+
 	}, false);
-	
+
 }

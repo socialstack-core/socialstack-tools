@@ -1,10 +1,10 @@
+
+
 import { SocialStackConfig } from '../types';
 import path from 'path';
 import fs from 'fs';
-import mod_dfadd from './helpers.js';
-const { getHostsConfigDir, addHost, listHosts, getAppSettings } = mod_dfadd;
-import mod_kcmbm from '../projectHelpers/helpers.js';
-const { findProjectRoot } = mod_kcmbm;
+import { getHostsConfigDir, addHost, listHosts, getAppSettings } from './helpers.ts';
+import { findProjectRoot } from '../projectHelpers/helpers.ts';
 
 // socialstack host -a mySiteProd1 -addr 100.100.100.100 -user luke -key path/to/key/file -env prod
 // socialstack host -where
@@ -85,7 +85,6 @@ export default (config: SocialStackConfig) => {
 
 	} else if (config.commandLine['list'] || config.commandLine['l']) {
 		// List of hosts. Can also use socialstack -list subDirName
-
 
 		var relativeToName = config.commandLine['list'] || config.commandLine['l'];
 		var relativeTo = null;

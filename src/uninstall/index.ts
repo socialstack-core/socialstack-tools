@@ -1,6 +1,7 @@
+
+
 import { SocialStackConfig } from '../types';
-import moduleHelpers from '../install/helpers.js';
-const { uninstallModules } = moduleHelpers;
+import { uninstallModules } from '../install/helpers.ts';
 
 export default (config: SocialStackConfig) => {
 

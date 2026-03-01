@@ -1,6 +1,7 @@
+
+
 import { SocialStackConfig } from '../types';
-import mod_w5dyg from './helpers.js';
-const { installModules } = mod_w5dyg;
+import { installModules } from './helpers.ts';
 
 export default (config: SocialStackConfig) => {
 

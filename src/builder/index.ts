@@ -1,6 +1,6 @@
-import modular from './modular/index.js';
 
 
-export default {
-	modular
-};
+import modular from './modular/index.ts';
+
+export { modular
+ };

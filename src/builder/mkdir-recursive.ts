@@ -1,9 +1,10 @@
 // @ts-nocheck
+
 import fs from 'fs';
 import path from 'path';
 
 export default function(root, mode, callback) {
-	
+
 	if (typeof mode === 'function') {
 		var callback = mode;
 		var mode = null;
@@ -15,7 +16,7 @@ export default function(root, mode, callback) {
 	}
 
 	root = root.replace(/\//g, path.sep).replace(/\\/g, path.sep);
-	
+
 	var chunks = root.split(path.sep); // split in chunks
 	var chunk;
 	if (path.isAbsolute(root) === true) { // build from absolute path
@@ -48,11 +49,11 @@ function mkdirRecursive(root, chunks, mode, callback) {
 		return callback(null);
 	}
 	var root = path.join(root, chunk);
-	
+
 	return fs.mkdir(root, mode, function(err) {
 			if (err && err.code !== 'EEXIST')
 					return callback(err);
-			
+
 			return mkdirRecursive(root, chunks, mode, callback); // let's magic
 	});
 }

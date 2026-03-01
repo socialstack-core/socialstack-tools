@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 import { jsConfigManager, settingsPath, getLocalConfig } from '../configManager';
 import { MongoClient as MongoClient } from 'mongodb';
 
@@ -310,11 +311,9 @@ function createDatabase(connectionInfo, config) {
 	});
 }
 
-
-export default {
-	createDatabase,
+export { createDatabase,
 	createSiteAdmin,
 	installDatabase,
 	tidyUrl,
 	generateInstallCommand
-};
+ };

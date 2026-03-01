@@ -3,13 +3,13 @@
 // import Loop from 'UI/Loop';
 
 export default class Entities extends React.Component {
-	
+
 	render(){
-		
+
 		return <div className="fully-qualified-entity"></div>;
-		
+
 	}
-	
+
 }
 
 /*
@@ -18,14 +18,14 @@ export default class Entities extends React.Component {
 // Define your available props like the examples below.
 
 Entities.propTypes = {
-	
+
 	title: 'string', // text input
 	size: [1,2,3,4], // dropdowns
-	
+
 	// All <Input type='x' /> values are supported - checkbox, color etc.
 	// Also the special id type which can be used to select some other piece of content (by entity name), like this:
 	templateToUse: {type: 'id', content: 'Template'}
-	
+
 };
 
 Entities.icon='align-center'; // fontawesome icon

@@ -1,9 +1,8 @@
 // @ts-nocheck
-"use strict";
-
 import CountedSet from './counted-set';
-
 import isLabelIdentifier from './is-label-identifier';
+
+"use strict";
 
 const newIssueUrl = "https://github.com/babel/minify/issues/new";
 /**
@@ -22,7 +21,6 @@ export default class ScopeTracker {
 		* @param {Scope} scope
 		*/
 
-
 	addScope(scope) {
 		if (!this.references.has(scope)) {
 			this.references.set(scope, new CountedSet());
@@ -39,7 +37,6 @@ export default class ScopeTracker {
 		* @param {Binding} binding
 		* @param {String} name
 		*/
-
 
 	addReference(scope, binding, name) {
 		let parent = scope;
@@ -71,7 +68,6 @@ export default class ScopeTracker {
 		* @param {String} name
 		*/
 
-
 	hasReference(scope, name) {
 		return this.references.get(scope).has(name);
 	}
@@ -84,7 +80,6 @@ export default class ScopeTracker {
 		* @param {String} oldName
 		* @param {String} newName
 		*/
-
 
 	updateReference(scope, binding, oldName, newName) {
 		let parent = scope;
@@ -109,7 +104,6 @@ export default class ScopeTracker {
 		* @param {String} name
 		*/
 
-
 	hasBindingOrReference(scope, binding, name) {
 		return this.hasReference(scope, name) || this.hasBinding(scope, name);
 	}
@@ -125,7 +119,6 @@ export default class ScopeTracker {
 		* @param {String} next
 		*/
 
-
 	canUseInReferencedScopes(binding, next) {
 		const tracker = this;
 
@@ -136,7 +129,6 @@ export default class ScopeTracker {
 		// https://github.com/babel/minify/issues/559
 		// https://bugs.webkit.org/show_bug.cgi?id=171041
 		// https://trac.webkit.org/changeset/217200/webkit/trunk/Source
-
 
 		const maybeDecl = binding.path.parentPath;
 		const isBlockScoped = maybeDecl.isVariableDeclaration({
@@ -213,7 +205,6 @@ export default class ScopeTracker {
 		* @param {Binding} binding
 		*/
 
-
 	addBinding(binding) {
 		if (!binding) {
 			return;
@@ -237,7 +228,6 @@ export default class ScopeTracker {
 		* @param {Scope} toScope
 		*/
 
-
 	moveBinding(binding, toScope) {
 		this.bindings.get(binding.scope).delete(binding.identifier.name);
 		this.bindings.get(toScope).set(binding.identifier.name, binding);
@@ -248,7 +238,6 @@ export default class ScopeTracker {
 		* @param {String} name
 		*/
 
-
 	hasBinding(scope, name) {
 		return this.bindings.get(scope).has(name);
 	}
@@ -258,7 +247,6 @@ export default class ScopeTracker {
 		* @param {String} oldName
 		* @param {String} newName
 		*/
-
 
 	renameBinding(scope, oldName, newName) {
 		const bindings = this.bindings.get(scope);

@@ -1,17 +1,13 @@
 // @ts-nocheck
+import Charset from './charset';
+import ScopeTracker from './scope-tracker';
+import isLabelIdentifier from './is-label-identifier';
+import bfsTraverseCreator from './bfs-traverse';
+import fixupVarScoping from './fixup-var-scoping';
+import _require from 'babel-helper-mark-eval-scopes';
+
 "use strict";
 
-import Charset from './charset';
-
-import ScopeTracker from './scope-tracker';
-
-import isLabelIdentifier from './is-label-identifier';
-
-import bfsTraverseCreator from './bfs-traverse';
-
-import fixupVarScoping from './fixup-var-scoping';
-
-import _require from 'babel-helper-mark-eval-scopes';
 const markEvalScopes = _require.markEvalScopes,
 	isEvalScopesMarked = _require.isMarked,
 	hasEval = _require.hasEval;
@@ -49,7 +45,6 @@ export default babel => {
 			* Run the mangler
 			*/
 
-
 		run() {
 			this.crawlScope();
 			this.collect();
@@ -62,7 +57,6 @@ export default babel => {
 			* @param {String} name
 			*/
 
-
 		isExcluded(name) {
 			return hop.call(this.exclude, name) && this.exclude[name];
 		}
@@ -74,7 +68,6 @@ export default babel => {
 			* (other plugins and presets) changes the AST and does NOT update
 			* the scope objects
 			*/
-
 
 		crawlScope() {
 			(traverse.clearCache || traverse.cache.clear)();
@@ -92,7 +85,6 @@ export default babel => {
 			* ScopeTracker
 			*/
 
-
 		fixup() {
 			fixupVarScoping(this);
 		}
@@ -105,7 +97,6 @@ export default babel => {
 			*
 			* Traversed in the same fashion(BFS) the mangling is done
 			*/
-
 
 		collect() {
 			const mangler = this;
@@ -126,7 +117,6 @@ export default babel => {
 				*
 				* Collects items defined in the ScopeTracker
 				*/
-
 
 			const collectVisitor = {
 				Scopable({
@@ -190,7 +180,6 @@ export default babel => {
 						} // This should NOT happen ultimately. Panic if this code block is
 						// reached
 
-
 						throw new Error(`Binding not found for ReferencedIdentifier "${name}" ` + `present in "${path.parentPath.type}". ` + `Please report this at ${newIssueUrl}`);
 					} else {
 						// Add it to our scope tracker if everything is fine
@@ -226,7 +215,6 @@ export default babel => {
 				};
 			} // Traverse the AST
 
-
 			bfsTraverse(mangler.program, collectVisitor);
 		}
 		/**
@@ -235,7 +223,6 @@ export default babel => {
 			* Babel treats NamedExports as a binding referenced by this NamedExport decl
 			* @param {Binding} binding
 			*/
-
 
 		isExportedWithName(binding) {
 			// short circuit
@@ -283,7 +270,6 @@ export default babel => {
 			* @param {Scope} scope The current scope the mangler is run
 			*/
 
-
 		canMangle(oldName, binding, scope) {
 			const cannotMangle = // arguments - for non-strict mode
 				oldName === "arguments" || // labels
@@ -306,7 +292,6 @@ export default babel => {
 			* @param {Scope} scope The current scope the mangler is run
 			*/
 
-
 		isValidName(newName, binding, scope) {
 			return t.isValidIdentifier(newName) && !this.scopeTracker.hasBinding(scope, newName) && !scope.hasGlobal(newName) && !this.scopeTracker.hasReference(scope, newName) && this.scopeTracker.canUseInReferencedScopes(binding, newName);
 		}
@@ -314,7 +299,6 @@ export default babel => {
 			* Mangle the scope
 			* @param {Scope} scope
 			*/
-
 
 		mangleScope(scope) {
 			const mangler = this;
@@ -327,7 +311,6 @@ export default babel => {
 			// the function body's BlockStatement has the same scope, and will
 			// be visited twice by the Scopable handler, and we want to mangle
 			// it only once
-
 
 			if (mangler.visitedScopes.has(scope)) {
 				return;
@@ -368,12 +351,10 @@ export default babel => {
 					// one scope has lots and lots of variables, it's okay to
 					// name something with 3 characters instead of 1
 
-
 					if (oldName.length < 3) {
 						counter = 0;
 					} // Once we detected a valid `next` Identifier which could be used,
 					// call the renamer
-
 
 					mangler.rename(scope, binding, oldName, next);
 				}
@@ -383,7 +364,6 @@ export default babel => {
 			* The mangle function that traverses through all the Scopes in a BFS
 			* fashion - calls mangleScope
 			*/
-
 
 		mangle() {
 			const mangler = this;
@@ -406,7 +386,6 @@ export default babel => {
 			* @param {String} newName
 			* @param {Function} predicate
 			*/
-
 
 		renameBindingIds(path, oldName, newName, predicate = () => true) {
 			const bindingIds = path.getBindingIdentifierPaths(true, false);
@@ -460,7 +439,6 @@ export default babel => {
 			* @param {String} newName
 			*/
 
-
 		rename(scope, binding, oldName, newName) {
 			const mangler = this;
 			const scopeTracker = mangler.scopeTracker; // rename at the declaration level
@@ -476,7 +454,6 @@ export default babel => {
 				this.renameBindingIds(violations[i], oldName, newName);
 				scopeTracker.updateReference(violations[i].scope, binding, oldName, newName);
 			} // update all referenced places
-
 
 			const refs = binding.referencePaths;
 
@@ -531,7 +508,6 @@ export default babel => {
 
 			} // update babel's internal tracking
 
-
 			binding.identifier.name = newName; // update babel's internal scope tracking
 
 			const bindings = scope.bindings;
@@ -564,7 +540,6 @@ export default babel => {
 	};
 }; // convert value to object
 
-
 function toObject(value) {
 	if (!Array.isArray(value)) {
 		return value;
@@ -579,11 +554,9 @@ function toObject(value) {
 	return map;
 } // for keepFnName
 
-
 function isFunction(path) {
 	return path.isFunctionExpression() || path.isFunctionDeclaration();
 } // for keepClassName
-
 
 function isClass(path) {
 	return path.isClassExpression() || path.isClassDeclaration();

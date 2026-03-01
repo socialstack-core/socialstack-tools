@@ -1,42 +1,42 @@
 // @ts-nocheck
+
 import { SocialStackConfig } from '../types';
 import pluralize from 'pluralize';
 import readline from 'readline';
 import fs from 'fs';
 import { jsConfigManager } from '../configManager';
-import mod_1uokm from '../create/helpers.js';
-const { generateInstallCommand   } = mod_1uokm;
+import { generateInstallCommand } from '../create/helpers.ts';
 
 /*
 * socialstack generate Api/Worlds  --> Uses the contents of the Api directory here as a template, then generates the named module.
 */
 
 export default (config: SocialStackConfig) => {
-	
+
 	var modules = config.commandLine['-'];
-	
+
 	if(!modules || !modules.length){
 		console.log("Please specify the module(s) you'd like to generate. For example, 'socialstack g Api/Worlds'.");
 	}
-	
+
 	var newConfiguration = {};
-	
+
 	function askFor(text, configName){
 		return new Promise((success, reject) => {
-			
+
 			if(newConfiguration[configName] != undefined){
 				// Already set - skip.
 				return success(newConfiguration, configName, newConfiguration[configName]);
 			}
-			
+
 			if(Array.isArray(config.commandLine[configName]) && config.commandLine[configName].length){
 				// Command line is specifying it
 				newConfiguration[configName] = config.commandLine[configName][0];
 				return success(newConfiguration, configName, newConfiguration[configName]);
 			}
-			
+
 			console.log(text);
-			
+
 			var rl = readline.createInterface(process.stdin, process.stdout);
 			rl.setPrompt(configName + ': ');
 			rl.prompt();
@@ -47,35 +47,35 @@ export default (config: SocialStackConfig) => {
 			});	
 		});
 	}
-	
+
 	function capitalize(s) {
 		if (typeof s !== 'string') return ''
 		return s.charAt(0).toUpperCase() + s.slice(1)
 	}
-	
+
 	function lowerize(s) {
 		if (typeof s !== 'string') return ''
 		return s.charAt(0).toLowerCase() + s.slice(1)
 	}
-	
+
 	var currentModule = 0;
-	
+
 	function dashName(label){
 		return label.replace(/([^A-Z])([A-Z])/g, '$1-$2');
 	}
-	
+
 	function createModule(moduleSet, type, names){
-		
+
 		try{
 			var targetDirectory = config.projectRoot + '/';
-			
+
 			// Insert the source dir if module set is not Api:
 			if(moduleSet == 'Api'){
 				targetDirectory += names.fqName;
 			}else{
 				targetDirectory += moduleSet + '/Source' + names.fqName.substring(moduleSet.length);
 			}
-			
+
 			fs.mkdirSync(targetDirectory, { recursive: true });
 		}catch(e){
 			if(e.code == 'EEXIST'){
@@ -86,43 +86,43 @@ export default (config: SocialStackConfig) => {
 				throw e;
 			}
 		}
-		
+
 		var entity = names.entity;
-		
+
 		// Create singular version:
 		var singular = pluralize.singular(entity);
-		
+
 		// A or an. This part is naive - "a umbrella" "a unicorn" would be outputted, but it's close enough!
 		var vowelRegex = '^[aieouAIEOU].*';
 		var startsWithVowel = singular.match(vowelRegex);
 		var aOrAn = startsWithVowel ? 'an ' : 'a ';
 		var fqEntity = singular;
-		
+
 		if(entity == singular && moduleSet == 'Api'){
 			fqEntity = 'Api.' + entity + '.' + entity;
 		}
-		
+
 		// merge in any directory names:
 		var mergedName = '';
-		
+
 		if(moduleSet != 'Api'){
 			mergedName += moduleSet.toLowerCase();
 		}
-		
+
 		names.subDirectories.forEach(subDir => {
 			if(mergedName != ''){
 				mergedName += '-';
 			}
 			mergedName += subDir.toLowerCase();
 		});
-		
+
 		var dn = dashName(entity);
-		
+
 		if(mergedName != ''){
 			mergedName += '-';
 		}
 		mergedName += dn.toLowerCase();
-		
+
 		var swaps = {
 			'fully-qualified-entity': mergedName,
 			anEntity: aOrAn + lowerize(singular),
@@ -133,33 +133,33 @@ export default (config: SocialStackConfig) => {
 			Entities: entity,
 			entities: lowerize(entity)
 		};
-		
+
 		// For each file in Api/TYPE..
 		var templateDir = __dirname + '/' + moduleSet + '/' +type;
 		copyTemplate(templateDir, swaps, targetDirectory, names.fqName);
 	}
-	
+
 	function copyTemplate(templateDir, swaps, targetDirectory, generatedName) {
 		fs.readdir(templateDir, function (err, files) {
 			if(err){
 				throw err;
 			}
-			
+
 			files.forEach(file => {
 				var targetName = swap(file, swaps);
-				
+
 				// Read the content:
 				var sourceContent = fs.readFileSync( templateDir + '/' + file, {encoding: 'utf8'} );
 				var swappedContent = swap(sourceContent, swaps);
 				fs.writeFileSync(targetDirectory + '/' + targetName, swappedContent, {encoding: 'utf8'});
-				
+
 			});
-			
+
 			console.log('Generated ' + generatedName);
 			handleModule();
 		});
 	}
-	
+
 	function swap(text, swaps){
 		for(var sourceValue in swaps){
 			var targetValue = swaps[sourceValue];
@@ -168,41 +168,40 @@ export default (config: SocialStackConfig) => {
 		}
 		return text;
 	}
-	
+
 	function generateNginxConfig(){
 		var targetDirectory = config.projectRoot + '/Nginx';
-		
+
 		fs.mkdirSync(targetDirectory, { recursive: true });
-		
+
 		var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
 		var appsettings = appsettingsManager.get();
-		
+
 		var publicUrl = appsettings.PublicUrl;
-		
+
 		var protoParts = publicUrl.split('://');
-		
+
 		if(protoParts.length > 1){
 			publicUrl = protoParts[1];
 		}
-		
+
 		publicUrl = publicUrl.replace(/\//gi, '');
-		
+
 		var urlSet = publicUrl;
-		
-		
+
 		var wwwUrl = publicUrl;
-		
+
 		if(publicUrl.indexOf('www.') != 0){
 			wwwUrl = 'www.' + publicUrl;
 		}
-		
+
 		// e.g. www.site.com -> site.com
 		var rootUrl = wwwUrl.substring(4);
-		
+
 		/// www.site.com *.site.com site.com
 		var urlSetNoRoot = wwwUrl + ' *.' + publicUrl;
 		var urlSet = urlSetNoRoot + ' ' + rootUrl;
-		
+
 		var swaps = {
 			PreferredUrl: wwwUrl,
 			UrlSet: urlSet,
@@ -212,59 +211,59 @@ export default (config: SocialStackConfig) => {
 			RemoteDirectory: '/var/www/' + publicUrl,
 			Port: appsettings.Port || 5050
 		};
-		
+
 		copyTemplate(__dirname + '/Nginx', swaps, targetDirectory, 'NGINX Config');
 	}
-	
+
 	function generateSystemDConfig(){
 		var targetDirectory = config.projectRoot + '/SystemD';
-		
+
 		fs.mkdirSync(targetDirectory, { recursive: true });
-		
+
 		var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
 		var appsettings = appsettingsManager.get();
-		
+
 		var publicUrl = appsettings.PublicUrl;
-		
+
 		var protoParts = publicUrl.split('://');
-		
+
 		if(protoParts.length > 1){
 			publicUrl = protoParts[1];
 		}
-		
+
 		publicUrl = publicUrl.replace(/\//gi, '');
-		
+
 		var swaps = {
 			Url: publicUrl
 		};
-		
+
 		copyTemplate(__dirname + '/SystemD', swaps, targetDirectory, 'SystemD Config (Linux service config)');
 	}
-	
+
 	function handleModule(){
 		currentModule++;
-		
+
 		if(currentModule >= modules.length){
 			console.log('Done');
 			return;
 		}
-		
+
 		var originalInput = modules[currentModule];
 		originalInput = originalInput.replace(/\\/gi, '/');
 		originalInput = originalInput.trim();
-		
+
 		if(originalInput.indexOf('.json') != -1){
 			// Defined in a json file. It's either just an array, or {"modules": [..,..]}
-			
+
 			// Import the file:
-			var json = require(first);
-			
+			var json = JSON.parse(fs.readFileSync(first, 'utf8'));
+
 			if(!json){
 				console.log('Your json file was found, but it\'s empty. Check: ' + originalInput);
 				handleModule();
 				return;
 			}
-			
+
 			if(Array.isArray(json)){
 				modules = modules.concat(json);
 			}else if(json.modules){
@@ -272,16 +271,16 @@ export default (config: SocialStackConfig) => {
 			}else{
 				console.log('If you\'d like to list modules to generate in a json file, it should either be an array of textual names, or {"modules": [..]} where the "modules" array is again an array of textual names.');
 			}
-			
+
 			handleModule();
 			return;
 		}
-		
+
 		var pieces = originalInput.split('/');
-		
+
 		if(pieces.length == 1){
 			var first = pieces[0].toLowerCase();
-			
+
 			if(first == 'nginx'){
 				// NGINX config.
 				generateNginxConfig();
@@ -291,7 +290,7 @@ export default (config: SocialStackConfig) => {
 				generateSystemDConfig();
 				return;
 			}else if(first == 'translations'){
-				import translationGen from './translations.js';
+				import translationGen from './translations.ts';
 				translationGen(config);
 				return;
 			}else if(first == 'sql'){
@@ -300,20 +299,20 @@ export default (config: SocialStackConfig) => {
 				return;
 			}
 		}
-		
+
 		var firstPiece = 'api';
-		
+
 		if(pieces.length > 1){
 			// Api is assumed otherwise.
 			firstPiece = pieces.shift().trim().toLowerCase();
 		}
-		
+
 		// Grab entity name now:
 		var entity = capitalize(pieces.pop().trim());
-		
+
 		var fqNameBase = capitalize(firstPiece);
 		var subDirectories = [];
-		
+
 		if(pieces.length>0){
 			// There's still stuff left - these are subdirectories
 			for(var i=0;i<pieces.length;i++){
@@ -323,9 +322,9 @@ export default (config: SocialStackConfig) => {
 				fqNameBase += subdirName;
 			}
 		}
-		
+
 		fqName = fqNameBase + '/' + entity;
-	
+
 		var names = {
 			pieces,
 			subDirectories,
@@ -334,19 +333,19 @@ export default (config: SocialStackConfig) => {
 			fqNameBase,
 			fqName
 		};
-		
+
 		if(firstPiece == 'api'){
-			
+
 			// Is it plural?
 			if(pluralize.isPlural(entity)){
 				// With entity. This is the default, and no further checks are needed.
 				createModule('Api', 'Default', names);
-				
+
 			}else{
-				
+
 				var pluralEntity = pluralize.plural(entity);
 				var fqNamePlural = fqNameBase + '/' + pluralEntity;
-				
+
 				// Without entity, but we'll ask to confirm.
 				askFor(
 					'You\'ve provided a singular name (' + entity + '). ' + 
@@ -357,7 +356,7 @@ export default (config: SocialStackConfig) => {
 					'serviceonly'
 				).then(config => {
 					console.log(config);
-					
+
 					if(config.serviceonly == 'E' || config.serviceonly == 'e'){
 						// Actually an entity module.
 						names.entity = pluralEntity;
@@ -371,31 +370,31 @@ export default (config: SocialStackConfig) => {
 						console.log('Not generating anything for "' + originalInput + '"');
 						handleModule();
 					}
-					
+
 				});
 			}
-			
+
 		}else if(firstPiece == 'ui'){
-			
+
 			// Just a simple UI class.
 			createModule('UI', 'Default', names);
-		
+
 		}else if(firstPiece == 'admin'){
-			
+
 			// Just a simple UI class.
 			createModule('Admin', 'Default', names);
-		
+
 		}else if(firstPiece == 'email'){
-			
+
 			// Just a simple UI class.
 			createModule('Email', 'Default', names);
-		
+
 		}else{
 			throw new Error('Unrecognised module type: ' + originalInput + '. UI, Admin, Email or Api are the acceptable types here. If you want a subdirectory, you must also add e.g. Api/ at the start.');
 		}
 	}
-	
+
 	currentModule = -1;
 	handleModule();
-	
+
 };

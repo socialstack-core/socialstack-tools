@@ -37,21 +37,20 @@ export default function Entities(props) {
 	useEffect(() => {
 		const handleResize = () => setWidth(window.innerWidth);
 		window.addEventListener('resize', handleResize);
-		
+
 		// optional return used to clean up
 		return () => {
 			window.removeEventListener('resize', handleResize);
 		};
-		
-	});
 
+	});
 
 	/* reference images in the same component folder:
 	var vectorUrl = getRef(myVectorImage, { url: true });
 	var rasterUrl = getRef(myRasterImage, { size: 128, url: true }); // where size represents the closest size required (see Api\ThirdParty\Uploader\UploaderConfig.cs for supported sizes)
 	// omit size parameter to return original image resolution
 	*/
-	
+
 	return (
 		<div className="fully-qualified-entity">
 			{/*<Container>

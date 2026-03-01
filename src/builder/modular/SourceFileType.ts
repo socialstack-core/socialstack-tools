@@ -1,6 +1,5 @@
 // @ts-nocheck
-export default {
-	/// <summary>
+export { /// <summary>
 	/// Not a source file we care about.
 	/// </summary>
 	None: 1,
@@ -24,4 +23,4 @@ export default {
 	/// Locale for a particular country.
 	/// </summary>
 	Locale: 7,
-}
+ };
