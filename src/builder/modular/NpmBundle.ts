@@ -7,7 +7,7 @@ var TemplateLiteral = require('./TemplateLiteral.js');
 var allFilesInDirectory = require('./allFilesInDirectory.js');
 import { transformES8 } from './js-transforms.js';
 import { transform as transformScss } from './css-transforms.js';
-import mkdir from '../buildwatch/mkdir-recursive.js';
+import mkdir from '../mkdir-recursive.js';
 import copyStaticFile from './copyStaticFiles.js';
 import path from 'path';
 
