@@ -6,6 +6,7 @@ import ssh from 'ssh2';
 import { jsConfigManager } from '../configManager';
 import { mkDirByPathSync } from '../install/helpers.js';
 import dynamicModule1 from 'fs';
+import adp from 'appdata-path';
 
 /*
 * Walks the given filesystem.
@@ -267,8 +268,7 @@ function getHostsConfigDir(){
 		return _hostConfigDir;
 	}
 	// Get path to socialstack tools internal cfg:
-	import adp from 'appdata-path';('socialstack');
-	return _hostConfigDir = adp + path.sep + 'hosts' + path.sep;
+	return _hostConfigDir = adp('socialstack') + path.sep + 'hosts' + path.sep;
 }
 
 var _hostConfigDir = null;

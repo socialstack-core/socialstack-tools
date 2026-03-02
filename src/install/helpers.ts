@@ -508,6 +508,25 @@ function getModuleMap(){
 	});
 }
 
+function findModulesByPrefix(prefix){
+	var prefixLower = prefix.toLowerCase();
+
+	return getModuleList()
+	.then(res => {
+		var matches = [];
+
+		res.results.forEach(moduleMeta => {
+			if(moduleMeta.latestVersionCode && moduleMeta.name.toLowerCase().startsWith(prefixLower)){
+				matches.push(moduleMeta);
+			}
+		});
+
+		matches.sort((a, b) => a.name.localeCompare(b.name));
+
+		return matches;
+	});
+}
+
 function replaceModule(moduleMeta, config, dependencySkipMap){
 	return installSingleModule(moduleMeta, config, dependencySkipMap);
 }
@@ -615,7 +634,31 @@ function installModules(modules, config, skipMap){
 				var info = moduleInfo[nameLC];
 
 				if(!info){
-					return Promise.reject("Module doesn't exist: " + name);
+					return findModulesByPrefix(name)
+						.then(matches => {
+							if(matches.length > 0){
+								var grouped = {};
+								matches.forEach(m => {
+									var category = m.name.split('/')[0];
+									if(!grouped[category]){
+										grouped[category] = [];
+									}
+									grouped[category].push(m.name);
+								});
+
+								var msg = '\nAvailable "' + name + '" modules:\n\n';
+								Object.keys(grouped).sort().forEach(cat => {
+									msg += cat + ':\n';
+									grouped[cat].forEach(modName => {
+										msg += '  ' + modName + '\n';
+									});
+									msg += '\n';
+								});
+
+								return Promise.reject({partialMatches: true, message: msg});
+							}
+							return Promise.reject("Module doesn't exist: " + name);
+						});
 				}
 
 				var projectRelativePath = getModuleFilePath(info);
@@ -878,4 +921,5 @@ export { installModules,
 	isModuleDifferent,
 	writeMeta,
 	isModuleDifferentAndCorrect,
+	findModulesByPrefix,
  };

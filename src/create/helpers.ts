@@ -2,6 +2,7 @@
 
 import { jsConfigManager, settingsPath, getLocalConfig } from '../configManager';
 import { MongoClient as MongoClient } from 'mongodb';
+import mysql from 'mysql2';
 
 function tidyUrl(config) {
 
@@ -237,7 +238,6 @@ function createDatabase(connectionInfo, config) {
 			return;
 		}
 
-		import mysql from 'mysql2';
 		var host = connectionInfo.server || 'localhost';
 		const connection = mysql.createConnection({
 			host,

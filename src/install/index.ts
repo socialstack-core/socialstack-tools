@@ -14,6 +14,10 @@ export const run = (config: SocialStackConfig) => {
 	installModules(modules, config, false).then(() => {
 		console.log('Done');
 	}).catch(e => {
-		console.log(e);
+		if(e && e.partialMatches){
+			console.log(e.message);
+		}else{
+			console.log(e);
+		}
 	});
 };

@@ -9,7 +9,7 @@
 	},
 	"preferGlobal": true,
 	"bin": {
-		"socialstack": "./bin/socialstack.js"
+		"socialstack": "./bin/socialstack.cjs"
 	},
 	"author": "",
 	"license": "ISC",

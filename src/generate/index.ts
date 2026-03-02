@@ -289,10 +289,6 @@ export const run = (config: SocialStackConfig) => {
 				// SystemD service file generator.
 				generateSystemDConfig();
 				return;
-			}else if(first == 'translations'){
-				import translationGen from './translations.js';
-				translationGen(config);
-				return;
 			}else if(first == 'sql'){
 				// SQL to create user/ db:
 				console.log(generateInstallCommand(config) + ';');
