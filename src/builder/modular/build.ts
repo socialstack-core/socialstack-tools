@@ -4,12 +4,12 @@
 /// Starts a build. Returns a promise.
 /// Config is currently {bundles, projectRoot, minified}
 /// </summary>
-import GlobalSourceFileMap from './GlobalSourceFileMap.ts';
-import UIBundle from './UIBundle.ts';
+import GlobalSourceFileMap from './GlobalSourceFileMap.js';
+import UIBundle from './UIBundle.js';
 import path from 'path';
-import UIBuildCache from './UIBuildCache.ts';
-import SourceFileContainer from './SourceFileContainer.ts';
-import NpmBundle from './NpmBundle.ts';
+import UIBuildCache from './UIBuildCache.js';
+import SourceFileContainer from './SourceFileContainer.js';
+import NpmBundle from './NpmBundle.js';
 
 export default function build(config)
 {

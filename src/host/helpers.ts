@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import ssh from 'ssh2';
 import { jsConfigManager } from '../configManager';
-import { mkDirByPathSync } from '../install/helpers.ts';
+import { mkDirByPathSync } from '../install/helpers.js';
 import dynamicModule1 from 'fs';
 
 /*

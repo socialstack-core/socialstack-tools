@@ -4,8 +4,8 @@
 /// A collection of source files.
 /// </summary>
 import fs from 'fs';
-import allFilesInDirectory from './allFilesInDirectory.ts';
-import SourceFile from './SourceFile.ts';
+import allFilesInDirectory from './allFilesInDirectory.js';
+import SourceFile from './SourceFile.js';
 
 class SourceFileContainer {
 

@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import mkdir from './mkdirDeep.ts';
+import mkdir from './mkdirDeep.js';
 import fs from 'fs';
 import path from 'path';
 

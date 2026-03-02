@@ -1,10 +1,12 @@
 // @ts-nocheck
 
-import { remoteFileList, localFileList, diff, copyDirectory,
+import {
+	remoteFileList, localFileList, diff, copyDirectory,
 	uploadFile, createRemoteDirectory, extractPatch,
-	setPermsAndUser, setupOrRestartService, handleRenames, getAppSettings, reloadUI } from './helpers.ts';
-import hostHelpers from '../host/helpers.ts';
-import buildHelpers from '../build/helpers.ts';
+	setPermsAndUser, setupOrRestartService, handleRenames, getAppSettings, reloadUI
+} from './helpers.js';
+import hostHelpers from '../host/helpers.js';
+import buildHelpers from '../build/helpers.js';
 import tmp from 'tmp';
 import tar from 'tar';
 import path from 'path';
@@ -349,7 +351,7 @@ function deployToHost(host, config, verbose, uiOnly, content, commit) {
 
 }
 
-export default config => {
+export const run = (config: any) => {
 
 	// target hosts are..
 	var hosts = config.commandLine['h'] || config.commandLine['host'];

@@ -10,7 +10,7 @@ import presetEnv from '@babel/preset-env';
 import presetReact from '@babel/preset-react';
 import parseTypescript from '@babel/plugin-syntax-typescript';
 import transformTypescript from '@babel/plugin-transform-typescript';
-import mangleNames from './babel-mangler/index.ts';
+import mangleNames from './babel-mangler/index.js';
 
 var nonStaticFileTypes = {
 	js: true,

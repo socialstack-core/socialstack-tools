@@ -1,9 +1,9 @@
 
 
 import { SocialStackConfig } from '../types';
-import { installDatabase } from '../create/helpers.ts';
+import { installDatabase } from '../create/helpers.js';
 
-export default (config: SocialStackConfig) => {
+export const run = (config: SocialStackConfig) => {
 
 	installDatabase(config).then(() => {
 		console.log('Done');

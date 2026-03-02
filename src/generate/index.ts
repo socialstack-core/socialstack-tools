@@ -5,13 +5,13 @@ import pluralize from 'pluralize';
 import readline from 'readline';
 import fs from 'fs';
 import { jsConfigManager } from '../configManager';
-import { generateInstallCommand } from '../create/helpers.ts';
+import { generateInstallCommand } from '../create/helpers.js';
 
 /*
 * socialstack generate Api/Worlds  --> Uses the contents of the Api directory here as a template, then generates the named module.
 */
 
-export default (config: SocialStackConfig) => {
+export const run = (config: SocialStackConfig) => {
 
 	var modules = config.commandLine['-'];
 
@@ -290,7 +290,7 @@ export default (config: SocialStackConfig) => {
 				generateSystemDConfig();
 				return;
 			}else if(first == 'translations'){
-				import translationGen from './translations.ts';
+				import translationGen from './translations.js';
 				translationGen(config);
 				return;
 			}else if(first == 'sql'){

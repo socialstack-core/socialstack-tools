@@ -7,12 +7,12 @@ import path from 'path';
 import unzip from 'unzipper';
 import process from 'process';
 import { jsConfigManager, getLocalConfig, settingsPath } from '../configManager';
-import { installModules } from '../install/helpers.ts';
-import { createDatabase, tidyUrl } from './helpers.ts';
+import { installModules } from '../install/helpers.js';
+import { createDatabase, tidyUrl } from './helpers.js';
 import { exec as exec } from 'child_process';
 import readline from 'readline';
 
-export default (config: SocialStackConfig) => {
+export const run = (config: SocialStackConfig) => {
 
 	console.log(' ');
 	console.log('  ____     U  ___ u   ____                _       _      ____     _____      _        ____   _  __    ');

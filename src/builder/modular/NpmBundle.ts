@@ -2,14 +2,14 @@
 
 import path from 'path';
 import fs from 'fs';
-import SourceFileType from './SourceFileType.ts';
-import SourceFile from './SourceFile.ts';
-import TemplateLiteral from './TemplateLiteral.ts';
-import allFilesInDirectory from './allFilesInDirectory.ts';
-import { transformES8 } from './js-transforms.ts';
-import { transform as transformScss } from './css-transforms.ts';
-import mkdir from '../mkdir-recursive.ts';
-import copyStaticFile from './copyStaticFiles.ts';
+import SourceFileType from './SourceFileType.js';
+import SourceFile from './SourceFile.js';
+import TemplateLiteral from './TemplateLiteral.js';
+import allFilesInDirectory from './allFilesInDirectory.js';
+import { transformES8 } from './js-transforms.js';
+import { transform as transformScss } from './css-transforms.js';
+import mkdir from '../mkdir-recursive.js';
+import copyStaticFile from './copyStaticFiles.js';
 
 class NpmBundle {
 

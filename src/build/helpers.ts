@@ -8,7 +8,7 @@ import autoprefixer from 'autoprefixer';
 import postcss from 'postcss';
 import { spawn } from 'child_process';
 import { jsConfigManager } from '../configManager';
-import liteBuilder from '../builder';
+import builder from '../builder/modular/build.js';
 
 function updateIndex(publicUrl: string, fileInfo: any, publicDir: string, config: SocialStackConfig) {
 	updateHtmlFile(publicUrl, fileInfo, publicDir, config, 'index.html', false);
@@ -160,7 +160,7 @@ function watchOrBuild(config: SocialStackConfig, isWatch: boolean) {
 	}
 
 	// Ask for a modular build for 3 bundles:
-	return liteBuilder.modular.build({
+	return builder({
 		cacheDir: config.noCache ? undefined : config.projectRoot + '/obj',
 		bundles: ["UI", "Admin", "Email"],
 		projectRoot: config.projectRoot,
@@ -248,4 +248,4 @@ function buildAPI(config: SocialStackConfig) {
 	});
 }
 
-export { buildAPI, buildUI, buildAll, watchOrBuild  };
+export { buildAPI, buildUI, buildAll, watchOrBuild };

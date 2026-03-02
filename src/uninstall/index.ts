@@ -1,9 +1,9 @@
 
 
 import { SocialStackConfig } from '../types';
-import { uninstallModules } from '../install/helpers.ts';
+import { uninstallModules } from '../install/helpers.js';
 
-export default (config: SocialStackConfig) => {
+export const run = (config: SocialStackConfig) => {
 
 	var modules = config.commandLine['-'];
 

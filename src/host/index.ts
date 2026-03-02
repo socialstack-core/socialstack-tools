@@ -3,14 +3,14 @@
 import { SocialStackConfig } from '../types';
 import path from 'path';
 import fs from 'fs';
-import { getHostsConfigDir, addHost, listHosts, getAppSettings } from './helpers.ts';
-import { findProjectRoot } from '../projectHelpers/helpers.ts';
+import { getHostsConfigDir, addHost, listHosts, getAppSettings } from './helpers.js';
+import { findProjectRoot } from '../projectHelpers/helpers.js';
 
 // socialstack host -a mySiteProd1 -addr 100.100.100.100 -user luke -key path/to/key/file -env prod
 // socialstack host -where
 // socialstack host -list
 // socialstack host -list subDirName
-export default (config: SocialStackConfig) => {
+export const run = (config: SocialStackConfig) => {
 
 	if (config.commandLine['a'] || config.commandLine['add']) {
 		// Adding a host.

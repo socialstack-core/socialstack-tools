@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import SourceFileType from './SourceFileType.ts';
+import SourceFileType from './SourceFileType.js';
 
 class SourceFile {
 	constructor(filePath, rootName, sourcePath, packDir, stats) {
