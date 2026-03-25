@@ -686,6 +686,76 @@ function handleDefaultExport(path, state){
 	typeData.push(exportTypeInfo);
 }
 
+function parseJSDoc(nodeOrPath){
+	var node = nodeOrPath && (nodeOrPath.node || nodeOrPath);
+	
+	var comments = node && (node.leadingComments || node.leadingComment);
+	if(!comments && node && node.comments){
+		comments = node.comments;
+	}
+	
+	if(!comments && nodeOrPath && typeof nodeOrPath.getComments === 'function'){
+		var pathComments = nodeOrPath.getComments();
+		if(pathComments){
+			comments = pathComments.leading;
+		}
+	}
+	
+	if(!comments){
+		return null;
+	}
+	
+	if(!Array.isArray(comments)){
+		comments = [comments];
+	}
+	
+	var result = null;
+	
+	for(var i=0;i<comments.length;i++){
+		var comment = comments[i];
+		if(!comment || comment.type !== 'CommentBlock' || !comment.value){
+			continue;
+		}
+		
+		var lines = comment.value.split('\n');
+		
+		for(var j=0;j<lines.length;j++){
+			var line = lines[j].trim();
+			
+			// Remove leading * from JSDoc comment lines
+			if(line.charAt(0) === '*'){
+				line = line.substring(1).trim();
+			}
+			
+			if(line.indexOf('@') !== 0){
+				continue;
+			}
+			
+			var spaceIdx = line.indexOf(' ');
+			if(spaceIdx === -1){
+				continue;
+			}
+			
+			var tag = line.substring(1, spaceIdx);
+			var value = line.substring(spaceIdx + 1).trim();
+			
+			if(!result){
+				result = {};
+			}
+			
+			if(!result[tag]){
+				result[tag] = value;
+			}else if(Array.isArray(result[tag])){
+				result[tag].push(value);
+			}else{
+				result[tag] = [result[tag], value];
+			}
+		}
+	}
+	
+	return result;
+}
+
 function handleTypeAlias(node, state){
 	if (!node || !node.id){
 		return;
@@ -694,6 +764,12 @@ function handleTypeAlias(node, state){
 	var typeData = state.opts.customTypeData;
 	var exportTypeInfo = getTSReferenceType(node.typeAnnotation);
 	exportTypeInfo.instanceName = node && node.id && node.id.name;
+	
+	var jsdoc = parseJSDoc(node);
+	if(jsdoc){
+		exportTypeInfo.meta = jsdoc;
+	}
+	
 	typeData.push(exportTypeInfo);
 	return exportTypeInfo;
 }
@@ -711,6 +787,11 @@ function handleInterfaceDec(path, state){
 		isExport: false,
 		fields: []
 	};
+	
+	var jsdoc = parseJSDoc(node);
+	if(jsdoc){
+		exportTypeInfo.meta = jsdoc;
+	}
 	
 	var interfaceBody = path.node.body;
 	addPropertiesAsTypeFields(exportTypeInfo, interfaceBody.body);
