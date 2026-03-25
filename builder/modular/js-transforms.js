@@ -654,7 +654,7 @@ function handleDefaultExport(path, state){
 			varType = funcType;
 		}
 	}else if(declaration.type == 'TSTypeAliasDeclaration'){
-		var typeA = handleTypeAlias(declaration, state);
+		var typeA = handleTypeAlias(declaration, state, path.node);
 		
 		varType = {
 			name: 'identifier',
@@ -662,7 +662,7 @@ function handleDefaultExport(path, state){
 		};
 		
 	}else if(declaration.type == 'TSInterfaceDeclaration'){
-		var intf = handleInterfaceDec(declaration, state);
+		var intf = handleInterfaceDec(declaration, state, path.node);
 		
 		varType = {
 			name: 'identifier',
@@ -756,7 +756,8 @@ function parseJSDoc(nodeOrPath){
 	return result;
 }
 
-function handleTypeAlias(node, state){
+function handleTypeAlias(nodeOrPath, state, exportNode){
+	var node = nodeOrPath && (nodeOrPath.node || nodeOrPath);
 	if (!node || !node.id){
 		return;
 	}
@@ -765,7 +766,7 @@ function handleTypeAlias(node, state){
 	var exportTypeInfo = getTSReferenceType(node.typeAnnotation);
 	exportTypeInfo.instanceName = node && node.id && node.id.name;
 	
-	var jsdoc = parseJSDoc(node);
+	var jsdoc = parseJSDoc(exportNode || nodeOrPath);
 	if(jsdoc){
 		exportTypeInfo.meta = jsdoc;
 	}
@@ -774,8 +775,9 @@ function handleTypeAlias(node, state){
 	return exportTypeInfo;
 }
 
-function handleInterfaceDec(path, state){
-	if (!path.node || !path.node.id){
+function handleInterfaceDec(nodeOrPath, state, exportNode){
+	var node = nodeOrPath && (nodeOrPath.node || nodeOrPath);
+	if (!node || !node.id){
 		return;
 	}
 	
@@ -783,17 +785,17 @@ function handleInterfaceDec(path, state){
 	
 	var exportTypeInfo = {
 		name: 'interface',
-		instanceName: path.node && path.node.id.name,
+		instanceName: node && node.id && node.id.name,
 		isExport: false,
 		fields: []
 	};
 	
-	var jsdoc = parseJSDoc(node);
+	var jsdoc = parseJSDoc(exportNode || nodeOrPath);
 	if(jsdoc){
 		exportTypeInfo.meta = jsdoc;
 	}
 	
-	var interfaceBody = path.node.body;
+	var interfaceBody = node.body;
 	addPropertiesAsTypeFields(exportTypeInfo, interfaceBody.body);
 	typeData.push(exportTypeInfo);
 	return exportTypeInfo;
@@ -824,9 +826,9 @@ function createTsExportPlugin(){
 				if(path.node.type == 'ExportDefaultDeclaration'){
 					handleDefaultExport(path, state);
 				}else if(declaration.type == 'TSTypeAliasDeclaration'){
-					handleTypeAlias(declaration, state);
+					handleTypeAlias(declaration, state, path.node);
 				}else if(declaration.type == 'TSInterfaceDeclaration'){
-					handleInterfaceDec(declaration, state);
+					handleInterfaceDec(declaration, state, path.node);
 				}
 			},
 			VariableDeclarator(path, state) {
