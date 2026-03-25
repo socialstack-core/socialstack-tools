@@ -586,14 +586,21 @@ function addPropertiesAsTypeFields(exportTypeInfo, entries){
 		if(entry.type != 'TSPropertySignature'){
 			continue;
 		}
-
+		
 		var name = entry.key && entry.key.name;
-
-		exportTypeInfo.fields.push({
+		
+		var fieldDef = {
 			optional: !!entry.optional,
 			name,
 			fieldType: getCleanTSType(entry.typeAnnotation) 
-		});
+		};
+
+		var jsdoc = parseJSDoc(entry);
+		if(jsdoc){
+			fieldDef.meta = jsdoc;
+		}
+
+		exportTypeInfo.fields.push(fieldDef);
 	}
 }
 
