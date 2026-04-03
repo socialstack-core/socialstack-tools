@@ -24,6 +24,25 @@ function getCoreModulePath(moduleSpecifier) {
     if (moduleSpecifier.startsWith('Email/')) {
         return 'Email/Source/' + moduleSpecifier.substring(6);
     }
+    if (moduleSpecifier.startsWith('Api/')) {
+        return 'Api/' + moduleSpecifier.substring(4);
+    }
+    return moduleSpecifier;
+}
+
+function getInstallPath(moduleSpecifier) {
+    if (moduleSpecifier.startsWith('UI/')) {
+        return 'UI/Source/ThirdParty/' + moduleSpecifier.substring(3);
+    }
+    if (moduleSpecifier.startsWith('Admin/')) {
+        return 'Admin/Source/ThirdParty/' + moduleSpecifier.substring(6);
+    }
+    if (moduleSpecifier.startsWith('Email/')) {
+        return 'Email/Source/ThirdParty/' + moduleSpecifier.substring(6);
+    }
+    if (moduleSpecifier.startsWith('Api/')) {
+        return 'Api/ThirdParty/' + moduleSpecifier.substring(4);
+    }
     return moduleSpecifier;
 }
 
@@ -131,7 +150,9 @@ async function extractCoreModule(moduleSpecifier, coreDir, projectRoot) {
         throw new Error('Module not found in core: ' + moduleSpecifier + ' (looking for ' + coreModulePath + ')');
     }
 
-    copyDirRecursive(srcDir, projectRoot);
+    const installPath = getInstallPath(moduleSpecifier);
+    const destDir = path.join(projectRoot, installPath);
+    copyDirRecursive(srcDir, destDir);
 }
 
 async function installModule(spec, projectRoot, coreDir) {

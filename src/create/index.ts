@@ -2,8 +2,7 @@ import { SocialStackConfig } from '../types';
 import fs from 'fs';
 import https from 'https';
 import path from 'path';
-import unzip from 'unzipper';
-import { getLatestCoreBranch, getOrCacheVersionZip } from '../versions/helper';
+import { getLatestCoreBranch, getCoreZipPath } from '../versions/helper';
 import { installModule, getCoreZipPathForInstall } from '../install/helpers';
 import { setupDatabaseFromAppsettings } from '../database/helpers';
 import { exec as exec } from 'child_process';
@@ -13,7 +12,9 @@ const skipPrefixes = [
     'Admin/Source/',
     'Email/Source/',
     'Api/',
-    'Templates/'
+    'Templates/',
+    'ModuleTemplates/',
+    'Tests/'
 ];
 
 const databaseEngineMap: Record<string, string | null> = {
@@ -32,8 +33,8 @@ function getDatabaseModule(engine: string): string | null {
     return databaseEngineMap[normalized] || null;
 }
 
-function getProjectIdentifier() {
-    const dirName = path.basename(process.cwd());
+function getProjectIdentifier(projectRoot: string) {
+    const dirName = path.basename(projectRoot);
     const date = new Date();
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -95,10 +96,49 @@ function copyDirRecursive(src, dest) {
     }
 }
 
+function copyDirRecursiveSkippingModules(src, dest) {
+    if (!fs.existsSync(src)) {
+        return;
+    }
+
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+        const srcPath = path.join(src, entry.name);
+        const srcPathNormalized = srcPath.replace(/\\/g, '/');
+
+        let shouldSkip = false;
+        for (const prefix of skipPrefixes) {
+            const normalizedPrefix = prefix.replace(/\\/g, '/');
+            if (entry.name === normalizedPrefix.replace(/\/$/, '') || srcPathNormalized.includes('/' + normalizedPrefix.replace(/\/$/, '') + '/') || srcPathNormalized.endsWith('/' + normalizedPrefix.replace(/\/$/, ''))) {
+                shouldSkip = true;
+                break;
+            }
+        }
+
+        if (shouldSkip) {
+            continue;
+        }
+
+        const destPath = path.join(dest, entry.name);
+
+        if (entry.isDirectory()) {
+            fs.mkdirSync(destPath, { recursive: true });
+            copyDirRecursiveSkippingModules(srcPath, destPath);
+        } else {
+            const destDir = path.dirname(destPath);
+            if (!fs.existsSync(destDir)) {
+                fs.mkdirSync(destDir, { recursive: true });
+            }
+            fs.copyFileSync(srcPath, destPath);
+        }
+    }
+}
+
 function loadTemplateFromUrl(url) {
     return new Promise((success, reject) => {
         https.get(url, function(res) {
-            const bodyResponse = [];
+            const bodyResponse: Buffer[] = [];
             res.on('data', (d) => bodyResponse.push(Buffer.from(d)));
             res.on('end', () => {
                 const jsonResp = Buffer.concat(bodyResponse).toString('utf8');
@@ -113,7 +153,10 @@ function loadTemplateFromUrl(url) {
 }
 
 export const run = async (config) => {
-    console.log('Creating a new SocialStack project...');
+    try {
+    const projectRoot = config.calledFromPath;
+
+    console.log('Creating a new SocialStack project in ' + projectRoot + '...');
 
     const templateName = config.createOptions?.template || 'standard';
 
@@ -126,81 +169,19 @@ export const run = async (config) => {
     const coreVersion = latestBranch.replace('core-', '');
     console.log('Latest version: ' + coreVersion);
 
-    console.log('Downloading core...');
-    const zipStream = await getOrCacheVersionZip(latestBranch);
+    console.log('Extracting core files...');
+    const coreExtractDir = await getCoreZipPath(latestBranch);
 
-    console.log('Extracting core files (skipping module directories)...');
-
-    let rootPrefix = null;
-    const tempExtractDir = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'socialstack-')), 'extracted');
-
-    await new Promise((resolve, reject) => {
-        zipStream.pipe(unzip.Parse())
-            .on('entry', (entry) => {
-                const entryPath = entry.path;
-
-                if (rootPrefix === null) {
-                    const parts = entryPath.split('/');
-                    if (parts.length > 1) {
-                        rootPrefix = parts[0] + '/';
-                    } else {
-                        rootPrefix = '';
-                    }
-                }
-
-                const relativePath = entryPath.substring(rootPrefix.length);
-
-                if (relativePath === '' || relativePath.endsWith('/')) {
-                    entry.autodrain();
-                    return;
-                }
-
-                let shouldSkip = false;
-                for (const prefix of skipPrefixes) {
-                    if (relativePath.startsWith(prefix)) {
-                        shouldSkip = true;
-                        break;
-                    }
-                }
-
-                if (shouldSkip) {
-                    entry.autodrain();
-                    return;
-                }
-
-                const destPath = path.join(tempExtractDir, relativePath);
-                mkDirByPathSync(path.dirname(destPath));
-
-                if (entry.type === 'File') {
-                    entry.pipe(fs.createWriteStream(destPath));
-                } else {
-                    entry.autodrain();
-                }
-            })
-            .on('close', resolve)
-            .on('error', reject);
-    });
-
-    const entries = fs.readdirSync(tempExtractDir);
-    for (const entry of entries) {
-        const srcPath = path.join(tempExtractDir, entry);
-        const destPath = path.join(process.cwd(), entry);
-        if (fs.lstatSync(srcPath).isDirectory()) {
-            copyDirRecursive(srcPath, destPath);
-        } else {
-            fs.copyFileSync(srcPath, destPath);
-        }
-    }
-
-    fs.rmSync(tempExtractDir, { recursive: true, force: true });
+    console.log('Copying core files to project (skipping module directories)...');
+    copyDirRecursiveSkippingModules(coreExtractDir, projectRoot);
 
     console.log('Creating module directories...');
     ['UI/Source', 'Admin/Source', 'Email/Source', 'Api'].forEach(dir => {
-        fs.mkdirSync(dir, { recursive: true });
+        fs.mkdirSync(path.join(projectRoot, dir), { recursive: true });
     });
 
     console.log('Updating appsettings.json...');
-    const appsettingsPath = path.join(process.cwd(), 'appsettings.json');
+    const appsettingsPath = path.join(projectRoot, 'appsettings.json');
     let appsettings: Record<string, any> = {};
     if (fs.existsSync(appsettingsPath)) {
         try {
@@ -212,7 +193,7 @@ export const run = async (config) => {
 
     console.log('Initializing git repository...');
     await new Promise<void>((resolve, reject) => {
-        exec('git init', { cwd: process.cwd() }, (err, stdout, stderr) => {
+        exec('git init', { cwd: projectRoot }, (err, stdout, stderr) => {
             if (err) {
                 console.log('Warning: git init failed:', err.message);
             }
@@ -223,12 +204,14 @@ export const run = async (config) => {
     console.log('Processing template: ' + templateName);
     let template;
 
-    if (isUrl(templateName)) {
+    if (templateName === 'none') {
+        template = { dependencies: [] };
+    } else if (isUrl(templateName)) {
         console.log('Loading template from URL...');
         template = await loadTemplateFromUrl(templateName);
     } else {
         console.log('Loading template: ' + templateName);
-        const templatePath = path.join(tempExtractDir, 'Templates', templateName + '.json');
+        const templatePath = path.join(coreExtractDir, 'Templates', templateName, 'package.json');
         if (!fs.existsSync(templatePath)) {
             throw new Error('Template not found: ' + templatePath);
         }
@@ -239,11 +222,11 @@ export const run = async (config) => {
     if (template.dependencies && template.dependencies.length > 0) {
         console.log('Installing modules from template...');
 
-        const coreDir = await getCoreZipPathForInstall(process.cwd());
+        const coreDir = await getCoreZipPathForInstall(projectRoot);
 
         for (const dep of template.dependencies) {
             try {
-                await installModule(dep, process.cwd(), coreDir);
+                await installModule(dep, projectRoot, coreDir);
             } catch (err) {
                 console.log('Warning: ' + (err.message || err));
             }
@@ -254,13 +237,13 @@ export const run = async (config) => {
 
     if (databaseEngine !== 'none') {
         const dbModule = getDatabaseModule(databaseEngine);
-        const coreDir = await getCoreZipPathForInstall(process.cwd());
-        const projectId = getProjectIdentifier();
+        const coreDir = await getCoreZipPathForInstall(projectRoot);
+        const projectId = getProjectIdentifier(projectRoot);
 
         if (dbModule) {
             console.log('Installing database module: ' + dbModule);
             try {
-                await installModule(dbModule, process.cwd(), coreDir);
+                await installModule(dbModule, projectRoot, coreDir);
             } catch (err) {
                 console.log('Warning: Failed to install database module: ' + (err.message || err));
             }
@@ -282,7 +265,7 @@ export const run = async (config) => {
 
         console.log('Setting up database...');
         try {
-            await setupDatabaseFromAppsettings(process.cwd());
+            await setupDatabaseFromAppsettings(projectRoot);
         } catch (err) {
             console.log('Warning: ' + (err.message || err));
         }
@@ -291,4 +274,7 @@ export const run = async (config) => {
     }
 
     console.log('Complete! You can now run the project with "dotnet run" or start it with your favourite IDE.');
+    } catch (err) {
+        console.error('Error:', err.message || err);
+    }
 };

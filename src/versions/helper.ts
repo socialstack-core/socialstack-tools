@@ -42,7 +42,15 @@ function getBranchNames(): Promise<string[]> {
 	}
 
 	return new Promise((success, reject) => {
-		https.get('https://api.github.com/repos/socialstack-core/modules/branches', function(res) {
+		var options = {
+			hostname: 'api.github.com',
+			path: '/repos/socialstack-core/modules/branches',
+			headers: {
+				'User-Agent': 'SocialStack-Tools'
+			}
+		};
+
+		https.get(options, function(res) {
 			var bodyResponse = [];
 			res.on('data', (d) => {
 				bodyResponse.push(d);
@@ -107,38 +115,79 @@ function getOrCacheVersionZip(branchName: string): Promise<fs.ReadStream> {
 			});
 
 			readStream.on('error', function(err) {
-				var url = 'https://github.com/socialstack-core/modules/archive/refs/heads/' + branchName + '.zip';
+				downloadZip(branchName, versionCachePath)
+				.then(() => {
+					readStream = fs.createReadStream(versionCachePath);
+					readStream.on('open', function () {
+						success(readStream);
+					});
+					readStream.on('error', function(err) {
+						reject('Invalid cache i/o: ' + err.message);
+					});
+				})
+				.catch(reject);
+			});
+		});
+	});
+}
 
-				https.get(url, function(response) {
-					if (response.statusCode == 200 && response.headers['content-type'] == 'application/zip') {
+function downloadZip(branchName: string, versionCachePath: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		var options = {
+			hostname: 'github.com',
+			path: '/socialstack-core/modules/archive/refs/heads/' + branchName + '.zip',
+			headers: {
+				'User-Agent': 'SocialStack-Tools'
+			}
+		};
+
+		var req = https.get(options, function(response) {
+			if (response.statusCode == 302 || response.statusCode == 301) {
+				var redirectUrl = response.headers.location;
+				console.log('Following redirect to: ' + redirectUrl);
+
+				var redirectOptions = new URL(redirectUrl);
+				var redirectReq = https.get({
+					hostname: redirectOptions.hostname,
+					path: redirectOptions.pathname,
+					headers: {
+						'User-Agent': 'SocialStack-Tools'
+					}
+				}, function(redirectResponse) {
+					if (redirectResponse.statusCode == 200) {
 						var cacheWriteStream = fs.createWriteStream(versionCachePath + '.tmp');
-
-						response.pipe(cacheWriteStream);
+						redirectResponse.pipe(cacheWriteStream);
 
 						cacheWriteStream.on('finish', () => {
 							try {
 								fs.unlinkSync(versionCachePath);
 							} catch {}
-
 							fs.renameSync(versionCachePath + '.tmp', versionCachePath);
-
-							readStream = fs.createReadStream(versionCachePath);
-
-							readStream.on('open', function () {
-								success(readStream);
-							});
-
-							readStream.on('error', function(err) {
-								console.log(err);
-								reject('Invalid cache i/o.');
-							});
+							resolve();
 						});
 					} else {
-						reject('Invalid response from GitHub (' + url + ')');
+						reject('Redirect response status: ' + redirectResponse.statusCode);
 					}
 				});
-			});
+
+				redirectReq.on('error', reject);
+			} else if (response.statusCode == 200) {
+				var cacheWriteStream = fs.createWriteStream(versionCachePath + '.tmp');
+				response.pipe(cacheWriteStream);
+
+				cacheWriteStream.on('finish', () => {
+					try {
+						fs.unlinkSync(versionCachePath);
+					} catch {}
+					fs.renameSync(versionCachePath + '.tmp', versionCachePath);
+					resolve();
+				});
+			} else {
+				reject('Invalid response from GitHub (status: ' + response.statusCode + ')');
+			}
 		});
+
+		req.on('error', reject);
 	});
 }
 

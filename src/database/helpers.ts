@@ -76,7 +76,7 @@ async function createMongoDatabase(connectionString: string) {
     }
 
     const url = `mongodb://${parsed.host}:${parsed.port}`;
-    const client = new MongoClient(url);
+    const client = new MongoClient(url, { useUnifiedTopology: true });
 
     try {
         await client.connect();

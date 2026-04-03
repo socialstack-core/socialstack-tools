@@ -1,5 +1,8 @@
 
 
+import fs from 'fs';
+import path from 'path';
+
 import { SocialStackConfig } from './types';
 import { setLocalConfig, localConfigPath } from './configManager/index.js';
 import { findProjectRoot, isProjectRoot } from './projectHelpers/helpers.js';
@@ -147,7 +150,35 @@ export const run = (config: SocialStackConfig) => {
         .command('version')
         .alias('v')
         .description('outputs the currently installed version of SocialStack tools')
-        .action(() => console.log(pkg.version));
+        .option('--project', 'Get the CoreVersion from the project appsettings.json')
+        .action((options: any) => {
+            if (options.project) {
+                findProjectRoot(config, (result: any) => {
+                    if (!result || !config.projectRoot) {
+                        console.log('unknown');
+                        return;
+                    }
+                    const appSettingsPath = path.join(config.projectRoot, 'appsettings.json');
+                    try {
+                        if (!fs.existsSync(appSettingsPath)) {
+                            console.log('unknown');
+                            return;
+                        }
+                        const appSettings = JSON.parse(fs.readFileSync(appSettingsPath, 'utf-8'));
+                        const coreVersion = appSettings.CoreVersion;
+                        if (coreVersion === undefined || coreVersion === null) {
+                            console.log('unknown');
+                        } else {
+                            console.log(coreVersion);
+                        }
+                    } catch (e) {
+                        console.log('unknown');
+                    }
+                });
+            } else {
+                console.log(pkg.version);
+            }
+        });
 
     program
         .command('generate [modules...]')
@@ -205,7 +236,7 @@ export const run = (config: SocialStackConfig) => {
         .command('create')
         .alias('c')
         .description('creates a new blank SocialStack project in your working directory')
-        .option('--template <name-or-url>', 'Template to use (default: standard)')
+        .option('--template <name-or-url>', 'Template to use: none, standard, or URL (default: standard)')
         .option('--database <engine>', 'Database engine to install: none, mysql, mongo (default: mongo)')
         .action((options) => {
             config.createOptions = options;
