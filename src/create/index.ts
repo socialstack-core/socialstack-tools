@@ -3,7 +3,7 @@ import fs from 'fs';
 import https from 'https';
 import path from 'path';
 import { getLatestCoreBranch, getCoreZipPath } from '../versions/helper';
-import { installModule, getCoreZipPathForInstall } from '../install/helpers';
+import { installModule, installModules, getCoreZipPathForInstall } from '../install/helpers';
 import { setupDatabaseFromAppsettings } from '../database/helpers';
 import { exec as exec } from 'child_process';
 
@@ -202,34 +202,26 @@ export const run = async (config) => {
     });
 
     console.log('Processing template: ' + templateName);
-    let template;
 
-    if (templateName === 'none') {
-        template = { dependencies: [] };
-    } else if (isUrl(templateName)) {
-        console.log('Loading template from URL...');
-        template = await loadTemplateFromUrl(templateName);
-    } else {
-        console.log('Loading template: ' + templateName);
-        const templatePath = path.join(coreExtractDir, 'Templates', templateName, 'package.json');
-        if (!fs.existsSync(templatePath)) {
-            throw new Error('Template not found: ' + templatePath);
-        }
-        const templateContent = fs.readFileSync(templatePath, 'utf8');
-        template = JSON.parse(templateContent);
-    }
-
-    if (template.dependencies && template.dependencies.length > 0) {
-        console.log('Installing modules from template...');
-
+    if (templateName !== 'none') {
         const coreDir = await getCoreZipPathForInstall(projectRoot);
 
-        for (const dep of template.dependencies) {
-            try {
-                await installModule(dep, projectRoot, coreDir);
-            } catch (err) {
-                console.log('Warning: ' + (err.message || err));
+        if (isUrl(templateName)) {
+            console.log('Loading template from URL...');
+            const template: { dependencies?: string[] } = await loadTemplateFromUrl(templateName);
+            if (template.dependencies && template.dependencies.length > 0) {
+                console.log('Installing modules from template...');
+                for (const dep of template.dependencies) {
+                    try {
+                        await installModule(dep, projectRoot, coreDir);
+                    } catch (err) {
+                        console.log('Warning: ' + (err.message || err));
+                    }
+                }
             }
+        } else {
+            console.log('Installing template: ' + templateName);
+            await installModules([templateName], projectRoot);
         }
     }
 

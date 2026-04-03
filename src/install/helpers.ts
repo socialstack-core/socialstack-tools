@@ -14,6 +14,10 @@ function isModuleSpecifier(spec) {
     return /^((UI|Admin|Email|Api)\/)/.test(spec);
 }
 
+function isTemplateName(spec) {
+    return !isUrl(spec) && !isModuleSpecifier(spec) && spec !== 'none';
+}
+
 function getCoreModulePath(moduleSpecifier) {
     if (moduleSpecifier.startsWith('UI/')) {
         return 'UI/Source/' + moduleSpecifier.substring(3);
@@ -162,8 +166,36 @@ async function installModule(spec, projectRoot, coreDir) {
     } else if (isModuleSpecifier(spec)) {
         console.log('Installing module: ' + spec);
         await extractCoreModule(spec, coreDir, projectRoot);
+    } else if (isTemplateName(spec)) {
+        console.log('Installing template: ' + spec);
+        await installTemplate(spec, projectRoot, coreDir);
     } else {
         throw new Error('Unknown module format: ' + spec);
+    }
+}
+
+async function installTemplate(templateName, projectRoot, coreDir) {
+    if (!isTemplateName(templateName)) {
+        throw new Error('Invalid template name: ' + templateName);
+    }
+
+    console.log('Loading template: ' + templateName);
+    const templatePath = path.join(coreDir, 'Templates', templateName, 'package.json');
+    if (!fs.existsSync(templatePath)) {
+        throw new Error('Template not found: ' + templateName);
+    }
+    const templateContent = fs.readFileSync(templatePath, 'utf8');
+    const template = JSON.parse(templateContent);
+
+    if (template.dependencies && template.dependencies.length > 0) {
+        console.log('Installing modules from template...');
+        for (const dep of template.dependencies) {
+            try {
+                await installModule(dep, projectRoot, coreDir);
+            } catch (err) {
+                console.log('Warning: ' + (err.message || err));
+            }
+        }
     }
 }
 
@@ -248,4 +280,4 @@ function uninstallModules(modules, config) {
     });
 }
 
-export { installModule, installModules, getCoreZipPathForInstall, uninstallModules };
+export { installModule, installModules, installTemplate, getCoreZipPathForInstall, uninstallModules };
