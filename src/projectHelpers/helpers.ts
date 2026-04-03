@@ -67,6 +67,7 @@ function findProjectRoot(config, done){
 	isProjectRoot(currentPath, onCheckedRoot);
 }
 
-export { findProjectRoot,
+export {
+	findProjectRoot,
 	isProjectRoot
  };

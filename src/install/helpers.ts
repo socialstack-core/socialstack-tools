@@ -14,16 +14,6 @@ var adp = getAppDataPath('socialstack');
 
 var moduleRepository = 'cloud.socialstack.dev';
 
-var mainstreamRepos = {};
-
-mainstreamRepos['npm'] = {
-	cmd: 'npm install "{NAME_URL}" --save'
-};
-
-mainstreamRepos['nuget'] = {
-	cmd: 'dotnet add package "{NAME_NO_VERSION}"'
-};
-
 function bufferNewlineDiff(a,b){
 	if(!a || !b){
 		if(!a && !b){
@@ -577,59 +567,7 @@ function installModules(modules, config, skipMap){
 					repo = name.substring(0, colon);
 					name = name.substring(colon+1);
 				}
-
-				if(repo){
-
-					if(!mainstreamRepos[repo.toLowerCase()]){
-						throw new Error("Unknown module repository reference: '" + repo + "'");
-					}
-
-					// Host is a mainstream repository:
-					var repoMeta = mainstreamRepos[repo.toLowerCase()];
-
-					var modulePath = name;
-
-					if(modulePath[0] == '/'){
-						modulePath = modulePath.substring(1);
-					}
-
-					if(modulePath[modulePath.length-1] == '/'){
-						modulePath = modulePath.substring(0, modulePath.length-1);
-					}
-
-					// Split into pieces:
-					var pathParts = modulePath.split('/');
-
-					// Repo name:
-					var localName = pathParts[pathParts.length-1];
-
-					// Name lowercase:
-					var nameUrl = localName.toLowerCase();
-
-					// Path lowercase:
-					var moduleUrl = modulePath.toLowerCase();
-
-					var nameNoVersion = localName;
-
-					var verStart = nameNoVersion.indexOf('@');
-
-					if(verStart != -1){
-						nameNoVersion = localName.substring(0, verStart);
-					}
-
-					console.log("Installing dependency " + name + "..");
-
-					return cmdInstall(
-						repoMeta.cmd
-							.replace(/\{MODULE\}/g, modulePath)
-							.replace(/\{MODULE_URL\}/g, moduleUrl)
-							.replace(/\{NAME\}/g, localName)
-							.replace(/\{NAME_NO_VERSION\}/g, nameNoVersion)
-							.replace(/\{NAME_URL\}/g, nameUrl),
-						config
-					);
-				}
-
+				
 				var nameLC = name.toLowerCase();
 				var info = moduleInfo[nameLC];
 
