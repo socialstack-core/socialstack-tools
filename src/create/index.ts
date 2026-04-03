@@ -5,6 +5,7 @@ import path from 'path';
 import unzip from 'unzipper';
 import { getLatestCoreBranch, getOrCacheVersionZip } from '../versions/helper';
 import { installModule, getCoreZipPathForInstall } from '../install/helpers';
+import { setupDatabaseFromAppsettings } from '../database/helpers';
 import { exec as exec } from 'child_process';
 
 const skipPrefixes = [
@@ -14,6 +15,43 @@ const skipPrefixes = [
     'Api/',
     'Templates/'
 ];
+
+const databaseEngineMap: Record<string, string | null> = {
+    'none': null,
+    'mysql': 'Api/DatabaseMySQL',
+    'maria': 'Api/DatabaseMySQL',
+    'mariadb': 'Api/DatabaseMySQL',
+    'mongo': 'Api/DatabaseMongoDB',
+    'mongodb': 'Api/DatabaseMongoDB',
+};
+
+const defaultDatabaseEngine = 'mongo';
+
+function getDatabaseModule(engine: string): string | null {
+    const normalized = engine.toLowerCase();
+    return databaseEngineMap[normalized] || null;
+}
+
+function getProjectIdentifier() {
+    const dirName = path.basename(process.cwd());
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return {
+        dirName,
+        schemaName: `${dirName}_${day}-${month}-${year}`,
+    };
+}
+
+function generatePassword(length = 10): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!$';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
 
 function isUrl(spec) {
     return spec.includes('://');
@@ -210,6 +248,46 @@ export const run = async (config) => {
                 console.log('Warning: ' + (err.message || err));
             }
         }
+    }
+
+    const databaseEngine = config.createOptions?.database || defaultDatabaseEngine;
+
+    if (databaseEngine !== 'none') {
+        const dbModule = getDatabaseModule(databaseEngine);
+        const coreDir = await getCoreZipPathForInstall(process.cwd());
+        const projectId = getProjectIdentifier();
+
+        if (dbModule) {
+            console.log('Installing database module: ' + dbModule);
+            try {
+                await installModule(dbModule, process.cwd(), coreDir);
+            } catch (err) {
+                console.log('Warning: Failed to install database module: ' + (err.message || err));
+            }
+        }
+
+        if (databaseEngine === 'mongo' || databaseEngine === 'mongodb') {
+            appsettings.MongoConnectionStrings = {
+                DefaultConnection: `mongodb://localhost:27017/${projectId.schemaName}?ssl=false`
+            };
+        } else if (databaseEngine === 'mysql' || databaseEngine === 'maria' || databaseEngine === 'mariadb') {
+            const password = generatePassword();
+            const userName = projectId.schemaName + '_u';
+            appsettings.ConnectionStrings = {
+                DefaultConnection: `server=localhost;port=3306;SslMode=none;AllowPublicKeyRetrieval=true;database=${projectId.schemaName};user=${userName};password=${password}`
+            };
+        }
+
+        fs.writeFileSync(appsettingsPath, JSON.stringify(appsettings, null, 2));
+
+        console.log('Setting up database...');
+        try {
+            await setupDatabaseFromAppsettings(process.cwd());
+        } catch (err) {
+            console.log('Warning: ' + (err.message || err));
+        }
+    } else {
+        console.log('No database configured. Project will run in in-memory mode.');
     }
 
     console.log('Complete! You can now run the project with "dotnet run" or start it with your favourite IDE.');

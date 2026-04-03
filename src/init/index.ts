@@ -1,20 +1,11 @@
-
-
 import { SocialStackConfig } from '../types';
-import { installDatabase } from '../create/helpers.js';
+import { setupDatabaseFromAppsettings } from '../database/helpers';
 
-export const run = (config: SocialStackConfig) => {
-
-	installDatabase(config).then(() => {
-		console.log('Done');
-	}).catch(e => {
-
-		if (e && e.message) {
-			console.error(e.message);
-		} else {
-			console.error(e);
-		}
-
-	});
-
+export const run = async (config: SocialStackConfig) => {
+    try {
+        await setupDatabaseFromAppsettings(config.projectRoot);
+        console.log('Done');
+    } catch (e) {
+        console.error(e.message || e);
+    }
 };

@@ -180,7 +180,7 @@ export const run = (config: SocialStackConfig) => {
 
     program
         .command('configure')
-        .description('Configure socialstack tools database settings')
+        .description('Configure socialstack tools MySQL database settings')
         .option('-u <user>', 'Username', 'root')
         .option('-p <password>', 'Password')
         .option('-s <server>', 'Server', 'localhost')
@@ -206,7 +206,8 @@ export const run = (config: SocialStackConfig) => {
         .alias('c')
         .description('creates a new blank SocialStack project in your working directory')
         .option('--template <name-or-url>', 'Template to use (default: standard)')
-        .action((options: any) => {
+        .option('--database <engine>', 'Database engine to install: none, mysql, mongo (default: mongo)')
+        .action((options) => {
             config.createOptions = options;
             mod_create(config);
         });
