@@ -1,36 +1,54 @@
 // @ts-nocheck
-
 import { SocialStackConfig } from '../types';
 import pluralize from 'pluralize';
 import readline from 'readline';
 import fs from 'fs';
+import path from 'path';
 import { jsConfigManager } from '../configManager';
 import { generateInstallCommand } from '../create/helpers.js';
+import { getCoreZipPath, findClosestCoreBranch } from '../versions/helper';
 
-/*
-* socialstack generate Api/Worlds  --> Uses the contents of the Api directory here as a template, then generates the named module.
-*/
+export const run = async (config: SocialStackConfig) => {
+	var appsettingsPath = path.join(config.projectRoot, 'appsettings.json');
+	var appsettings = new jsConfigManager(appsettingsPath).get();
 
-export const run = (config: SocialStackConfig) => {
+	if (!appsettings.CoreVersion) {
+		console.error('CoreVersion is required in appsettings.json for the generate command.');
+		console.error('Run "socialstack create" first to set up a new project.');
+		return;
+	}
+
+	var coreVersion = appsettings.CoreVersion;
+	var coreBranch = 'core-' + coreVersion;
+
+	console.log('Loading templates for version ' + coreVersion + '...');
+
+	var coreDir = await getCoreZipPath(coreBranch);
+	var templateBase = path.join(coreDir, 'ModuleTemplates');
+
+	if (!fs.existsSync(templateBase)) {
+		console.error('ModuleTemplates directory not found in core version: ' + coreBranch);
+		console.error('This core version may not support the generate command.');
+		return;
+	}
 
 	var modules = config.commandLine['-'];
 
-	if(!modules || !modules.length){
+	if (!modules || !modules.length) {
 		console.log("Please specify the module(s) you'd like to generate. For example, 'socialstack g Api/Worlds'.");
+		return;
 	}
 
 	var newConfiguration = {};
 
-	function askFor(text, configName){
-		return new Promise((success, reject) => {
+	function askFor(text, configName) {
+		return new Promise<[any, string, string]>((success, reject) => {
 
-			if(newConfiguration[configName] != undefined){
-				// Already set - skip.
+			if (newConfiguration[configName] != undefined) {
 				return success(newConfiguration, configName, newConfiguration[configName]);
 			}
 
-			if(Array.isArray(config.commandLine[configName]) && config.commandLine[configName].length){
-				// Command line is specifying it
+			if (Array.isArray(config.commandLine[configName]) && config.commandLine[configName].length) {
 				newConfiguration[configName] = config.commandLine[configName][0];
 				return success(newConfiguration, configName, newConfiguration[configName]);
 			}
@@ -40,77 +58,71 @@ export const run = (config: SocialStackConfig) => {
 			var rl = readline.createInterface(process.stdin, process.stdout);
 			rl.setPrompt(configName + ': ');
 			rl.prompt();
-			rl.on('line', function(line) {
+			rl.on('line', function (line) {
 				newConfiguration[configName] = line;
 				rl.close();
 				success(newConfiguration, configName, line);
-			});	
+			});
 		});
 	}
 
 	function capitalize(s) {
-		if (typeof s !== 'string') return ''
-		return s.charAt(0).toUpperCase() + s.slice(1)
+		if (typeof s !== 'string') return '';
+		return s.charAt(0).toUpperCase() + s.slice(1);
 	}
 
 	function lowerize(s) {
-		if (typeof s !== 'string') return ''
-		return s.charAt(0).toLowerCase() + s.slice(1)
+		if (typeof s !== 'string') return '';
+		return s.charAt(0).toLowerCase() + s.slice(1);
 	}
 
 	var currentModule = 0;
 
-	function dashName(label){
+	function dashName(label) {
 		return label.replace(/([^A-Z])([A-Z])/g, '$1-$2');
 	}
 
-	function createModule(moduleSet, type, names){
-
-		try{
+	function createModule(moduleSet, type, names) {
+		try {
 			var targetDirectory = config.projectRoot + '/';
 
-			// Insert the source dir if module set is not Api:
-			if(moduleSet == 'Api'){
+			if (moduleSet == 'Api') {
 				targetDirectory += names.fqName;
-			}else{
+			} else {
 				targetDirectory += moduleSet + '/Source' + names.fqName.substring(moduleSet.length);
 			}
 
 			fs.mkdirSync(targetDirectory, { recursive: true });
-		}catch(e){
-			if(e.code == 'EEXIST'){
+		} catch (e) {
+			if (e.code == 'EEXIST') {
 				console.log('A module at ' + names.fqName + ' already exists. Skipping.');
 				handleModule();
 				return;
-			}else{
+			} else {
 				throw e;
 			}
 		}
 
 		var entity = names.entity;
-
-		// Create singular version:
 		var singular = pluralize.singular(entity);
 
-		// A or an. This part is naive - "a umbrella" "a unicorn" would be outputted, but it's close enough!
 		var vowelRegex = '^[aieouAIEOU].*';
 		var startsWithVowel = singular.match(vowelRegex);
 		var aOrAn = startsWithVowel ? 'an ' : 'a ';
 		var fqEntity = singular;
 
-		if(entity == singular && moduleSet == 'Api'){
+		if (entity == singular && moduleSet == 'Api') {
 			fqEntity = 'Api.' + entity + '.' + entity;
 		}
 
-		// merge in any directory names:
 		var mergedName = '';
 
-		if(moduleSet != 'Api'){
+		if (moduleSet != 'Api') {
 			mergedName += moduleSet.toLowerCase();
 		}
 
 		names.subDirectories.forEach(subDir => {
-			if(mergedName != ''){
+			if (mergedName != '') {
 				mergedName += '-';
 			}
 			mergedName += subDir.toLowerCase();
@@ -118,7 +130,7 @@ export const run = (config: SocialStackConfig) => {
 
 		var dn = dashName(entity);
 
-		if(mergedName != ''){
+		if (mergedName != '') {
 			mergedName += '-';
 		}
 		mergedName += dn.toLowerCase();
@@ -134,25 +146,21 @@ export const run = (config: SocialStackConfig) => {
 			entities: lowerize(entity)
 		};
 
-		// For each file in Api/TYPE..
-		var templateDir = __dirname + '/' + moduleSet + '/' +type;
+		var templateDir = path.join(templateBase, moduleSet, type);
 		copyTemplate(templateDir, swaps, targetDirectory, names.fqName);
 	}
 
 	function copyTemplate(templateDir, swaps, targetDirectory, generatedName) {
 		fs.readdir(templateDir, function (err, files) {
-			if(err){
+			if (err) {
 				throw err;
 			}
 
 			files.forEach(file => {
 				var targetName = swap(file, swaps);
-
-				// Read the content:
-				var sourceContent = fs.readFileSync( templateDir + '/' + file, {encoding: 'utf8'} );
+				var sourceContent = fs.readFileSync(path.join(templateDir, file), { encoding: 'utf8' });
 				var swappedContent = swap(sourceContent, swaps);
-				fs.writeFileSync(targetDirectory + '/' + targetName, swappedContent, {encoding: 'utf8'});
-
+				fs.writeFileSync(path.join(targetDirectory, targetName), swappedContent, { encoding: 'utf8' });
 			});
 
 			console.log('Generated ' + generatedName);
@@ -160,8 +168,8 @@ export const run = (config: SocialStackConfig) => {
 		});
 	}
 
-	function swap(text, swaps){
-		for(var sourceValue in swaps){
+	function swap(text, swaps) {
+		for (var sourceValue in swaps) {
 			var targetValue = swaps[sourceValue];
 			var regex = new RegExp(sourceValue, 'g');
 			text = text.replace(regex, targetValue);
@@ -169,19 +177,19 @@ export const run = (config: SocialStackConfig) => {
 		return text;
 	}
 
-	function generateNginxConfig(){
+	function generateNginxConfig() {
 		var targetDirectory = config.projectRoot + '/Nginx';
 
 		fs.mkdirSync(targetDirectory, { recursive: true });
 
 		var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
-		var appsettings = appsettingsManager.get();
+		var appsettingsData = appsettingsManager.get();
 
-		var publicUrl = appsettings.PublicUrl;
+		var publicUrl = appsettingsData.PublicUrl;
 
 		var protoParts = publicUrl.split('://');
 
-		if(protoParts.length > 1){
+		if (protoParts.length > 1) {
 			publicUrl = protoParts[1];
 		}
 
@@ -191,43 +199,42 @@ export const run = (config: SocialStackConfig) => {
 
 		var wwwUrl = publicUrl;
 
-		if(publicUrl.indexOf('www.') != 0){
+		if (publicUrl.indexOf('www.') != 0) {
 			wwwUrl = 'www.' + publicUrl;
 		}
 
-		// e.g. www.site.com -> site.com
 		var rootUrl = wwwUrl.substring(4);
 
-		/// www.site.com *.site.com site.com
 		var urlSetNoRoot = wwwUrl + ' *.' + publicUrl;
-		var urlSet = urlSetNoRoot + ' ' + rootUrl;
+		var urlSetFull = urlSetNoRoot + ' ' + rootUrl;
 
 		var swaps = {
 			PreferredUrl: wwwUrl,
-			UrlSet: urlSet,
+			UrlSet: urlSetFull,
 			UrlsNoRoot: urlSetNoRoot,
 			RootUrl: rootUrl,
 			Url: publicUrl,
 			RemoteDirectory: '/var/www/' + publicUrl,
-			Port: appsettings.Port || 5050
+			Port: appsettingsData.Port || 5050
 		};
 
-		copyTemplate(__dirname + '/Nginx', swaps, targetDirectory, 'NGINX Config');
+		var nginxTemplateDir = path.join(templateBase, 'Nginx');
+		copyTemplate(nginxTemplateDir, swaps, targetDirectory, 'NGINX Config');
 	}
 
-	function generateSystemDConfig(){
+	function generateSystemDConfig() {
 		var targetDirectory = config.projectRoot + '/SystemD';
 
 		fs.mkdirSync(targetDirectory, { recursive: true });
 
 		var appsettingsManager = new jsConfigManager(config.projectRoot + "/appsettings.json");
-		var appsettings = appsettingsManager.get();
+		var appsettingsData = appsettingsManager.get();
 
-		var publicUrl = appsettings.PublicUrl;
+		var publicUrl = appsettingsData.PublicUrl;
 
 		var protoParts = publicUrl.split('://');
 
-		if(protoParts.length > 1){
+		if (protoParts.length > 1) {
 			publicUrl = protoParts[1];
 		}
 
@@ -237,13 +244,14 @@ export const run = (config: SocialStackConfig) => {
 			Url: publicUrl
 		};
 
-		copyTemplate(__dirname + '/SystemD', swaps, targetDirectory, 'SystemD Config (Linux service config)');
+		var systemdTemplateDir = path.join(templateBase, 'SystemD');
+		copyTemplate(systemdTemplateDir, swaps, targetDirectory, 'SystemD Config (Linux service config)');
 	}
 
-	function handleModule(){
+	function handleModule() {
 		currentModule++;
 
-		if(currentModule >= modules.length){
+		if (currentModule >= modules.length) {
 			console.log('Done');
 			return;
 		}
@@ -252,23 +260,20 @@ export const run = (config: SocialStackConfig) => {
 		originalInput = originalInput.replace(/\\/gi, '/');
 		originalInput = originalInput.trim();
 
-		if(originalInput.indexOf('.json') != -1){
-			// Defined in a json file. It's either just an array, or {"modules": [..,..]}
+		if (originalInput.indexOf('.json') != -1) {
+			var json = JSON.parse(fs.readFileSync(originalInput, 'utf8'));
 
-			// Import the file:
-			var json = JSON.parse(fs.readFileSync(first, 'utf8'));
-
-			if(!json){
+			if (!json) {
 				console.log('Your json file was found, but it\'s empty. Check: ' + originalInput);
 				handleModule();
 				return;
 			}
 
-			if(Array.isArray(json)){
+			if (Array.isArray(json)) {
 				modules = modules.concat(json);
-			}else if(json.modules){
+			} else if (json.modules) {
 				modules = modules.concat(json.modules);
-			}else{
+			} else {
 				console.log('If you\'d like to list modules to generate in a json file, it should either be an array of textual names, or {"modules": [..]} where the "modules" array is again an array of textual names.');
 			}
 
@@ -278,19 +283,16 @@ export const run = (config: SocialStackConfig) => {
 
 		var pieces = originalInput.split('/');
 
-		if(pieces.length == 1){
+		if (pieces.length == 1) {
 			var first = pieces[0].toLowerCase();
 
-			if(first == 'nginx'){
-				// NGINX config.
+			if (first == 'nginx') {
 				generateNginxConfig();
 				return;
-			}else if(first == 'systemd' || first == 'service'){
-				// SystemD service file generator.
+			} else if (first == 'systemd' || first == 'service') {
 				generateSystemDConfig();
 				return;
-			}else if(first == 'sql'){
-				// SQL to create user/ db:
+			} else if (first == 'sql') {
 				console.log(generateInstallCommand(config) + ';');
 				return;
 			}
@@ -298,20 +300,17 @@ export const run = (config: SocialStackConfig) => {
 
 		var firstPiece = 'api';
 
-		if(pieces.length > 1){
-			// Api is assumed otherwise.
+		if (pieces.length > 1) {
 			firstPiece = pieces.shift().trim().toLowerCase();
 		}
 
-		// Grab entity name now:
 		var entity = capitalize(pieces.pop().trim());
 
 		var fqNameBase = capitalize(firstPiece);
 		var subDirectories = [];
 
-		if(pieces.length>0){
-			// There's still stuff left - these are subdirectories
-			for(var i=0;i<pieces.length;i++){
+		if (pieces.length > 0) {
+			for (var i = 0; i < pieces.length; i++) {
 				var subdirName = capitalize(pieces[i].trim());
 				subDirectories.push(subdirName);
 				fqNameBase += '/';
@@ -319,7 +318,7 @@ export const run = (config: SocialStackConfig) => {
 			}
 		}
 
-		fqName = fqNameBase + '/' + entity;
+		var fqName = fqNameBase + '/' + entity;
 
 		var names = {
 			pieces,
@@ -330,67 +329,44 @@ export const run = (config: SocialStackConfig) => {
 			fqName
 		};
 
-		if(firstPiece == 'api'){
-
-			// Is it plural?
-			if(pluralize.isPlural(entity)){
-				// With entity. This is the default, and no further checks are needed.
+		if (firstPiece == 'api') {
+			if (pluralize.isPlural(entity)) {
 				createModule('Api', 'Default', names);
-
-			}else{
-
+			} else {
 				var pluralEntity = pluralize.plural(entity);
 				var fqNamePlural = fqNameBase + '/' + pluralEntity;
 
-				// Without entity, but we'll ask to confirm.
 				askFor(
-					'You\'ve provided a singular name (' + entity + '). ' + 
-					'Singular named modules are created as service only - without a ' + entity + '.cs - to avoid Api.' + entity + '.' + entity + ' weirdness. ' + 
-					'If you intended a service only module, enter Y to continue. '+
-					'If you wanted an entity called ' + entity+ ' then enter E for the module to instead be created as ' + fqNamePlural + '. '+
+					'You\'ve provided a singular name (' + entity + '). ' +
+					'Singular named modules are created as service only - without a ' + entity + '.cs - to avoid Api.' + entity + '.' + entity + ' weirdness. ' +
+					'If you intended a service only module, enter Y to continue. ' +
+					'If you wanted an entity called ' + entity + ' then enter E for the module to instead be created as ' + fqNamePlural + '. ' +
 					'Otherwise enter N to exit.',
 					'serviceonly'
 				).then(config => {
-					console.log(config);
-
-					if(config.serviceonly == 'E' || config.serviceonly == 'e'){
-						// Actually an entity module.
+					if (config.serviceonly == 'E' || config.serviceonly == 'e') {
 						names.entity = pluralEntity;
 						names.fqName = fqName = fqNamePlural;
 						createModule('Api', 'Default', names);
-					}else if(config.serviceonly == 'y' || config.serviceonly == 'Y'){
-						// Service only module.
+					} else if (config.serviceonly == 'y' || config.serviceonly == 'Y') {
 						createModule('Api', 'ServiceOnly', names);
-					}else{
-						// Skip!
+					} else {
 						console.log('Not generating anything for "' + originalInput + '"');
 						handleModule();
 					}
-
 				});
 			}
-
-		}else if(firstPiece == 'ui'){
-
-			// Just a simple UI class.
+		} else if (firstPiece == 'ui') {
 			createModule('UI', 'Default', names);
-
-		}else if(firstPiece == 'admin'){
-
-			// Just a simple UI class.
+		} else if (firstPiece == 'admin') {
 			createModule('Admin', 'Default', names);
-
-		}else if(firstPiece == 'email'){
-
-			// Just a simple UI class.
+		} else if (firstPiece == 'email') {
 			createModule('Email', 'Default', names);
-
-		}else{
+		} else {
 			throw new Error('Unrecognised module type: ' + originalInput + '. UI, Admin, Email or Api are the acceptable types here. If you want a subdirectory, you must also add e.g. Api/ at the start.');
 		}
 	}
 
 	currentModule = -1;
 	handleModule();
-
 };

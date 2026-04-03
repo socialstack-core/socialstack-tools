@@ -1,205 +1,310 @@
-// @ts-nocheck
-
 import { SocialStackConfig } from '../types';
 import fs from 'fs';
 import https from 'https';
 import path from 'path';
 import unzip from 'unzipper';
-import process from 'process';
-import { jsConfigManager, getLocalConfig, settingsPath } from '../configManager';
-import { installModules } from '../install/helpers.js';
-import { createDatabase, tidyUrl } from './helpers.js';
+import { getLatestCoreBranch, getOrCacheVersionZip } from '../versions/helper';
 import { exec as exec } from 'child_process';
-import readline from 'readline';
 
-export const run = (config: SocialStackConfig) => {
+const skipPrefixes = [
+    'UI/Source/',
+    'Admin/Source/',
+    'Email/Source/',
+    'Api/',
+    'Templates/'
+];
 
-	console.log(' ');
-	console.log('  ____     U  ___ u   ____                _       _      ____     _____      _        ____   _  __    ');
-	console.log(' / __"| u   \\/"_ \\/U /"___|    ___    U  /"\\  u  |"|    / __"| u |_ " _| U  /"\\  u U /"___| |"|/ /    ');
-	console.log('<\\___ \\/    | | | |\\| | u     |_"_|    \\/ _ \\/ U | | u <\\___ \\/    | |    \\/ _ \\/  \\| | u   | \' /     ');
-	console.log(' u___) |.-,_| |_| | | |/__     | |     / ___ \\  \\| |/__ u___) |   /| |\\   / ___ \\   | |/__U/| . \\\\u   ');
-	console.log(' |____/>>\\_)-\\___/   \\____|  U/| |\\u  /_/   \\_\\  |_____||____/>> u |_|U  /_/   \\_\\   \\____| |_|\\_\\    ');
-	console.log('  )(  (__)    \\\\    _// \\\\.-,_|___|_,-.\\\\    >>  //  \\\\  )(  (__)_// \\\\_  \\\\    >>  _// \\\\,-,>> \\\\,-. ');
-	console.log(' (__)        (__)  (__)(__)\\_)-\' \'-(_/(__)  (__)(_")("_)(__)    (__) (__)(__)  (__)(__)(__)\\.)   (_/  ');
-	console.log(' ');
+function isUrl(spec: string): boolean {
+    return spec.includes('://');
+}
 
-	console.log('Welcome to Socialstack! We\'ll now setup a new project in your current working directory.');
+function isModuleSpecifier(spec: string): boolean {
+    return /^((UI|Admin|Email|Api)\/)/.test(spec);
+}
 
-	var newConfiguration = {};
+function getCorePath(moduleSpecifier: string): string {
+    if (moduleSpecifier.startsWith('UI/')) {
+        return 'UI/Source/' + moduleSpecifier.substring(3);
+    }
+    if (moduleSpecifier.startsWith('Admin/')) {
+        return 'Admin/Source/' + moduleSpecifier.substring(6);
+    }
+    if (moduleSpecifier.startsWith('Email/')) {
+        return 'Email/Source/' + moduleSpecifier.substring(6);
+    }
+    return moduleSpecifier;
+}
 
-	if (config.commandLine['-']) {
-		// E.g. socialstack create site.com
-		newConfiguration['url'] = config.commandLine['-'][0];
-	}
+function mkDirByPathSync(targetDir: string) {
+    const sep = path.sep;
+    const initDir = path.isAbsolute(targetDir) ? sep : '';
+    const baseDir = '.';
+    targetDir.split(sep).reduce((parentDir, childDir) => {
+        const curDir = path.resolve(baseDir, parentDir, childDir);
+        try {
+            fs.mkdirSync(curDir);
+        } catch (err) {
+            if (err.code === 'EEXIST') {
+                return curDir;
+            }
+        }
+        return curDir;
+    }, initDir);
+}
 
-	if (config.commandLine.modules) {
-		// E.g. socialstack create site.com
-		newConfiguration['modules'] = config.commandLine.modules.join(',');
-	}
+async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    return new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        stream.on('error', reject);
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+}
 
-	if (config.commandLine.dbMode) {
-		newConfiguration.dbMode = config.commandLine.dbMode[0];
-	}
+function loadTemplateFromUrl(url: string): Promise<{ dependencies: string[] }> {
+    return new Promise((success, reject) => {
+        https.get(url, function(res) {
+            const bodyResponse: Buffer[] = [];
+            res.on('data', (d) => bodyResponse.push(Buffer.from(d)));
+            res.on('end', () => {
+                const jsonResp = Buffer.concat(bodyResponse).toString('utf8');
+                try {
+                    success(JSON.parse(jsonResp));
+                } catch (e) {
+                    reject(new Error('Invalid JSON in template URL: ' + url));
+                }
+            });
+        }).on('error', reject);
+    });
+}
 
-	if (config.commandLine.container) {
-		newConfiguration.container = true;
-	}
+function copyDirRecursive(src: string, dest: string) {
+    if (!fs.existsSync(src)) {
+        return;
+    }
 
-	function askFor(text, configName, cb) {
-		return new Promise((success, reject) => {
+    fs.mkdirSync(dest, { recursive: true });
 
-			if (newConfiguration[configName] != undefined) {
-				// Already set - skip.
-				return success(newConfiguration, configName, newConfiguration[configName]);
-			}
+    const entries = fs.readdirSync(src, { withFileTypes: true });
 
-			console.log(text);
+    for (const entry of entries) {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
 
-			var rl = readline.createInterface(process.stdin, process.stdout);
-			rl.setPrompt(configName + ': ');
-			rl.prompt();
-			rl.on('line', function (line) {
-				newConfiguration[configName] = line;
-				rl.close();
-				success(newConfiguration, configName, line);
-			});
-		});
-	}
+        if (entry.isDirectory()) {
+            copyDirRecursive(srcPath, destPath);
+        } else {
+            fs.copyFileSync(srcPath, destPath);
+        }
+    }
+}
 
-	var localConfig = getLocalConfig();
+export const run = async (config: SocialStackConfig) => {
+    console.log('Creating a new SocialStack project...');
 
-	if (newConfiguration.dbMode == 'dbOnly') {
-		tidyUrl(newConfiguration);
+    const templateName = config.createOptions?.template || 'standard';
 
-		createDatabase(localConfig.databases.local, newConfiguration).then(() => {
-			console.log('Database setup');
-		});
-		return;
-	} else if (newConfiguration.dbMode == 'continue') {
-		// Complete a postponed DB create (if there is one to complete).
-		var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
-		var appsettings = appsettingsManager.get();
+    console.log('Finding latest SocialStack core version...');
+    const latestBranch = await getLatestCoreBranch();
+    if (!latestBranch) {
+        throw new Error('No core-* branch found in the repository');
+    }
 
-		if (!appsettings.PostponedDatabase) {
-			return;
-		}
+    const coreVersion = latestBranch.replace('core-', '');
+    console.log('Latest version: ' + coreVersion);
 
-		delete appsettings.PostponedDatabase;
-		newConfiguration.url = appsettings.PublicUrl;
-		tidyUrl(newConfiguration);
+    console.log('Downloading core...');
+    const zipStream = await getOrCacheVersionZip(latestBranch);
 
-		createDatabase(localConfig.databases.local, newConfiguration).then(() => {
-			console.log('Database setup');
-			var cfg = newConfiguration;
+    console.log('Extracting core files (skipping module directories)...');
 
-			if (cfg.databaseUser && cfg.databasePassword) {
-				appsettings.ConnectionStrings.DefaultConnection = "server=localhost;port=3306;SslMode=none;AllowPublicKeyRetrieval=true;database=" + cfg.databaseName + ";user=" + cfg.databaseUser + ";password=" + cfg.databasePassword;
-			}
+    let rootPrefix: string | null = null;
+    const tempExtractDir = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'socialstack-')), 'extracted');
 
-			appsettingsManager.update(appsettings);
+    await new Promise<void>((resolve, reject) => {
+        zipStream.pipe(unzip.Parse())
+            .on('entry', (entry) => {
+                const entryPath = entry.path;
 
-		});
-		return;
-	}
+                if (rootPrefix === null) {
+                    const parts = entryPath.split('/');
+                    if (parts.length > 1) {
+                        rootPrefix = parts[0] + '/';
+                    } else {
+                        rootPrefix = '';
+                    }
+                }
 
-	askFor('What\'s the public URL of your live website? Include the http or https, such as https://socialstack.cf', 'url').then(
-		config => {
+                const relativePath = entryPath.substring(rootPrefix.length);
 
-			// Set the root:
-			tidyUrl(config);
+                if (relativePath === '' || relativePath.endsWith('/')) {
+                    entry.autodrain();
+                    return;
+                }
 
-			if (localConfig && localConfig.databases && localConfig.databases.local) {
+                let shouldSkip = false;
+                for (const prefix of skipPrefixes) {
+                    if (relativePath.startsWith(prefix)) {
+                        shouldSkip = true;
+                        break;
+                    }
+                }
 
-				// No database needed:
-				if (config.dbMode == 'none' || config.dbMode == 'postpone') {
-					return true;
-				}
+                if (shouldSkip) {
+                    entry.autodrain();
+                    return;
+                }
 
-				// Go!
-				return createDatabase(localConfig.databases.local, config);
-			} else {
-				return askFor('Looks like this is the first time. We can optionally also create the database for you if you provide a local MySQL user account with create permissions. Would you like to do this? [Y/n]');
-			}
-		}
-	).then(
-		config => askFor('(Optional) Which modules would you like to install now? Separate multiple modules with , or press enter to skip', 'modules')
-	).then(
-		cfg => {
-			console.log('Attempting to create a git repository via "git init"..');
+                const destPath = path.join(tempExtractDir, relativePath);
+                mkDirByPathSync(path.dirname(destPath));
 
-			config.projectRoot = config.calledFromPath;
+                if (entry.type === 'File') {
+                    entry.pipe(fs.createWriteStream(destPath));
+                } else {
+                    entry.autodrain();
+                }
+            })
+            .on('close', resolve)
+            .on('error', reject);
+    });
 
-			return new Promise((s, r) => {
-				exec('git init', {
-					cwd: config.calledFromPath
-				}, function (err, stdout, stderr) {
+    const entries = fs.readdirSync(tempExtractDir);
+    for (const entry of entries) {
+        const srcPath = path.join(tempExtractDir, entry);
+        const destPath = path.join(process.cwd(), entry);
+        if (fs.lstatSync(srcPath).isDirectory()) {
+            copyDirRecursive(srcPath, destPath);
+        } else {
+            fs.copyFileSync(srcPath, destPath);
+        }
+    }
 
-					if (err) {
-						console.log(err);
-					} else {
-						if (stdout) {
-							console.log(stdout);
-						}
-						if (stderr) {
-							console.log(stderr);
-						}
-					}
+    fs.rmSync(tempExtractDir, { recursive: true, force: true });
 
-					s(cfg);
-				});
-			});
-		}
-	).then(
-		cfg => {
-			// Download the base project for this module set (in parallel)
-			console.log('Setting up the main project files.');
+    console.log('Creating module directories...');
+    ['UI/Source', 'Admin/Source', 'Email/Source', 'Api'].forEach(dir => {
+        fs.mkdirSync(dir, { recursive: true });
+    });
 
-			return installModules(['project'], config).then(() => {
-				// At this point change the guids and apply any new DB config:
+    console.log('Updating appsettings.json...');
+    const appsettingsPath = path.join(process.cwd(), 'appsettings.json');
+    let appsettings: Record<string, any> = {};
+    if (fs.existsSync(appsettingsPath)) {
+        try {
+            appsettings = JSON.parse(fs.readFileSync(appsettingsPath, 'utf8'));
+        } catch {}
+    }
+    appsettings.CoreVersion = coreVersion;
+    fs.writeFileSync(appsettingsPath, JSON.stringify(appsettings, null, 2));
 
-				// Wait a little to make sure the file is available:
-				setTimeout(function () {
-					var appsettingsManager = new jsConfigManager(config.calledFromPath + "/appsettings.json");
-					var appsettings = appsettingsManager.get();
-					appsettings.PublicUrl = cfg.url;
-					if (cfg.container) {
-						appsettings.Container = 1;
-					}
+    console.log('Initializing git repository...');
+    await new Promise<void>((resolve, reject) => {
+        exec('git init', { cwd: process.cwd() }, (err, stdout, stderr) => {
+            if (err) {
+                console.log('Warning: git init failed:', err.message);
+            }
+            resolve();
+        });
+    });
 
-					if (cfg.dbMode == 'postpone') {
-						appsettings.PostponedDatabase = true;
-					} else if (cfg.databaseUser && cfg.databasePassword) {
-						appsettings.ConnectionStrings.DefaultConnection = "server=localhost;port=3306;SslMode=none;AllowPublicKeyRetrieval=true;database=" + cfg.databaseName + ";user=" + cfg.databaseUser + ";password=" + cfg.databasePassword;
-					}
+    console.log('Processing template: ' + templateName);
+    let template: { dependencies: string[] };
 
-					appsettingsManager.update(appsettings);
-				}, 1000);
+    if (isUrl(templateName)) {
+        console.log('Loading template from URL...');
+        template = await loadTemplateFromUrl(templateName);
+    } else {
+        console.log('Loading template: ' + templateName);
+        const templatePath = path.join(tempExtractDir, 'Templates', templateName + '.json');
+        if (!fs.existsSync(templatePath)) {
+            throw new Error('Template not found: ' + templatePath);
+        }
+        const templateContent = fs.readFileSync(templatePath, 'utf8');
+        template = JSON.parse(templateContent);
+    }
 
-				console.log('Starting to download modules.');
+    if (template.dependencies && template.dependencies.length > 0) {
+        console.log('Installing modules from template...');
 
-				var moduleNames = (!cfg.modules || cfg.modules == 'none') ? [] : cfg.modules.split(',');
+        const coreExtractDir = tempExtractDir;
 
-				var modules = [
-					// Defaults package (https://source.socialstack.cf/packages/defaults/)
-					'defaults'
-				];
+        for (const dep of template.dependencies) {
+            if (isUrl(dep)) {
+                console.log('Installing module from URL: ' + dep);
+                await installModuleFromZipUrl(dep);
+            } else if (isModuleSpecifier(dep)) {
+                console.log('Installing module: ' + dep);
+                const corePath = getCorePath(dep);
+                const srcDir = path.join(coreExtractDir, corePath);
+                if (fs.existsSync(srcDir)) {
+                    copyDirRecursive(srcDir, process.cwd());
+                } else {
+                    console.log('Warning: Module not found in core: ' + dep + ' (looking for ' + corePath + ')');
+                }
+            } else {
+                console.log('Warning: Unknown dependency format: ' + dep);
+            }
+        }
+    }
 
-				for (var i = 0; i < moduleNames.length; i++) {
-
-					var name = moduleNames[i].trim();
-
-					if (name != '') {
-						modules.push(name);
-					}
-				}
-
-				return installModules(modules, config);
-			});
-
-		}
-	).then(
-		() => console.log('Complete. You can now run the project with "dotnet run" or start it with your favourite IDE.')
-	)
-
+    console.log('Complete! You can now run the project with "dotnet run" or start it with your favourite IDE.');
 };
+
+async function installModuleFromZipUrl(url: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        https.get(url, function(response) {
+            if (response.statusCode !== 200 || response.headers['content-type'] !== 'application/zip') {
+                reject(new Error('Invalid response from: ' + url));
+                return;
+            }
+
+            const tempZipPath = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'socialstack-module-')), 'module.zip');
+            const writeStream = fs.createWriteStream(tempZipPath);
+
+            response.pipe(writeStream);
+
+            writeStream.on('finish', () => {
+                const extractDir = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'socialstack-module-extract-')), 'extracted');
+
+                fs.createReadStream(tempZipPath)
+                    .pipe(unzip.Parse())
+                    .on('entry', (entry) => {
+                        const entryPath = entry.path;
+
+                        if (entry.type === 'Directory' || entryPath === '' || entryPath.endsWith('/')) {
+                            entry.autodrain();
+                            return;
+                        }
+
+                        const destPath = path.join(extractDir, entryPath);
+                        mkDirByPathSync(path.dirname(destPath));
+
+                        if (entry.type === 'File') {
+                            entry.pipe(fs.createWriteStream(destPath));
+                        } else {
+                            entry.autodrain();
+                        }
+                    })
+                    .on('close', () => {
+                        const entries = fs.readdirSync(extractDir);
+                        for (const entry of entries) {
+                            const srcPath = path.join(extractDir, entry);
+                            const destPath = path.join(process.cwd(), entry);
+                            if (fs.lstatSync(srcPath).isDirectory()) {
+                                copyDirRecursive(srcPath, destPath);
+                            } else {
+                                fs.copyFileSync(srcPath, destPath);
+                            }
+                        }
+
+                        fs.rmSync(path.dirname(tempZipPath), { recursive: true, force: true });
+                        fs.rmSync(extractDir, { recursive: true, force: true });
+                        resolve();
+                    })
+                    .on('error', reject);
+            });
+
+            writeStream.on('error', reject);
+        }).on('error', reject);
+    });
+}

@@ -1,6 +1,9 @@
 import fs from 'fs';
 import https from 'https';
+import path from 'path';
+import unzip from 'unzipper';
 import getAppDataPath from 'appdata-path';
+import os from 'os';
 
 var adp = getAppDataPath('socialstack');
 
@@ -139,4 +142,97 @@ function getOrCacheVersionZip(branchName: string): Promise<fs.ReadStream> {
 	});
 }
 
-export { getBranchNames, getLatestCoreBranch, getOrCacheVersionZip };
+var _coreZipPathCache: { [branchName: string]: string } = {};
+
+function getCoreZipPath(branchName: string): Promise<string> {
+	if (_coreZipPathCache[branchName]) {
+		return Promise.resolve(_coreZipPathCache[branchName]);
+	}
+
+	return new Promise((success, reject) => {
+		var moduleTemplateCache = adp + '/module_template_cache';
+		var extractDir = moduleTemplateCache + '/' + branchName;
+
+		if (fs.existsSync(extractDir)) {
+			_coreZipPathCache[branchName] = extractDir;
+			return success(extractDir);
+		}
+
+		getOrCacheVersionZip(branchName).then(zipStream => {
+			fs.mkdirSync(extractDir, { recursive: true });
+
+			zipStream.pipe(unzip.Parse())
+				.on('entry', (entry) => {
+					var entryPath = entry.path;
+					var parts = entryPath.split('/');
+
+					var rootPrefix = parts[0] + '/';
+					var relativePath = entryPath.substring(rootPrefix.length);
+
+					if (relativePath === '' || relativePath.endsWith('/')) {
+						entry.autodrain();
+						return;
+					}
+
+					var destPath = path.join(extractDir, relativePath);
+					var destDir = path.dirname(destPath);
+					if (!fs.existsSync(destDir)) {
+						fs.mkdirSync(destDir, { recursive: true });
+					}
+
+					if (entry.type === 'File') {
+						entry.pipe(fs.createWriteStream(destPath));
+					} else {
+						entry.autodrain();
+					}
+				})
+				.on('close', () => {
+					_coreZipPathCache[branchName] = extractDir;
+					success(extractDir);
+				})
+				.on('error', reject);
+		}).catch(reject);
+	});
+}
+
+function versionDistance(a: number[], b: number[]): number {
+	var maxLen = Math.max(a.length, b.length);
+	var distance = 0;
+
+	for (var i = 0; i < maxLen; i++) {
+		var av = i < a.length ? a[i] : 0;
+		var bv = i < b.length ? b[i] : 0;
+		distance += Math.abs(av - bv) * Math.pow(1000, maxLen - i - 1);
+	}
+
+	return distance;
+}
+
+function findClosestCoreBranch(targetVersion: string): Promise<string | null> {
+	return getBranchNames().then(branches => {
+		var targetParts = parseCalver(targetVersion);
+		var closestBranch: string | null = null;
+		var closestDistance = Infinity;
+
+		for (var i = 0; i < branches.length; i++) {
+			var branch = branches[i];
+
+			if (!branch.startsWith('core-')) {
+				continue;
+			}
+
+			var versionStr = branch.substring(5);
+			var versionParts = parseCalver(versionStr);
+			var distance = versionDistance(targetParts, versionParts);
+
+			if (distance < closestDistance) {
+				closestDistance = distance;
+				closestBranch = branch;
+			}
+		}
+
+		return closestBranch;
+	});
+}
+
+export { getBranchNames, getLatestCoreBranch, getOrCacheVersionZip, getCoreZipPath, findClosestCoreBranch };

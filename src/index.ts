@@ -150,10 +150,13 @@ export const run = (config: SocialStackConfig) => {
         .action(() => console.log(pkg.version));
 
     program
-        .command('generate')
+        .command('generate [modules...]')
         .alias('g')
         .description('creates a new module.')
-        .action(withProject(() => mod_generate(config)));
+        .action(withProject((modules: string[]) => {
+            config.commandLine = { command: 'generate', '-': modules };
+            mod_generate(config);
+        }));
 
     program
         .command('where')
@@ -202,15 +205,10 @@ export const run = (config: SocialStackConfig) => {
         .command('create')
         .alias('c')
         .description('creates a new blank SocialStack project in your working directory')
-        .option('--dbMode <mode>', 'DB Mode')
+        .option('--template <name-or-url>', 'Template to use (default: standard)')
         .action((options: any) => {
-            findProjectRoot(config, (result: any) => {
-                if (result && options.dbMode !== 'continue') {
-                    console.log('There\'s already a socialstack project in your working directory - doing nothing.');
-                } else {
-                    mod_create(config);
-                }
-            });
+            config.createOptions = options;
+            mod_create(config);
         });
 
     program

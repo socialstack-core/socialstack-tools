@@ -45,4 +45,8 @@ export interface SocialStackConfig {
     lockfile?: string;
     onRequest?: (message: any) => void;
     __postCss?: any;
+
+    createOptions?: {
+        template?: string;
+    };
 }
