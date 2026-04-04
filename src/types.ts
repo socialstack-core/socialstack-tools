@@ -55,13 +55,23 @@ export interface SocialStackConfig {
     };
 }
 
+export interface ModuleSpec {
+	spec: string;
+	repository: string;
+	explicitRepo: boolean;
+	isUrl: boolean;
+	isTemplate: boolean;
+	isModuleSpecifier: boolean;
+	name: string;
+}
+
 export interface ModuleRecord {
-    version: string;
-    repository?: string;
-    module: string;
-    path: string;
-    installedBy: string[];
-    exclusions: string[];
+	version: string;
+	repository?: string;
+	module: string;
+	path: string;
+	installedBy: string[];
+	exclusions: string[];
 }
 
 export interface ModulesJson {

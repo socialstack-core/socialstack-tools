@@ -193,57 +193,6 @@ function downloadZip(branchName: string, versionCachePath: string): Promise<void
 
 var _coreZipPathCache: { [branchName: string]: string } = {};
 
-function getCoreZipPath(branchName: string): Promise<string> {
-	if (_coreZipPathCache[branchName]) {
-		return Promise.resolve(_coreZipPathCache[branchName]);
-	}
-
-	return new Promise((success, reject) => {
-		var moduleTemplateCache = adp + '/module_template_cache';
-		var extractDir = moduleTemplateCache + '/' + branchName;
-
-		if (fs.existsSync(extractDir)) {
-			_coreZipPathCache[branchName] = extractDir;
-			return success(extractDir);
-		}
-
-		getOrCacheVersionZip(branchName).then(zipStream => {
-			fs.mkdirSync(extractDir, { recursive: true });
-
-			zipStream.pipe(unzip.Parse())
-				.on('entry', (entry) => {
-					var entryPath = entry.path;
-					var parts = entryPath.split('/');
-
-					var rootPrefix = parts[0] + '/';
-					var relativePath = entryPath.substring(rootPrefix.length);
-
-					if (relativePath === '' || relativePath.endsWith('/')) {
-						entry.autodrain();
-						return;
-					}
-
-					var destPath = path.join(extractDir, relativePath);
-					var destDir = path.dirname(destPath);
-					if (!fs.existsSync(destDir)) {
-						fs.mkdirSync(destDir, { recursive: true });
-					}
-
-					if (entry.type === 'File') {
-						entry.pipe(fs.createWriteStream(destPath));
-					} else {
-						entry.autodrain();
-					}
-				})
-				.on('close', () => {
-					_coreZipPathCache[branchName] = extractDir;
-					success(extractDir);
-				})
-				.on('error', reject);
-		}).catch(reject);
-	});
-}
-
 function versionDistance(a: number[], b: number[]): number {
 	var maxLen = Math.max(a.length, b.length);
 	var distance = 0;
@@ -255,6 +204,162 @@ function versionDistance(a: number[], b: number[]): number {
 	}
 
 	return distance;
+}
+
+function getRepoOwnerAndName(repoUrl: string): { owner: string; name: string } | null {
+	try {
+		const url = new URL(repoUrl);
+		if (url.hostname === 'github.com' || url.hostname === 'www.github.com') {
+			const parts = url.pathname.split('/').filter(Boolean);
+			if (parts.length >= 2) {
+				return { owner: parts[0], name: parts[1] };
+			}
+		}
+	} catch {}
+	return null;
+}
+
+function getRepoBranchNames(repoUrl: string): Promise<string[]> {
+	const repo = getRepoOwnerAndName(repoUrl);
+	if (!repo) {
+		return Promise.resolve([]);
+	}
+
+	return new Promise((success, reject) => {
+		var options = {
+			hostname: 'api.github.com',
+			path: '/repos/' + repo.owner + '/' + repo.name + '/branches',
+			headers: {
+				'User-Agent': 'SocialStack-Tools'
+			}
+		};
+
+		https.get(options, function(res) {
+			var bodyResponse = [];
+			res.on('data', (d) => {
+				bodyResponse.push(d);
+			});
+
+			res.on('end', () => {
+				try {
+					var json = JSON.parse(bodyResponse.join(''));
+					var branchNames = json.map((branch: { name: string }) => branch.name);
+					success(branchNames);
+				} catch {
+					success([]);
+				}
+			});
+		}).on('error', () => {
+			success([]);
+		});
+	});
+}
+
+function getRepoZipPath(repoUrl: string, branchName: string): Promise<string> {
+	const repo = getRepoOwnerAndName(repoUrl);
+	if (!repo) {
+		return Promise.reject(new Error('Invalid repository URL: ' + repoUrl));
+	}
+
+	const cacheKey = repo.owner + '-' + repo.name + '-' + branchName;
+	const moduleTemplateCache = adp + '/module_template_cache';
+	const extractDir = moduleTemplateCache + '/' + cacheKey;
+
+	if (fs.existsSync(extractDir)) {
+		return Promise.resolve(extractDir);
+	}
+
+	return new Promise((resolve, reject) => {
+		var options = {
+			hostname: 'github.com',
+			path: '/' + repo.owner + '/' + repo.name + '/archive/refs/heads/' + branchName + '.zip',
+			headers: {
+				'User-Agent': 'SocialStack-Tools'
+			}
+		};
+
+		var tempZipPath = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'socialstack-repo-')), 'repo.zip');
+
+		var req = https.get(options, function(response) {
+			if (response.statusCode == 302 || response.statusCode == 301) {
+				var redirectUrl = response.headers.location;
+				var redirectOptions = new URL(redirectUrl);
+				var redirectReq = https.get({
+					hostname: redirectOptions.hostname,
+					path: redirectOptions.pathname,
+					headers: {
+						'User-Agent': 'SocialStack-Tools'
+					}
+				}, function(redirectResponse) {
+					if (redirectResponse.statusCode == 200) {
+						var cacheWriteStream = fs.createWriteStream(tempZipPath);
+						redirectResponse.pipe(cacheWriteStream);
+						cacheWriteStream.on('finish', () => {
+							extractZipToDir(tempZipPath, extractDir).then(() => {
+								fs.unlinkSync(tempZipPath);
+								resolve(extractDir);
+							}).catch(reject);
+						});
+					} else {
+						reject(new Error('Redirect response status: ' + redirectResponse.statusCode));
+					}
+				});
+				redirectReq.on('error', reject);
+			} else if (response.statusCode == 200) {
+				var cacheWriteStream = fs.createWriteStream(tempZipPath);
+				response.pipe(cacheWriteStream);
+				cacheWriteStream.on('finish', () => {
+					extractZipToDir(tempZipPath, extractDir).then(() => {
+						fs.unlinkSync(tempZipPath);
+						resolve(extractDir);
+					}).catch(reject);
+				});
+			} else {
+				reject(new Error('Invalid response from GitHub (status: ' + response.statusCode + ')'));
+			}
+		});
+
+		req.on('error', reject);
+	});
+}
+
+function extractZipToDir(zipPath: string, destDir: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		fs.mkdirSync(destDir, { recursive: true });
+
+		fs.createReadStream(zipPath)
+			.pipe(unzip.Parse())
+			.on('entry', (entry) => {
+				var entryPath = entry.path;
+				var parts = entryPath.split('/');
+
+				var rootPrefix = parts[0] + '/';
+				var relativePath = entryPath.substring(rootPrefix.length);
+
+				if (relativePath === '' || relativePath.endsWith('/')) {
+					entry.autodrain();
+					return;
+				}
+
+				var destPath = path.join(destDir, relativePath);
+				var destDirPath = path.dirname(destPath);
+				if (!fs.existsSync(destDirPath)) {
+					fs.mkdirSync(destDirPath, { recursive: true });
+				}
+
+				if (entry.type === 'File') {
+					entry.pipe(fs.createWriteStream(destPath));
+				} else {
+					entry.autodrain();
+				}
+			})
+			.on('close', resolve)
+			.on('error', reject);
+	});
+}
+
+function getCoreZipPath(branchName: string): Promise<string> {
+	return getRepoZipPath('https://github.com/socialstack-core/modules', branchName);
 }
 
 function findClosestCoreBranch(targetVersion: string): Promise<string | null> {
@@ -284,4 +389,4 @@ function findClosestCoreBranch(targetVersion: string): Promise<string | null> {
 	});
 }
 
-export { getBranchNames, getLatestCoreBranch, getOrCacheVersionZip, getCoreZipPath, findClosestCoreBranch, parseCalver, compareCalver };
+export { getBranchNames, getLatestCoreBranch, getOrCacheVersionZip, getCoreZipPath, findClosestCoreBranch, parseCalver, compareCalver, getRepoZipPath, getRepoBranchNames };

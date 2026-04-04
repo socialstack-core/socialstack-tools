@@ -3,9 +3,9 @@ import fs from 'fs';
 import https from 'https';
 import path from 'path';
 import unzip from 'unzipper';
-import { getCoreZipPath } from '../versions/helper';
+import { getCoreZipPath, getRepoZipPath } from '../versions/helper';
 import { jsConfigManager } from '../configManager';
-import { ModuleRecord, ModulesJson } from '../types';
+import { ModuleRecord, ModulesJson, ModuleSpec } from '../types';
 
 const MODULES_JSON_NAME = 'modules.json';
 
@@ -78,6 +78,8 @@ export function initModulesJson(projectRoot) {
     }
 }
 
+const CORE_REPO_URL = 'https://github.com/socialstack-core/modules';
+
 function isUrl(spec) {
     return spec.includes('://');
 }
@@ -88,6 +90,53 @@ function isModuleSpecifier(spec) {
 
 function isTemplateName(spec) {
     return !isUrl(spec) && !isModuleSpecifier(spec) && spec !== 'none';
+}
+
+function resolveRepositoryShortform(shortform: string): string {
+    if (!shortform || shortform === 'core') {
+        return CORE_REPO_URL;
+    }
+    if (shortform.includes('://')) {
+        return shortform;
+    }
+    if (shortform.includes('/')) {
+        return 'https://github.com/' + shortform;
+    }
+    return CORE_REPO_URL;
+}
+
+export function parseModuleSpec(spec: string): ModuleSpec {
+    const parsed: ModuleSpec = {
+        spec,
+        repository: CORE_REPO_URL,
+        explicitRepo: false,
+        isUrl: false,
+        isTemplate: false,
+        isModuleSpecifier: false,
+        name: spec
+    };
+
+    if (isUrl(spec)) {
+        parsed.isUrl = true;
+        return parsed;
+    }
+
+    const colonIndex = spec.indexOf(':');
+    if (colonIndex !== -1) {
+        const repoPart = spec.substring(0, colonIndex);
+        const namePart = spec.substring(colonIndex + 1);
+
+        if (namePart) {
+            parsed.repository = resolveRepositoryShortform(repoPart);
+            parsed.explicitRepo = true;
+            parsed.name = namePart;
+        }
+    }
+
+    parsed.isModuleSpecifier = isModuleSpecifier(parsed.name);
+    parsed.isTemplate = !parsed.isModuleSpecifier && parsed.name !== 'none';
+
+    return parsed;
 }
 
 export function getCoreModulePath(moduleSpecifier) {
@@ -232,7 +281,7 @@ async function downloadAndExtractZip(url, projectRoot) {
     fs.rmSync(extractDir, { recursive: true, force: true });
 }
 
-async function extractCoreModule(moduleSpecifier, coreDir, projectRoot, version) {
+async function extractCoreModule(moduleSpecifier, coreDir, projectRoot, version, repository?: string, installedByTag?: string) {
     const coreModulePath = getCoreModulePath(moduleSpecifier);
     const srcDir = path.join(coreDir, coreModulePath);
     
@@ -252,10 +301,13 @@ async function extractCoreModule(moduleSpecifier, coreDir, projectRoot, version)
     const exclusions = existingRecord?.exclusions || [];
     copyDirRecursive(srcDir, destDir, srcDir, exclusions);
     
-    let installedBy = ['user'];
+    let installedBy = installedByTag ? [installedByTag] : ['user'];
     if (existingRecord) {
         installedBy = [...existingRecord.installedBy];
-        if (!installedBy.includes('user')) {
+        if (installedByTag && !installedBy.includes(installedByTag)) {
+            installedBy.push(installedByTag);
+        }
+        if (!installedBy.includes('user') && !installedByTag) {
             installedBy.push('user');
         }
     }
@@ -265,7 +317,48 @@ async function extractCoreModule(moduleSpecifier, coreDir, projectRoot, version)
         module: moduleSpecifier,
         path: installPath,
         installedBy,
-        exclusions
+        exclusions,
+        repository: repository && repository !== CORE_REPO_URL ? repository : undefined
+    };
+    
+    recordModule(projectRoot, record);
+}
+
+async function extractModuleFromRepo(moduleSpecifier, repoDir, projectRoot, version, repository: string, installedByTag?: string) {
+    const coreModulePath = getCoreModulePath(moduleSpecifier);
+    const srcDir = path.join(repoDir, coreModulePath);
+    
+    if (!fs.existsSync(srcDir)) {
+        throw new Error('Module not found in repository: ' + moduleSpecifier + ' (looking for ' + coreModulePath + ')');
+    }
+
+    const installPath = getInstallPath(moduleSpecifier);
+    const destDir = path.join(projectRoot, installPath);
+    
+    const existingRecord = getModuleRecord(projectRoot, moduleSpecifier);
+    if (existingRecord) {
+        const fullPath = path.join(projectRoot, existingRecord.path.replace(/\//g, path.sep));
+        deleteFolderRecursive(fullPath);
+    }
+    
+    const exclusions = existingRecord?.exclusions || [];
+    copyDirRecursive(srcDir, destDir, srcDir, exclusions);
+    
+    let installedBy = installedByTag ? [installedByTag] : ['user'];
+    if (existingRecord) {
+        installedBy = [...existingRecord.installedBy];
+        if (installedByTag && !installedBy.includes(installedByTag)) {
+            installedBy.push(installedByTag);
+        }
+    }
+    
+    const record: ModuleRecord = {
+        version,
+        module: moduleSpecifier,
+        path: installPath,
+        installedBy,
+        exclusions,
+        repository: repository !== CORE_REPO_URL ? repository : undefined
     };
     
     recordModule(projectRoot, record);
@@ -278,29 +371,50 @@ export async function installModule(spec, projectRoot, coreDir, installedByOverr
     const appsettings = new jsConfigManager(appsettingsPath).get();
     const version = appsettings.CoreVersion || 'unknown';
     
-    if (isUrl(spec)) {
+    const parsed = parseModuleSpec(spec);
+    
+    if (parsed.isUrl) {
         console.log('Installing module from URL: ' + spec);
-        await downloadAndExtractZip(spec, projectRoot);
-    } else if (isModuleSpecifier(spec)) {
-        console.log('Installing module: ' + spec);
-        await extractCoreModule(spec, coreDir, projectRoot, version);
-    } else if (isTemplateName(spec)) {
-        console.log('Installing template: ' + spec);
-        await installTemplate(spec, projectRoot, coreDir);
+        await downloadAndExtractZip(parsed.spec, projectRoot);
+    } else if (parsed.isModuleSpecifier) {
+        console.log('Installing module: ' + parsed.name);
+        if (parsed.repository === CORE_REPO_URL) {
+            await extractCoreModule(parsed.name, coreDir, projectRoot, version);
+        } else {
+            const repoDir = await getRepoZipPath(parsed.repository, 'main');
+            await extractModuleFromRepo(parsed.name, repoDir, projectRoot, version, parsed.repository);
+        }
+    } else if (parsed.isTemplate) {
+        console.log('Installing template: ' + parsed.name);
+        await installTemplate(parsed.name, projectRoot, coreDir, parsed.repository, parsed.explicitRepo);
     } else {
         throw new Error('Unknown module format: ' + spec);
     }
 }
 
-export async function installTemplate(templateName, projectRoot, coreDir) {
-    if (!isTemplateName(templateName)) {
-        throw new Error('Invalid template name: ' + templateName);
+export async function installTemplate(templateName, projectRoot, coreDir, sourceRepository?: string, sourceExplicitRepo?: boolean) {
+    const parsed = parseModuleSpec(templateName);
+    const templateSpec = parsed.name;
+    
+    if (!isTemplateName(templateSpec)) {
+        throw new Error('Invalid template name: ' + templateSpec);
     }
 
-    console.log('Loading template: ' + templateName);
-    const templatePath = path.join(coreDir, 'Templates', templateName, 'package.json');
+    const effectiveRepo = sourceRepository || CORE_REPO_URL;
+    const effectiveExplicitRepo = sourceExplicitRepo ?? false;
+
+    console.log('Loading template: ' + templateSpec);
+    let templatePath: string;
+    
+    if (effectiveRepo === CORE_REPO_URL) {
+        templatePath = path.join(coreDir, 'Templates', templateSpec, 'package.json');
+    } else {
+        const repoDir = await getRepoZipPath(effectiveRepo, 'main');
+        templatePath = path.join(repoDir, 'Templates', templateSpec, 'package.json');
+    }
+    
     if (!fs.existsSync(templatePath)) {
-        throw new Error('Template not found: ' + templateName);
+        throw new Error('Template not found: ' + templateSpec);
     }
     const templateContent = fs.readFileSync(templatePath, 'utf8');
     const template = JSON.parse(templateContent);
@@ -309,7 +423,7 @@ export async function installTemplate(templateName, projectRoot, coreDir) {
         console.log('Installing modules from template...');
         for (const dep of template.dependencies) {
             try {
-                await installModuleFromTemplate(dep, projectRoot, coreDir, templateName);
+                await installModuleFromTemplate(dep, projectRoot, coreDir, templateSpec, effectiveRepo, effectiveExplicitRepo);
             } catch (err) {
                 console.log('Warning: ' + (err.message || err));
             }
@@ -317,7 +431,7 @@ export async function installTemplate(templateName, projectRoot, coreDir) {
     }
 }
 
-async function installModuleFromTemplate(spec, projectRoot, coreDir, templateName) {
+async function installModuleFromTemplate(spec, projectRoot, coreDir, templateName, defaultRepository?: string, defaultExplicitRepo?: boolean) {
     initModulesJson(projectRoot);
     
     const appsettingsPath = path.join(projectRoot, 'appsettings.json');
@@ -325,54 +439,36 @@ async function installModuleFromTemplate(spec, projectRoot, coreDir, templateNam
     const version = appsettings.CoreVersion || 'unknown';
     const installedByTag = 'template:' + templateName;
     
-    if (isUrl(spec)) {
-        console.log('Installing module from URL: ' + spec);
-        await downloadAndExtractZip(spec, projectRoot);
-    } else if (isModuleSpecifier(spec)) {
-        console.log('Installing module: ' + spec);
-        await extractCoreModuleFromTemplate(spec, coreDir, projectRoot, version, installedByTag);
+    const parsed = parseModuleSpec(spec);
+    
+    let repository: string;
+    let explicitRepo: boolean;
+    
+    if (parsed.explicitRepo) {
+        repository = parsed.repository;
+        explicitRepo = true;
+    } else if (defaultExplicitRepo) {
+        repository = defaultRepository || CORE_REPO_URL;
+        explicitRepo = false;
     } else {
-        throw new Error('Unknown module format: ' + spec);
-    }
-}
-
-async function extractCoreModuleFromTemplate(moduleSpecifier, coreDir, projectRoot, version, installedByTag) {
-    const coreModulePath = getCoreModulePath(moduleSpecifier);
-    const srcDir = path.join(coreDir, coreModulePath);
-    
-    if (!fs.existsSync(srcDir)) {
-        throw new Error('Module not found in core: ' + moduleSpecifier + ' (looking for ' + coreModulePath + ')');
-    }
-
-    const installPath = getInstallPath(moduleSpecifier);
-    const destDir = path.join(projectRoot, installPath);
-    
-    const existingRecord = getModuleRecord(projectRoot, moduleSpecifier);
-    if (existingRecord) {
-        const fullPath = path.join(projectRoot, existingRecord.path.replace(/\//g, path.sep));
-        deleteFolderRecursive(fullPath);
+        repository = defaultRepository || CORE_REPO_URL;
+        explicitRepo = false;
     }
     
-    const exclusions = existingRecord?.exclusions || [];
-    copyDirRecursive(srcDir, destDir, srcDir, exclusions);
-    
-    let installedBy = [installedByTag];
-    if (existingRecord) {
-        installedBy = [...existingRecord.installedBy];
-        if (!installedBy.includes(installedByTag)) {
-            installedBy.push(installedByTag);
+    if (parsed.isUrl) {
+        console.log('Installing module from URL: ' + spec);
+        await downloadAndExtractZip(parsed.spec, projectRoot);
+    } else if (parsed.isModuleSpecifier) {
+        console.log('Installing module: ' + parsed.name);
+        if (repository === CORE_REPO_URL) {
+            await extractCoreModule(parsed.name, coreDir, projectRoot, version, undefined, installedByTag);
+        } else {
+            const repoDir = await getRepoZipPath(repository, 'main');
+            await extractModuleFromRepo(parsed.name, repoDir, projectRoot, version, repository, installedByTag);
         }
+    } else {
+        await installTemplate(parsed.name, projectRoot, coreDir, repository, explicitRepo);
     }
-    
-    const record: ModuleRecord = {
-        version,
-        module: moduleSpecifier,
-        path: installPath,
-        installedBy,
-        exclusions
-    };
-    
-    recordModule(projectRoot, record);
 }
 
 function getCoreZipPathForInstall(projectRoot) {
