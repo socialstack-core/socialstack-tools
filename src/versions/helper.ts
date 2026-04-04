@@ -284,4 +284,4 @@ function findClosestCoreBranch(targetVersion: string): Promise<string | null> {
 	});
 }
 
-export { getBranchNames, getLatestCoreBranch, getOrCacheVersionZip, getCoreZipPath, findClosestCoreBranch };
+export { getBranchNames, getLatestCoreBranch, getOrCacheVersionZip, getCoreZipPath, findClosestCoreBranch, parseCalver, compareCalver };

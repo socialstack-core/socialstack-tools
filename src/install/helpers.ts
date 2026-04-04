@@ -90,7 +90,7 @@ function isTemplateName(spec) {
     return !isUrl(spec) && !isModuleSpecifier(spec) && spec !== 'none';
 }
 
-function getCoreModulePath(moduleSpecifier) {
+export function getCoreModulePath(moduleSpecifier) {
     if (moduleSpecifier.startsWith('UI/')) {
         return 'UI/Source/' + moduleSpecifier.substring(3);
     }
@@ -106,7 +106,7 @@ function getCoreModulePath(moduleSpecifier) {
     return moduleSpecifier;
 }
 
-function getInstallPath(moduleSpecifier) {
+export function getInstallPath(moduleSpecifier) {
     if (moduleSpecifier.startsWith('UI/')) {
         return 'UI/Source/ThirdParty/' + moduleSpecifier.substring(3);
     }

@@ -22,6 +22,9 @@ export interface CliOptions {
     old?: boolean;
     bundled?: boolean;
     template?: string;
+    all?: boolean;
+    yes?: boolean;
+    dryRun?: boolean;
     '-'?: string[];
     d?: string[];
     loadCommandLine?: boolean;

@@ -21,6 +21,7 @@ import { run as mod_create } from './create/index.js';
 import { run as mod_install } from './install/index.js';
 import { run as mod_uninstall } from './uninstall/index.js';
 import { run as mod_move } from './move/index.js';
+import { run as mod_upgrade } from './upgrade/index.js';
 
 // Commands
 
@@ -268,6 +269,23 @@ export const run = (config: SocialStackConfig) => {
         .action(withProject((targetPath: string) => {
             config.commandLine = { command: 'move', '-': [targetPath] };
             mod_move(config);
+        }));
+
+    program
+        .command('upgrade [modules...]')
+        .description('upgrade module(s) to their latest versions')
+        .option('--all', 'Upgrade all installed modules')
+        .option('--yes', 'Skip confirmation prompt')
+        .option('--dryRun', 'Show what would be upgraded without making changes')
+        .action(withProject((modules: string[], options: any) => {
+            config.commandLine = {
+                command: 'upgrade',
+                '-': modules,
+                all: options.all,
+                yes: options.yes,
+                dryRun: options.dryRun
+            };
+            mod_upgrade(config);
         }));
 
     program.on('command:*', function () {
