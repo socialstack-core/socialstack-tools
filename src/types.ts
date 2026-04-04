@@ -21,6 +21,7 @@ export interface CliOptions {
     relativePaths?: boolean;
     old?: boolean;
     bundled?: boolean;
+    template?: string;
     '-'?: string[];
     d?: string[];
     loadCommandLine?: boolean;
@@ -49,4 +50,17 @@ export interface SocialStackConfig {
     createOptions?: {
         template?: string;
     };
+}
+
+export interface ModuleRecord {
+    version: string;
+    repository?: string;
+    module: string;
+    path: string;
+    installedBy: string[];
+    exclusions: string[];
+}
+
+export interface ModulesJson {
+    modules: ModuleRecord[];
 }

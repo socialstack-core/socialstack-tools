@@ -5,6 +5,78 @@ import path from 'path';
 import unzip from 'unzipper';
 import { getCoreZipPath } from '../versions/helper';
 import { jsConfigManager } from '../configManager';
+import { ModuleRecord, ModulesJson } from '../types';
+
+const MODULES_JSON_NAME = 'modules.json';
+
+function getModulesJsonPath(projectRoot) {
+    return path.join(projectRoot, MODULES_JSON_NAME);
+}
+
+export function readModulesJson(projectRoot) {
+    const modulesJsonPath = getModulesJsonPath(projectRoot);
+    
+    if (!fs.existsSync(modulesJsonPath)) {
+        return [];
+    }
+    
+    try {
+        const content = fs.readFileSync(modulesJsonPath, 'utf8');
+        const data = JSON.parse(content);
+        return data.modules || [];
+    } catch (err) {
+        console.log('Warning: modules.json is corrupted, treating as empty');
+        return [];
+    }
+}
+
+export function writeModulesJson(projectRoot, modules) {
+    const modulesJsonPath = getModulesJsonPath(projectRoot);
+    const data: ModulesJson = { modules };
+    fs.writeFileSync(modulesJsonPath, JSON.stringify(data, null, 2));
+}
+
+export function getModuleRecord(projectRoot, moduleName) {
+    const modules = readModulesJson(projectRoot);
+    return modules.find(m => m.module === moduleName);
+}
+
+export function recordModule(projectRoot, record: ModuleRecord) {
+    const modules = readModulesJson(projectRoot);
+    
+    const existingIndex = modules.findIndex(m => m.module === record.module);
+    if (existingIndex !== -1) {
+        modules.splice(existingIndex, 1);
+    }
+    
+    modules.push(record);
+    writeModulesJson(projectRoot, modules);
+}
+
+export function removeModuleRecord(projectRoot, moduleName) {
+    const modules = readModulesJson(projectRoot);
+    const filtered = modules.filter(m => m.module !== moduleName);
+    writeModulesJson(projectRoot, filtered);
+}
+
+export function updateModuleRecord(projectRoot, moduleName, updater: (record: ModuleRecord) => ModuleRecord) {
+    const modules = readModulesJson(projectRoot);
+    const index = modules.findIndex(m => m.module === moduleName);
+    
+    if (index === -1) {
+        return;
+    }
+    
+    modules[index] = updater(modules[index]);
+    writeModulesJson(projectRoot, modules);
+}
+
+export function initModulesJson(projectRoot) {
+    const modulesJsonPath = getModulesJsonPath(projectRoot);
+    if (!fs.existsSync(modulesJsonPath)) {
+        writeModulesJson(projectRoot, []);
+    }
+}
 
 function isUrl(spec) {
     return spec.includes('://');
@@ -68,7 +140,7 @@ function mkDirByPathSync(targetDir) {
     }, initDir);
 }
 
-function copyDirRecursive(src, dest) {
+function copyDirRecursive(src, dest, srcRoot = src) {
     if (!fs.existsSync(src)) {
         return;
     }
@@ -82,8 +154,11 @@ function copyDirRecursive(src, dest) {
         const destPath = path.join(dest, entry.name);
 
         if (entry.isDirectory()) {
-            copyDirRecursive(srcPath, destPath);
+            copyDirRecursive(srcPath, destPath, srcRoot);
         } else {
+            if (entry.name === 'module.json' && src === srcRoot) {
+                continue;
+            }
             fs.copyFileSync(srcPath, destPath);
         }
     }
@@ -146,7 +221,7 @@ async function downloadAndExtractZip(url, projectRoot) {
     fs.rmSync(extractDir, { recursive: true, force: true });
 }
 
-async function extractCoreModule(moduleSpecifier, coreDir, projectRoot) {
+async function extractCoreModule(moduleSpecifier, coreDir, projectRoot, version) {
     const coreModulePath = getCoreModulePath(moduleSpecifier);
     const srcDir = path.join(coreDir, coreModulePath);
     
@@ -156,16 +231,47 @@ async function extractCoreModule(moduleSpecifier, coreDir, projectRoot) {
 
     const installPath = getInstallPath(moduleSpecifier);
     const destDir = path.join(projectRoot, installPath);
+    
+    const existingRecord = getModuleRecord(projectRoot, moduleSpecifier);
+    if (existingRecord) {
+        const fullPath = path.join(projectRoot, existingRecord.path.replace(/\//g, path.sep));
+        deleteFolderRecursive(fullPath);
+    }
+    
     copyDirRecursive(srcDir, destDir);
+    
+    let installedBy = ['user'];
+    if (existingRecord) {
+        installedBy = [...existingRecord.installedBy];
+        if (!installedBy.includes('user')) {
+            installedBy.push('user');
+        }
+    }
+    
+    const record: ModuleRecord = {
+        version,
+        module: moduleSpecifier,
+        path: installPath,
+        installedBy,
+        exclusions: []
+    };
+    
+    recordModule(projectRoot, record);
 }
 
-async function installModule(spec, projectRoot, coreDir) {
+export async function installModule(spec, projectRoot, coreDir, installedByOverride?: string[]) {
+    initModulesJson(projectRoot);
+    
+    const appsettingsPath = path.join(projectRoot, 'appsettings.json');
+    const appsettings = new jsConfigManager(appsettingsPath).get();
+    const version = appsettings.CoreVersion || 'unknown';
+    
     if (isUrl(spec)) {
         console.log('Installing module from URL: ' + spec);
         await downloadAndExtractZip(spec, projectRoot);
     } else if (isModuleSpecifier(spec)) {
         console.log('Installing module: ' + spec);
-        await extractCoreModule(spec, coreDir, projectRoot);
+        await extractCoreModule(spec, coreDir, projectRoot, version);
     } else if (isTemplateName(spec)) {
         console.log('Installing template: ' + spec);
         await installTemplate(spec, projectRoot, coreDir);
@@ -174,7 +280,7 @@ async function installModule(spec, projectRoot, coreDir) {
     }
 }
 
-async function installTemplate(templateName, projectRoot, coreDir) {
+export async function installTemplate(templateName, projectRoot, coreDir) {
     if (!isTemplateName(templateName)) {
         throw new Error('Invalid template name: ' + templateName);
     }
@@ -191,12 +297,69 @@ async function installTemplate(templateName, projectRoot, coreDir) {
         console.log('Installing modules from template...');
         for (const dep of template.dependencies) {
             try {
-                await installModule(dep, projectRoot, coreDir);
+                await installModuleFromTemplate(dep, projectRoot, coreDir, templateName);
             } catch (err) {
                 console.log('Warning: ' + (err.message || err));
             }
         }
     }
+}
+
+async function installModuleFromTemplate(spec, projectRoot, coreDir, templateName) {
+    initModulesJson(projectRoot);
+    
+    const appsettingsPath = path.join(projectRoot, 'appsettings.json');
+    const appsettings = new jsConfigManager(appsettingsPath).get();
+    const version = appsettings.CoreVersion || 'unknown';
+    const installedByTag = 'template:' + templateName;
+    
+    if (isUrl(spec)) {
+        console.log('Installing module from URL: ' + spec);
+        await downloadAndExtractZip(spec, projectRoot);
+    } else if (isModuleSpecifier(spec)) {
+        console.log('Installing module: ' + spec);
+        await extractCoreModuleFromTemplate(spec, coreDir, projectRoot, version, installedByTag);
+    } else {
+        throw new Error('Unknown module format: ' + spec);
+    }
+}
+
+async function extractCoreModuleFromTemplate(moduleSpecifier, coreDir, projectRoot, version, installedByTag) {
+    const coreModulePath = getCoreModulePath(moduleSpecifier);
+    const srcDir = path.join(coreDir, coreModulePath);
+    
+    if (!fs.existsSync(srcDir)) {
+        throw new Error('Module not found in core: ' + moduleSpecifier + ' (looking for ' + coreModulePath + ')');
+    }
+
+    const installPath = getInstallPath(moduleSpecifier);
+    const destDir = path.join(projectRoot, installPath);
+    
+    const existingRecord = getModuleRecord(projectRoot, moduleSpecifier);
+    if (existingRecord) {
+        const fullPath = path.join(projectRoot, existingRecord.path.replace(/\//g, path.sep));
+        deleteFolderRecursive(fullPath);
+    }
+    
+    copyDirRecursive(srcDir, destDir);
+    
+    let installedBy = [installedByTag];
+    if (existingRecord) {
+        installedBy = [...existingRecord.installedBy];
+        if (!installedBy.includes(installedByTag)) {
+            installedBy.push(installedByTag);
+        }
+    }
+    
+    const record: ModuleRecord = {
+        version,
+        module: moduleSpecifier,
+        path: installPath,
+        installedBy,
+        exclusions: []
+    };
+    
+    recordModule(projectRoot, record);
 }
 
 function getCoreZipPathForInstall(projectRoot) {
@@ -263,21 +426,58 @@ function getModuleFilePath(moduleName) {
     return moduleFilePath;
 }
 
-function uninstallModules(modules, config) {
+export function uninstallModules(modules, config) {
     return new Promise((success, reject) => {
         var projectRoot = path.normalize(config.projectRoot);
+        initModulesJson(projectRoot);
 
         modules.forEach(module => {
-            var modulePath = getModuleFilePath(module);
-            var fullPath = projectRoot + '/' + modulePath;
+            const record = getModuleRecord(projectRoot, module);
+            
+            if (!record) {
+                console.log("Can't uninstall '" + module + "' - not found in modules.json");
+                return;
+            }
+            
+            var fullPath = projectRoot + '/' + record.path;
 
             if (!deleteFolderRecursive(fullPath)) {
                 console.log("Can't uninstall '" + module + "' because it doesn't exist in this project (skipping)");
             }
+            
+            removeModuleRecord(projectRoot, module);
         });
 
         success();
     });
 }
 
-export { installModule, installModules, installTemplate, getCoreZipPathForInstall, uninstallModules };
+export function uninstallTemplate(templateName, config) {
+    return new Promise((success, reject) => {
+        var projectRoot = path.normalize(config.projectRoot);
+        initModulesJson(projectRoot);
+        
+        const installedByTag = 'template:' + templateName;
+        const modules = readModulesJson(projectRoot);
+        
+        for (const record of modules) {
+            if (record.installedBy.includes(installedByTag)) {
+                if (record.installedBy.includes('user')) {
+                    console.log(`Skipping ${record.module} - also explicitly installed by user`);
+                    updateModuleRecord(projectRoot, record.module, (r) => ({
+                        ...r,
+                        installedBy: r.installedBy.filter(tag => tag !== installedByTag)
+                    }));
+                } else {
+                    const fullPath = projectRoot + '/' + record.path;
+                    deleteFolderRecursive(fullPath);
+                    removeModuleRecord(projectRoot, record.module);
+                }
+            }
+        }
+        
+        success();
+    });
+}
+
+export { installModules, getCoreZipPathForInstall };

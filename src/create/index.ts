@@ -3,7 +3,7 @@ import fs from 'fs';
 import https from 'https';
 import path from 'path';
 import { getLatestCoreBranch, getCoreZipPath } from '../versions/helper';
-import { installModule, installModules, getCoreZipPathForInstall } from '../install/helpers';
+import { installModule, installModules, getCoreZipPathForInstall, initModulesJson } from '../install/helpers';
 import { setupDatabaseFromAppsettings } from '../database/helpers';
 import { exec as exec } from 'child_process';
 
@@ -190,6 +190,9 @@ export const run = async (config) => {
     }
     appsettings.CoreVersion = coreVersion;
     fs.writeFileSync(appsettingsPath, JSON.stringify(appsettings, null, 2));
+
+    console.log('Initializing modules.json...');
+    initModulesJson(projectRoot);
 
     console.log('Initializing git repository...');
     await new Promise<void>((resolve, reject) => {
