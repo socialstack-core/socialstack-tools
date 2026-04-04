@@ -20,6 +20,7 @@ import { run as mod_init } from './init/index.js';
 import { run as mod_create } from './create/index.js';
 import { run as mod_install } from './install/index.js';
 import { run as mod_uninstall } from './uninstall/index.js';
+import { run as mod_move } from './move/index.js';
 
 // Commands
 
@@ -259,6 +260,14 @@ export const run = (config: SocialStackConfig) => {
         .action(withProject((modules: string[]) => {
             config.commandLine = { command: 'uninstall', '-': modules };
             mod_uninstall(config);
+        }));
+
+    program
+        .command('move <path>')
+        .description('move a file, directory or entire module from thirdparty to firstparty')
+        .action(withProject((targetPath: string) => {
+            config.commandLine = { command: 'move', '-': [targetPath] };
+            mod_move(config);
         }));
 
     program.on('command:*', function () {
