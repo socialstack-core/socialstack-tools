@@ -140,7 +140,14 @@ function mkDirByPathSync(targetDir) {
     }, initDir);
 }
 
-function copyDirRecursive(src, dest, srcRoot = src) {
+function shouldSkipPath(entryName: string, currentSrc: string, srcRoot: string, exclusions: string[]): boolean {
+    const relativePath = path.relative(srcRoot, path.join(currentSrc, entryName)).replace(/\\/g, '/');
+    return exclusions.some(excl => 
+        relativePath === excl || relativePath.startsWith(excl + '/')
+    );
+}
+
+function copyDirRecursive(src, dest, srcRoot = src, exclusions: string[] = []) {
     if (!fs.existsSync(src)) {
         return;
     }
@@ -153,8 +160,12 @@ function copyDirRecursive(src, dest, srcRoot = src) {
         const srcPath = path.join(src, entry.name);
         const destPath = path.join(dest, entry.name);
 
+        if (shouldSkipPath(entry.name, src, srcRoot, exclusions)) {
+            continue;
+        }
+
         if (entry.isDirectory()) {
-            copyDirRecursive(srcPath, destPath, srcRoot);
+            copyDirRecursive(srcPath, destPath, srcRoot, exclusions);
         } else {
             if (entry.name === 'module.json' && src === srcRoot) {
                 continue;
@@ -238,7 +249,8 @@ async function extractCoreModule(moduleSpecifier, coreDir, projectRoot, version)
         deleteFolderRecursive(fullPath);
     }
     
-    copyDirRecursive(srcDir, destDir);
+    const exclusions = existingRecord?.exclusions || [];
+    copyDirRecursive(srcDir, destDir, srcDir, exclusions);
     
     let installedBy = ['user'];
     if (existingRecord) {
@@ -253,7 +265,7 @@ async function extractCoreModule(moduleSpecifier, coreDir, projectRoot, version)
         module: moduleSpecifier,
         path: installPath,
         installedBy,
-        exclusions: []
+        exclusions
     };
     
     recordModule(projectRoot, record);
@@ -341,7 +353,8 @@ async function extractCoreModuleFromTemplate(moduleSpecifier, coreDir, projectRo
         deleteFolderRecursive(fullPath);
     }
     
-    copyDirRecursive(srcDir, destDir);
+    const exclusions = existingRecord?.exclusions || [];
+    copyDirRecursive(srcDir, destDir, srcDir, exclusions);
     
     let installedBy = [installedByTag];
     if (existingRecord) {
@@ -356,7 +369,7 @@ async function extractCoreModuleFromTemplate(moduleSpecifier, coreDir, projectRo
         module: moduleSpecifier,
         path: installPath,
         installedBy,
-        exclusions: []
+        exclusions
     };
     
     recordModule(projectRoot, record);

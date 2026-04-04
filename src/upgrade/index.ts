@@ -31,7 +31,14 @@ function deleteFolderRecursive(dirPath) {
     return false;
 }
 
-function copyDirRecursive(src, dest, srcRoot = src) {
+function shouldSkipPath(entryName: string, currentSrc: string, srcRoot: string, exclusions: string[]): boolean {
+    const relativePath = path.relative(srcRoot, path.join(currentSrc, entryName)).replace(/\\/g, '/');
+    return exclusions.some(excl => 
+        relativePath === excl || relativePath.startsWith(excl + '/')
+    );
+}
+
+function copyDirRecursive(src, dest, srcRoot = src, exclusions: string[] = []) {
     if (!fs.existsSync(src)) {
         return;
     }
@@ -44,8 +51,12 @@ function copyDirRecursive(src, dest, srcRoot = src) {
         const srcPath = path.join(src, entry.name);
         const destPath = path.join(dest, entry.name);
 
+        if (shouldSkipPath(entry.name, src, srcRoot, exclusions)) {
+            continue;
+        }
+
         if (entry.isDirectory()) {
-            copyDirRecursive(srcPath, destPath, srcRoot);
+            copyDirRecursive(srcPath, destPath, srcRoot, exclusions);
         } else {
             fs.copyFileSync(srcPath, destPath);
         }
@@ -89,7 +100,7 @@ async function upgradeModule(record: ModuleRecord, newVersion: string, projectRo
 
     const installPath = getInstallPath(record.module);
     const destDir = path.join(projectRoot, installPath);
-    copyDirRecursive(srcDir, destDir);
+    copyDirRecursive(srcDir, destDir, srcDir, record.exclusions || []);
 
     updateModuleRecord(projectRoot, record.module, (r) => ({
         ...r,
