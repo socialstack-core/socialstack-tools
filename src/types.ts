@@ -77,3 +77,15 @@ export interface ModuleRecord {
 export interface ModulesJson {
     modules: ModuleRecord[];
 }
+
+export interface ModuleJsonDependency {
+	optional: boolean;
+	key: string;
+	reason: string;
+}
+
+export interface ModuleJson {
+	name: string;
+	description: string;
+	modules: ModuleJsonDependency[];
+}
