@@ -4,9 +4,15 @@
 	"description": "Tools for easily managing SocialStack projects.",
 	"main": "dist/index.js",
 	"scripts": {
+		"prepack": "npm run build",
 		"build": "rimraf dist && tsc && copyfiles -u 1 -e \"src/**/*.ts\" \"src/**/*\" dist",
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
+	"files": [
+		"dist",
+		"bin",
+		"README.md"
+	],
 	"preferGlobal": true,
 	"bin": {
 		"socialstack": "./bin/socialstack.cjs"
