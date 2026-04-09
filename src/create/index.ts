@@ -228,7 +228,11 @@ export const run = async (config) => {
     }
 
     const databaseEngine = config.createOptions?.database || defaultDatabaseEngine;
-
+	
+	// Remove any default config from the project itself:
+	delete appsettings.MongoConnectionStrings;
+	delete appsettings.ConnectionStrings;
+	
     if (databaseEngine !== 'none') {
         const dbModule = getDatabaseModule(databaseEngine);
         const coreDir = await getCoreZipPathForInstall(projectRoot);
@@ -242,7 +246,7 @@ export const run = async (config) => {
                 console.log('Warning: Failed to install database module: ' + (err.message || err));
             }
         }
-
+		
         if (databaseEngine === 'mongo' || databaseEngine === 'mongodb') {
             appsettings.MongoConnectionStrings = {
                 DefaultConnection: `mongodb://localhost:27017/${projectId.schemaName}?ssl=false`

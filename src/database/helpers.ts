@@ -106,12 +106,14 @@ async function createMySqlDatabase(connectionString: string, localConfig) {
         return;
     }
 
-    const connection = mysql.createConnection({
+    const pool = mysql.createPool({
         host: localConfig.databases.local.server || 'localhost',
         user: localConfig.databases.local.username,
         password: localConfig.databases.local.password,
         multipleStatements: true
     });
+
+    const connection = await pool.getConnection();
 
     try {
         const [rows] = await connection.query(`SHOW DATABASES LIKE '${parsed.database}'`);
@@ -136,7 +138,8 @@ async function createMySqlDatabase(connectionString: string, localConfig) {
 		console.error(e);
 		throw e;
     } finally {
-        connection.destroy();
+        connection.release();
+        pool.end();
     }
 }
 
