@@ -251,7 +251,7 @@ export const run = async (config) => {
             const password = generatePassword();
             const userName = projectId.schemaName + '_u';
             appsettings.ConnectionStrings = {
-                DefaultConnection: `server=localhost;port=3306;SslMode=none;AllowPublicKeyRetrieval=true;database=${projectId.schemaName};user=${userName};password=${password}`
+                DefaultConnection: `server=localhost;port=3306;AllowPublicKeyRetrieval=true;database=${projectId.schemaName};user=${userName};password=${password}`
             };
         }
 
