@@ -148,14 +148,14 @@ async function setupDatabaseFromAppsettings(projectRoot: string) {
         return;
     }
 
-    const localConfig = getLocalConfig();
-    if (!localConfig?.databases?.local) {
-        throw new Error('socialstack tools not configured with a local database connection. Run "socialstack configure" first.');
-    }
-
     if (primaryConn.type === 'mongo') {
         await createMongoDatabase(primaryConn.connectionString);
     } else {
+		const localConfig = getLocalConfig();
+		if (!localConfig?.databases?.local) {
+			throw new Error('socialstack tools not configured with a local database connection. Run "socialstack configure" first.');
+		}
+		
         await createMySqlDatabase(primaryConn.connectionString, localConfig);
     }
 }
