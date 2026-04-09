@@ -13,8 +13,7 @@ const skipPrefixes = [
     'Email/Source/',
     'Api/',
     'Templates/',
-    'ModuleTemplates/',
-    'Tests/'
+    'ModuleTemplates/'
 ];
 
 const databaseEngineMap: Record<string, string | null> = {
