@@ -5,12 +5,27 @@
 /*
 * Imports for file types to not be treated as a static file.
 */
-import babelCore from '@babel/core';
-import presetEnv from '@babel/preset-env';
-import presetReact from '@babel/preset-react';
-import parseTypescript from '@babel/plugin-syntax-typescript';
-import transformTypescript from '@babel/plugin-transform-typescript';
+const path = require('path');
+
+// import babelCore from '@babel/core';
+// import presetEnv from '@babel/preset-env';
+// import presetReact from '@babel/preset-react';
+// import parseTypescript from '@babel/plugin-syntax-typescript';
+// import transformTypescript from '@babel/plugin-transform-typescript';
 import mangleNames from './babel-mangler/index.js';
+
+var babelCore, presetEnv, presetReact, parseTypescript, transformTypescript;
+
+function getBabelModules() {
+    if (!babelCore) {
+        babelCore = require('@babel/core');
+        presetEnv = require('@babel/preset-env');
+        presetReact = require('@babel/preset-react');
+        parseTypescript = require('@babel/plugin-syntax-typescript');
+        transformTypescript = require('@babel/plugin-transform-typescript');
+    }
+    return { babelCore, presetEnv, presetReact, parseTypescript, transformTypescript };
+}
 
 var nonStaticFileTypes = {
 	js: true,
@@ -1102,17 +1117,33 @@ var minifiedPlugin = createPlugin(true);
 var nonMinifiedPlugin = createPlugin(false);
 var tsPropsPlugin = createTsExportPlugin();
 
-var presetsES8 = [
-	[presetEnv, {targets:{chrome: 90}, modules: false}],
-	[presetReact, {useSpread: true, pragma: '_h'}]
-];
+function getBabelModules() {
+    if (!babelCore) {
+        babelCore = require('@babel/core');
+        presetEnv = require('@babel/preset-env');
+        presetReact = require('@babel/preset-react');
+        parseTypescript = require('@babel/plugin-syntax-typescript');
+        transformTypescript = require('@babel/plugin-transform-typescript');
+    }
+    return { babelCore, presetEnv, presetReact, parseTypescript, transformTypescript };
+}
 
-function transformES8Json(code, moduleName, fullModulePath, opts){
-	var result = transformES8(code, moduleName, fullModulePath, opts);
-	return JSON.stringify(result);
+var presetsES8 = null;
+
+function getPresetsES8() {
+    if (!presetsES8) {
+        const { presetEnv, presetReact } = getBabelModules();
+        presetsES8 = [
+            [presetEnv, {targets:{chrome: 90}, modules: false}],
+            [presetReact, {useSpread: true, pragma: '_h'}]
+        ];
+    }
+    return presetsES8;
 }
 
 function transformES8(code, moduleName, fullModulePath, opts){
+	var { babelCore, presetEnv, presetReact, parseTypescript, transformTypescript } = getBabelModules();
+	
 	var templateLiterals = []; // Each entry is added as {original: 'original ${source}'}
 	var customTypeData = []; // Each interface or typescript type encountered gets put in here, and a special set called 'export' is added as well.
 	// {name: 'x', isExport: false, fields: [{name: 'x', type: 'stringName'}]}
@@ -1139,7 +1170,7 @@ function transformES8(code, moduleName, fullModulePath, opts){
 		code,
 		{
 			filename: moduleName,
-			presets: presetsES8,
+			presets: getPresetsES8(),
 			caller: {
 				name: 'es8'
 			},

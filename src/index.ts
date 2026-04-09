@@ -31,7 +31,8 @@ export const run = (config: SocialStackConfig) => {
     program
         .name('socialstack')
         .description(pkg.description)
-        .version(pkg.version, '-v, --version, version', 'outputs the currently installed version of SocialStack tools');
+        .version(pkg.version, '-v, --version, version', 'outputs the currently installed version of SocialStack tools')
+        .showHelpAfterError(true);
 
     // Helper to ensure we are in a project folder before running
     const withProject = (fn: any) => {
@@ -52,9 +53,12 @@ export const run = (config: SocialStackConfig) => {
         .option('--prod', 'Minify and pre-gzip the UI builds for you')
         .option('--force', 'Force internal build chain')
         .option('--noCache', 'Disabled build cache')
-        .action(withProject((options: any) => {
+        .action(withProject((options: any, _command) => {
+            if (options.prod) {
+                config.minified = true;
+                config.commandLine = Object.assign({}, config.commandLine, { prod: true });
+            }
             if (options.force) config.force = true;
-            if (options.prod) config.minified = true;
             if (options.noCache) config.noCache = true;
 
             buildUI(config, false).then(() => {
@@ -110,6 +114,7 @@ export const run = (config: SocialStackConfig) => {
             if (options.prod) {
                 config.minified = true;
                 config.compress = true;
+                config.commandLine = Object.assign({}, config.commandLine, { prod: true });
             }
             if (options.force) config.force = true;
 
@@ -305,5 +310,7 @@ export const run = (config: SocialStackConfig) => {
 
     if (!config.commandLine) config.commandLine = { command: 'watch', '-': [] };
 
-    program.parse(process.argv);
+    const argv = process.argv.map(arg => arg === '-prod' ? '--prod' : arg);
+
+    program.parse(argv);
 };
