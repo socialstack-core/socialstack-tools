@@ -267,6 +267,16 @@ export const run = async (config) => {
         console.log('No database configured. Project will run in in-memory mode.');
     }
 
+    console.log('Installing npm dependencies...');
+    await new Promise<void>((resolve, reject) => {
+        exec('npm i', { cwd: projectRoot }, (err, stdout, stderr) => {
+            if (err) {
+                console.log('Warning: npm install failed:', err.message);
+            }
+            resolve();
+        });
+    });
+
     console.log('Complete! You can now run the project with "dotnet run" or start it with your favourite IDE.');
     } catch (err) {
         console.error('Error:', err.message || err);
