@@ -132,8 +132,11 @@ async function createMySqlDatabase(connectionString: string, localConfig) {
         }
 
         console.log(`MySQL database '${parsed.database}' and user '${parsed.user}' created.`);
+	} catch(e) {
+		console.error(e);
+		throw e;
     } finally {
-        connection.end();
+        connection.destroy();
     }
 }
 
