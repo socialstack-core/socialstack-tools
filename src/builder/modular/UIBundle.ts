@@ -178,6 +178,7 @@ class UIBundle {
 		var segments = [];
 		var jsMeta = {
 			buildTime: Date.now(),
+			buildTimeText: new Date().toISOString(),
 			templates: [],
 			codeModules: {}
 		};
