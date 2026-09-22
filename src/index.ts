@@ -22,6 +22,7 @@ import { run as mod_install } from './install/index.js';
 import { run as mod_uninstall } from './uninstall/index.js';
 import { run as mod_move } from './move/index.js';
 import { run as mod_upgrade } from './upgrade/index.js';
+import { run as mod_cull } from './cull/index.js';
 
 // Commands
 
@@ -291,6 +292,16 @@ export const run = (config: SocialStackConfig) => {
                 dryRun: options.dryRun
             };
             mod_upgrade(config);
+        }));
+
+    program
+        .command('cull <section>')
+        .description("uninstall unused components within the given section's (Api, Email or UI) ThirdParty folder")
+        .option('--dryRun', 'Show what would be removed without removing it')
+        .option('--yes', 'Skip confirmation prompt')
+        .action(withProject((section: string, options: any) => {
+            config.commandLine = { command: 'cull', '-': [section], dryRun: options.dryRun, yes: options.yes };
+            mod_cull(config);
         }));
 
     program.on('command:*', function () {
