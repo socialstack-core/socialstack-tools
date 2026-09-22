@@ -52,6 +52,8 @@ export interface SocialStackConfig {
 
     createOptions?: {
         template?: string;
+        database?: string;
+        branch?: string;
     };
 }
 

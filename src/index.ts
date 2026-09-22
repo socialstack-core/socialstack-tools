@@ -246,6 +246,7 @@ export const run = (config: SocialStackConfig) => {
         .description('creates a new blank SocialStack project in your working directory')
         .option('--template <name-or-url>', 'Template to use: none, standard, or URL (default: standard)')
         .option('--database <engine>', 'Database engine to install: none, mysql, mongo (default: mongo)')
+        .option('--branch <version>', 'Core version/branch to create the project from (default: latest core-* branch)')
         .action((options) => {
             config.createOptions = options;
             mod_create(config);

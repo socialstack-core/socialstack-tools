@@ -159,17 +159,25 @@ export const run = async (config) => {
 
     const templateName = config.createOptions?.template || 'standard';
 
-    console.log('Finding latest SocialStack core version...');
-    const latestBranch = await getLatestCoreBranch();
-    if (!latestBranch) {
-        throw new Error('No core-* branch found in the repository');
+    const requestedBranch = config.createOptions?.branch;
+
+    let coreBranch: string;
+    if (requestedBranch) {
+        coreBranch = requestedBranch.startsWith('core-') ? requestedBranch : 'core-' + requestedBranch;
+        console.log('Using core branch: ' + coreBranch);
+    } else {
+        console.log('Finding latest SocialStack core version...');
+        coreBranch = await getLatestCoreBranch();
+        if (!coreBranch) {
+            throw new Error('No core-* branch found in the repository');
+        }
+        console.log('Latest version: ' + coreBranch.replace('core-', ''));
     }
 
-    const coreVersion = latestBranch.replace('core-', '');
-    console.log('Latest version: ' + coreVersion);
+    const coreVersion = coreBranch.replace('core-', '');
 
     console.log('Extracting core files...');
-    const coreExtractDir = await getCoreZipPath(latestBranch);
+    const coreExtractDir = await getCoreZipPath(coreBranch);
 
     console.log('Copying core files to project (skipping module directories)...');
     copyDirRecursiveSkippingModules(coreExtractDir, projectRoot);
