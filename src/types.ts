@@ -54,6 +54,7 @@ export interface SocialStackConfig {
         template?: string;
         database?: string;
         branch?: string;
+        noCache?: boolean;
     };
 }
 

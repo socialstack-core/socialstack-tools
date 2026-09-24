@@ -255,7 +255,7 @@ function getRepoBranchNames(repoUrl: string): Promise<string[]> {
 	});
 }
 
-function getRepoZipPath(repoUrl: string, branchName: string): Promise<string> {
+function getRepoZipPath(repoUrl: string, branchName: string, forceRefresh?: boolean): Promise<string> {
 	const repo = getRepoOwnerAndName(repoUrl);
 	if (!repo) {
 		return Promise.reject(new Error('Invalid repository URL: ' + repoUrl));
@@ -264,6 +264,11 @@ function getRepoZipPath(repoUrl: string, branchName: string): Promise<string> {
 	const cacheKey = repo.owner + '-' + repo.name + '-' + branchName;
 	const moduleTemplateCache = adp + '/module_template_cache';
 	const extractDir = moduleTemplateCache + '/' + cacheKey;
+
+	if (forceRefresh && fs.existsSync(extractDir)) {
+		console.log('Refreshing cached repository: ' + cacheKey);
+		deleteFolderRecursive(extractDir);
+	}
 
 	if (fs.existsSync(extractDir)) {
 		return Promise.resolve(extractDir);
@@ -323,6 +328,25 @@ function getRepoZipPath(repoUrl: string, branchName: string): Promise<string> {
 	});
 }
 
+function deleteFolderRecursive(dirPath: string) {
+	if (!dirPath || dirPath == '/') {
+		return false;
+	}
+	if (fs.existsSync(dirPath)) {
+		fs.readdirSync(dirPath).forEach((file) => {
+			var curPath = path.join(dirPath, file);
+			if (fs.lstatSync(curPath).isDirectory()) {
+				deleteFolderRecursive(curPath);
+			} else {
+				fs.unlinkSync(curPath);
+			}
+		});
+		fs.rmdirSync(dirPath);
+		return true;
+	}
+	return false;
+}
+
 function extractZipToDir(zipPath: string, destDir: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		fs.mkdirSync(destDir, { recursive: true });
@@ -358,8 +382,8 @@ function extractZipToDir(zipPath: string, destDir: string): Promise<void> {
 	});
 }
 
-function getCoreZipPath(branchName: string): Promise<string> {
-	return getRepoZipPath('https://github.com/socialstack-core/modules', branchName);
+function getCoreZipPath(branchName: string, forceRefresh?: boolean): Promise<string> {
+	return getRepoZipPath('https://github.com/socialstack-core/modules', branchName, forceRefresh);
 }
 
 function findClosestCoreBranch(targetVersion: string): Promise<string | null> {

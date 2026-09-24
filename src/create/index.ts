@@ -177,7 +177,7 @@ export const run = async (config) => {
     const coreVersion = coreBranch.replace('core-', '');
 
     console.log('Extracting core files...');
-    const coreExtractDir = await getCoreZipPath(coreBranch);
+    const coreExtractDir = await getCoreZipPath(coreBranch, config.createOptions?.noCache);
 
     console.log('Copying core files to project (skipping module directories)...');
     copyDirRecursiveSkippingModules(coreExtractDir, projectRoot);
@@ -214,7 +214,7 @@ export const run = async (config) => {
     console.log('Processing template: ' + templateName);
 
     if (templateName !== 'none') {
-        const coreDir = await getCoreZipPathForInstall(projectRoot);
+        const coreDir = await getCoreZipPathForInstall(projectRoot, config.createOptions?.noCache);
 
         if (isUrl(templateName)) {
             console.log('Loading template from URL...');
@@ -243,7 +243,7 @@ export const run = async (config) => {
 	
     if (databaseEngine !== 'none') {
         const dbModule = getDatabaseModule(databaseEngine);
-        const coreDir = await getCoreZipPathForInstall(projectRoot);
+        const coreDir = await getCoreZipPathForInstall(projectRoot, config.createOptions?.noCache);
         const projectId = getProjectIdentifier(projectRoot);
 
         if (dbModule) {

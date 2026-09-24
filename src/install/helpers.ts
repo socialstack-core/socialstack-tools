@@ -532,16 +532,16 @@ async function installModuleFromTemplate(spec, projectRoot, coreDir, templateNam
     }
 }
 
-function getCoreZipPathForInstall(projectRoot) {
-    const appsettingsPath = path.join(projectRoot, 'appsettings.json');
-    const appsettings = new jsConfigManager(appsettingsPath).get();
+function getCoreZipPathForInstall(projectRoot, forceRefresh?: boolean) {
+	const appsettingsPath = path.join(projectRoot, 'appsettings.json');
+	const appsettings = new jsConfigManager(appsettingsPath).get();
 
-    if (!appsettings.CoreVersion) {
-        throw new Error('CoreVersion is required in appsettings.json for the install command. Run "socialstack create" first.');
-    }
+	if (!appsettings.CoreVersion) {
+		throw new Error('CoreVersion is required in appsettings.json for the install command. Run "socialstack create" first.');
+	}
 
-    const coreBranch = 'core-' + appsettings.CoreVersion;
-    return getCoreZipPath(coreBranch);
+	const coreBranch = 'core-' + appsettings.CoreVersion;
+	return getCoreZipPath(coreBranch, forceRefresh);
 }
 
 async function installModules(modules, projectRoot) {

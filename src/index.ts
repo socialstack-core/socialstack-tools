@@ -247,6 +247,7 @@ export const run = (config: SocialStackConfig) => {
         .option('--template <name-or-url>', 'Template to use: none, standard, or URL (default: standard)')
         .option('--database <engine>', 'Database engine to install: none, mysql, mongo (default: mongo)')
         .option('--branch <version>', 'Core version/branch to create the project from (default: latest core-* branch)')
+        .option('--noCache', 'Ignore cached repository downloads and re-fetch templates/modules from source')
         .action((options) => {
             config.createOptions = options;
             mod_create(config);
